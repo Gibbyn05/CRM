@@ -1,13 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import TeamChat from "./TeamChat";
 import type { AuthorMap } from "@/lib/chat-types";
+import type { Message } from "@/lib/types";
 
 // Flytende chat-boble nederst i høyre hjørne. Klikk åpner en liten pop-up med
-// team-chatten. Vises på alle innloggede sider (montert i dashboard-layouten).
+// team-chatten. Viser et rødt uleste-merke når nye meldinger kommer mens bobla
+// er lukket.
 export default function ChatWidget({ authors }: { authors: AuthorMap }) {
+  const supabase = createClient();
   const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Refs så lytteren alltid leser ferskeste verdier uten å re-abonnere.
+  const openRef = useRef(open);
+  const userIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    openRef.current = open;
+    if (open) setUnread(0); // åpne = alt lest
+  }, [open]);
+
+  useEffect(() => {
+    supabase.auth
+      .getUser()
+      .then(({ data }) => (userIdRef.current = data.user?.id ?? null));
+
+    // Lett lytter som teller uleste team-meldinger mens bobla er lukket.
+    const channel = supabase
+      .channel("chat_widget_unread")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: "channel=eq.team",
+        },
+        (payload) => {
+          const m = payload.new as Message;
+          if (openRef.current) return; // åpen → allerede synlig
+          if (m.author_id && m.author_id === userIdRef.current) return; // egne teller ikke
+          setUnread((u) => u + 1);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   return (
     <>
@@ -28,13 +72,25 @@ export default function ChatWidget({ authors }: { authors: AuthorMap }) {
         </div>
       )}
 
-      {/* Boble-knapp (løftet over statuslinja) */}
+      {/* Boble-knapp (løftet over statuslinja) med uleste-merke */}
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Lukk chat" : "Åpne chat"}
+        aria-label={
+          open
+            ? "Lukk chat"
+            : unread > 0
+              ? `Åpne chat (${unread} uleste)`
+              : "Åpne chat"
+        }
         className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-2xl text-white shadow-lg transition hover:scale-105 hover:bg-slate-800 sm:right-6"
       >
         {open ? "✕" : "💬"}
+
+        {!open && unread > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white ring-2 ring-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
       </button>
     </>
   );
