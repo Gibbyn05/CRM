@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +15,9 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    // Klienten opprettes her (ikke under render) slik at siden kan
+    // prerendres ved build uten at NEXT_PUBLIC-miljøvariablene er satt.
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,

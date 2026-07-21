@@ -80,6 +80,12 @@ Kopier `.env.example` til `.env.local` og fyll inn. Viktigst:
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `TELEPHONY_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`.
 
+> **Deploy-merknad:** `NEXT_PUBLIC_*`-variablene bakes inn ved **build**. Sett
+> dem i deploy-plattformen (f.eks. Vercel → Project Settings → Environment
+> Variables) *før* du bygger, ellers vil klienten mangle Supabase-konfig i
+> runtime. Selve `npm run build` krasjer ikke om de mangler, men appen fungerer
+> ikke før de er satt og prosjektet er bygget på nytt.
+
 ### 4. Kjør
 ```bash
 npm run dev
