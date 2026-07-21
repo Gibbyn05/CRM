@@ -8,8 +8,8 @@ import type { DealWithCustomer } from "@/app/(dashboard)/pipeline/page";
 import { DEAL_STAGES, DEAL_STAGE_LABELS, DEAL_STAGE_COLORS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 
-// Enkel Kanban-pipeline. Kort flyttes mellom steg med piler (fungerer godt på
-// både desktop og mobil). Summerer beløp per kolonne.
+// Kanban-pipeline med drag-and-drop. Dra kortene mellom kolonnene, eller bruk
+// pilene (nyttig på touch). Summerer beløp per kolonne.
 export default function PipelineBoard({
   initialDeals,
 }: {
@@ -17,16 +17,29 @@ export default function PipelineBoard({
 }) {
   const supabase = createClient();
   const [deals, setDeals] = useState<DealWithCustomer[]>(initialDeals);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overStage, setOverStage] = useState<DealStage | null>(null);
 
   async function move(deal: DealWithCustomer, stage: DealStage) {
+    if (deal.stage === stage) return;
     const patch: Partial<DealWithCustomer> = { stage };
     if (stage === "tilbud_sendt" && !deal.offer_sent_at)
       patch.offer_sent_at = new Date().toISOString();
     if (stage === "akseptert" && !deal.offer_accepted_at)
       patch.offer_accepted_at = new Date().toISOString();
 
-    await supabase.from("deals").update(patch).eq("id", deal.id);
+    // Optimistisk oppdatering.
     setDeals((ds) => ds.map((d) => (d.id === deal.id ? { ...d, ...patch } : d)));
+    await supabase.from("deals").update(patch).eq("id", deal.id);
+  }
+
+  function onDrop(stage: DealStage) {
+    setOverStage(null);
+    const id = draggingId;
+    setDraggingId(null);
+    if (!id) return;
+    const deal = deals.find((d) => d.id === id);
+    if (deal) move(deal, stage);
   }
 
   return (
@@ -35,9 +48,21 @@ export default function PipelineBoard({
         const stageDeals = deals.filter((d) => d.stage === stage);
         const total = stageDeals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
         const stageIndex = DEAL_STAGES.indexOf(stage);
+        const isOver = overStage === stage;
 
         return (
-          <div key={stage} className="rounded-xl bg-slate-200/60 p-3">
+          <div
+            key={stage}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOverStage(stage);
+            }}
+            onDragLeave={() => setOverStage((s) => (s === stage ? null : s))}
+            onDrop={() => onDrop(stage)}
+            className={`rounded-xl p-3 transition ${
+              isOver ? "bg-slate-300 ring-2 ring-slate-400" : "bg-slate-200/60"
+            }`}
+          >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold text-slate-700">
                 {DEAL_STAGE_LABELS[stage]}
@@ -51,7 +76,15 @@ export default function PipelineBoard({
               {stageDeals.map((d) => (
                 <div
                   key={d.id}
-                  className={`rounded-lg border-l-4 bg-white p-3 shadow-sm ${DEAL_STAGE_COLORS[stage]}`}
+                  draggable
+                  onDragStart={() => setDraggingId(d.id)}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setOverStage(null);
+                  }}
+                  className={`cursor-grab rounded-lg border-l-4 bg-white p-3 shadow-sm active:cursor-grabbing ${
+                    DEAL_STAGE_COLORS[stage]
+                  } ${draggingId === d.id ? "opacity-40" : ""}`}
                 >
                   <Link
                     href={`/customers/${d.customer_id}`}
@@ -82,7 +115,9 @@ export default function PipelineBoard({
                 </div>
               ))}
               {stageDeals.length === 0 && (
-                <p className="py-4 text-center text-xs text-slate-400">Tomt</p>
+                <p className="py-6 text-center text-xs text-slate-400">
+                  Dra kort hit
+                </p>
               )}
             </div>
           </div>

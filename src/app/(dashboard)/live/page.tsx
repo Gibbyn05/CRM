@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { AgentState, Profile } from "@/lib/types";
 import LiveBoard from "@/components/LiveBoard";
 import { toLiveRows } from "@/lib/live";
-import AgentStatusToggle from "@/components/AgentStatusToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +25,9 @@ export default async function LivePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Live-tavle</h1>
-          <p className="text-sm text-slate-500">
-            Sanntidsstatus for hele teamet
-          </p>
-        </div>
-        <AgentStatusToggle />
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Live-tavle</h1>
+        <p className="text-sm text-slate-500">Sanntidsstatus for hele teamet</p>
       </div>
 
       <LiveBoard initialAgents={rows} />

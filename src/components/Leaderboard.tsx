@@ -2,16 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LeaderboardRow } from "@/lib/types";
+import type { LeaderboardRow, Profile } from "@/lib/types";
 import { PERIODS, PERIOD_LABELS, periodRange, type Period } from "@/lib/periods";
 import { formatCurrency } from "@/lib/format";
+import Avatar from "./Avatar";
 
 // Filtrerbar ledertavle (dag/uke/måned/kvartal/år). Bruker RPC get_leaderboard.
+// Navn hentes fra profiles med fallback til e-post når full_name mangler.
 export default function Leaderboard() {
   const supabase = createClient();
   const [period, setPeriod] = useState<Period>("uke");
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
+  const [profiles, setProfiles] = useState<
+    Record<string, { name: string; avatar_url: string | null }>
+  >({});
   const [loading, setLoading] = useState(false);
+
+  // Hent profil-info én gang for visningsnavn + avatar.
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, avatar_url")
+      .then(({ data }) => {
+        const map: Record<string, { name: string; avatar_url: string | null }> = {};
+        for (const p of (data as Pick<
+          Profile,
+          "id" | "full_name" | "email" | "avatar_url"
+        >[]) ?? []) {
+          map[p.id] = {
+            name: p.full_name || p.email || "Ukjent",
+            avatar_url: p.avatar_url,
+          };
+        }
+        setProfiles(map);
+      });
+  }, [supabase]);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +56,10 @@ export default function Leaderboard() {
       active = false;
     };
   }, [period, supabase]);
+
+  function displayName(r: LeaderboardRow) {
+    return profiles[r.agent_id]?.name || r.full_name || "Ukjent";
+  }
 
   return (
     <div className="space-y-4">
@@ -60,7 +89,9 @@ export default function Leaderboard() {
               <th className="px-4 py-3 text-right">Bekreftede møter</th>
               <th className="px-4 py-3 text-right">Salg</th>
               <th className="px-4 py-3 text-right">Avslag</th>
-              <th className="hidden px-4 py-3 text-right sm:table-cell">Salgsverdi</th>
+              <th className="hidden px-4 py-3 text-right sm:table-cell">
+                Salgsverdi
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -69,10 +100,21 @@ export default function Leaderboard() {
                 <td className="px-4 py-3 font-bold text-slate-400">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                 </td>
-                <td className="px-4 py-3 font-medium text-slate-800">
-                  {r.full_name}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      name={displayName(r)}
+                      url={profiles[r.agent_id]?.avatar_url}
+                      size={28}
+                    />
+                    <span className="font-medium text-slate-800">
+                      {displayName(r)}
+                    </span>
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums">{r.calls_count}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {r.calls_count}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {r.meetings_confirmed}
                 </td>

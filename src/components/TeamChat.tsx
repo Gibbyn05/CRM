@@ -3,15 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Message } from "@/lib/types";
+import type { AuthorMap } from "@/lib/chat-types";
 import { formatTime } from "@/lib/format";
+import Avatar from "./Avatar";
 
 // Intern team-chat (channel = 'team'). Sanntid via Supabase Realtime.
+// Viser profilbilde + navn på hver melding.
 export default function TeamChat({
-  nameMap,
+  authors,
   heightClass = "h-[70vh]",
   embedded = false,
 }: {
-  nameMap: Record<string, string>;
+  authors: AuthorMap;
   // Lar chatten gjenbrukes både som full side og inne i chat-bobla.
   heightClass?: string;
   embedded?: boolean;
@@ -72,6 +75,11 @@ export default function TeamChat({
     });
   }
 
+  function authorInfo(id: string | null) {
+    if (id && authors[id]) return authors[id];
+    return { name: "Ukjent", avatar_url: null };
+  }
+
   return (
     <div
       className={`flex ${heightClass} flex-col ${
@@ -81,28 +89,36 @@ export default function TeamChat({
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.map((m) => {
           const mine = m.author_id === userId;
+          const a = authorInfo(m.author_id);
           return (
             <div
               key={m.id}
-              className={`flex flex-col ${mine ? "items-end" : "items-start"}`}
+              className={`flex items-end gap-2 ${
+                mine ? "flex-row-reverse" : "flex-row"
+              }`}
             >
+              <Avatar name={a.name} url={a.avatar_url} size={32} />
               <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                  mine
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-800"
+                className={`flex max-w-[75%] flex-col ${
+                  mine ? "items-end" : "items-start"
                 }`}
               >
-                {!mine && (
-                  <p className="mb-0.5 text-xs font-medium text-slate-500">
-                    {m.author_id ? nameMap[m.author_id] ?? "Ukjent" : "System"}
-                  </p>
-                )}
-                <p className="whitespace-pre-wrap text-sm">{m.body}</p>
+                <div className="mb-0.5 flex items-center gap-2 px-1">
+                  <span className="text-xs font-medium text-slate-600">
+                    {mine ? "Deg" : a.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {formatTime(m.created_at)}
+                  </span>
+                </div>
+                <div
+                  className={`rounded-2xl px-4 py-2 ${
+                    mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-800"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap text-sm">{m.body}</p>
+                </div>
               </div>
-              <span className="mt-0.5 text-[10px] text-slate-400">
-                {formatTime(m.created_at)}
-              </span>
             </div>
           );
         })}
