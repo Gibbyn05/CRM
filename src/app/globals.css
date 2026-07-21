@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+/* Sørg for at Tailwind ikke purger de dynamiske statusfargene. */
+/* safelist: bg-status-incall bg-status-idle bg-status-notincall bg-status-offline */
