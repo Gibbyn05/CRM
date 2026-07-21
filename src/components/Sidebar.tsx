@@ -13,7 +13,6 @@ const NAV = [
   { href: "/calendar", label: "Kalender", icon: "📅", managerHint: false },
   { href: "/leaderboard", label: "Ledertavle", icon: "🏆", managerHint: false },
   { href: "/dagsavis", label: "Dagsavis", icon: "📰", managerHint: false },
-  { href: "/chat", label: "Chat", icon: "💬", managerHint: false },
 ];
 
 export default function Sidebar({ profile }: { profile: Profile | null }) {

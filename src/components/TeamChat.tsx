@@ -8,8 +8,13 @@ import { formatTime } from "@/lib/format";
 // Intern team-chat (channel = 'team'). Sanntid via Supabase Realtime.
 export default function TeamChat({
   nameMap,
+  heightClass = "h-[70vh]",
+  embedded = false,
 }: {
   nameMap: Record<string, string>;
+  // Lar chatten gjenbrukes både som full side og inne i chat-bobla.
+  heightClass?: string;
+  embedded?: boolean;
 }) {
   const supabase = createClient();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -68,7 +73,11 @@ export default function TeamChat({
   }
 
   return (
-    <div className="flex h-[70vh] flex-col rounded-xl bg-white shadow-sm">
+    <div
+      className={`flex ${heightClass} flex-col ${
+        embedded ? "" : "rounded-xl bg-white shadow-sm"
+      }`}
+    >
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.map((m) => {
           const mine = m.author_id === userId;
