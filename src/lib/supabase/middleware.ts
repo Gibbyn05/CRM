@@ -2,14 +2,25 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Fornyer Supabase-sesjonen på hver request og beskytter ruter som krever
-// innlogging.
+// innlogging. Robust mot manglende konfig/transiente feil: middleware skal
+// aldri gi 500 på hele siden. Beskyttede sider dobbeltsjekker uansett auth
+// server-side i (dashboard)/layout.tsx.
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  // Uten Supabase-konfig: hopp over sesjonshåndtering i stedet for å krasje.
+  if (!url || !anonKey) {
+    console.warn(
+      "[middleware] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY mangler – hopper over sesjonshåndtering.",
+    );
+    return NextResponse.next({ request });
+  }
+
+  try {
+    let supabaseResponse = NextResponse.next({ request });
+
+    const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -24,26 +35,30 @@ export async function updateSession(request: NextRequest) {
           );
         },
       },
-    },
-  );
+    });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
+    const path = request.nextUrl.pathname;
 
-  // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook.
-  const isPublic =
-    path.startsWith("/login") ||
-    path.startsWith("/tv") ||
-    path.startsWith("/api/telephony");
+    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook.
+    const isPublic =
+      path.startsWith("/login") ||
+      path.startsWith("/tv") ||
+      path.startsWith("/api/telephony");
 
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    if (!user && !isPublic) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    return supabaseResponse;
+  } catch (err) {
+    // Transient feil (nettverk/konfig) skal ikke ta ned hele siden.
+    console.error("[middleware] Sesjonssjekk feilet:", err);
+    return NextResponse.next({ request });
   }
-
-  return supabaseResponse;
 }
