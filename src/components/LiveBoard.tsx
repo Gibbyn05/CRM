@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { AgentState, LiveAgentRow, Profile } from "@/lib/types";
+import type { AgentState, LiveAgentRow } from "@/lib/types";
 import AgentCard from "./AgentCard";
 
 // Live agent-status tavle. Abonnerer på Supabase Realtime for agent_states og
@@ -113,23 +113,4 @@ function StatBox({
       <p className="text-sm text-slate-500">{label}</p>
     </div>
   );
-}
-
-// Hjelpefunksjon: bygg LiveAgentRow-er fra profiles + agent_states join.
-export function toLiveRows(
-  profiles: Pick<Profile, "id" | "full_name">[],
-  states: AgentState[],
-): LiveAgentRow[] {
-  const stateMap = new Map(states.map((s) => [s.agent_id, s]));
-  return profiles.map((p) => {
-    const s = stateMap.get(p.id);
-    return {
-      agent_id: p.id,
-      full_name: p.full_name,
-      status: s?.status ?? "offline",
-      last_call_started_at: s?.last_call_started_at ?? null,
-      last_call_ended_at: s?.last_call_ended_at ?? null,
-      status_changed_at: s?.status_changed_at ?? new Date().toISOString(),
-    };
-  });
 }

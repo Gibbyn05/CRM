@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AgentState, Profile } from "@/lib/types";
-import { toLiveRows } from "@/components/LiveBoard";
+import { toLiveRows } from "@/lib/live";
 
 // Offentlig live-tavle-data for TV/kiosk-visningen. Bruker service-role slik
 // at storskjermen kan vise status uten innlogging. Returnerer kun ikke-

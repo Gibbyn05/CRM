@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AgentState, Profile } from "@/lib/types";
-import LiveBoard, { toLiveRows } from "@/components/LiveBoard";
+import LiveBoard from "@/components/LiveBoard";
+import { toLiveRows } from "@/lib/live";
 import AgentStatusToggle from "@/components/AgentStatusToggle";
 
 export const dynamic = "force-dynamic";
