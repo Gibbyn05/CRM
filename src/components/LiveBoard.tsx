@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AgentState, LiveAgentRow } from "@/lib/types";
 import AgentCard from "./AgentCard";
+import Icon, { type IconName } from "./Icon";
 
 // Live agent-status tavle. Abonnerer på Supabase Realtime for agent_states og
 // oppdaterer uten refresh. Brukes av det innloggede /live-dashboardet.
@@ -74,16 +75,33 @@ export default function LiveBoard({
   }, [agents]);
 
   return (
-    <div>
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatBox label="I samtale" value={counts.in_call} color="text-status-incall" />
-        <StatBox label="Ledig" value={counts.available} color="text-status-idle" />
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <StatBox
+          label="I samtale"
+          value={counts.in_call}
+          icon="phone"
+          tint="bg-red-50 text-status-incall"
+          pulse
+        />
+        <StatBox
+          label="Ledig"
+          value={counts.available}
+          icon="check"
+          tint="bg-emerald-50 text-status-idle"
+        />
         <StatBox
           label="Ikke i samtale"
           value={counts.not_in_call}
-          color="text-status-notincall"
+          icon="phone-off"
+          tint="bg-amber-50 text-status-notincall"
         />
-        <StatBox label="Frakoblet" value={counts.offline} color="text-status-offline" />
+        <StatBox
+          label="Frakoblet"
+          value={counts.offline}
+          icon="power"
+          tint="bg-slate-100 text-slate-500"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -91,7 +109,9 @@ export default function LiveBoard({
           <AgentCard key={a.agent_id} agent={a} />
         ))}
         {sorted.length === 0 && (
-          <p className="text-slate-500">Ingen agenter registrert ennå.</p>
+          <div className="card col-span-full p-10 text-center text-sm text-slate-500">
+            Ingen agenter registrert ennå.
+          </div>
         )}
       </div>
     </div>
@@ -101,16 +121,29 @@ export default function LiveBoard({
 function StatBox({
   label,
   value,
-  color,
+  icon,
+  tint,
+  pulse = false,
 }: {
   label: string;
   value: number;
-  color: string;
+  icon: IconName;
+  tint: string;
+  pulse?: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm">
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      <p className="text-sm text-slate-500">{label}</p>
+    <div className="card flex items-center gap-3 p-4">
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tint} ${
+          pulse && value > 0 ? "animate-pulse" : ""
+        }`}
+      >
+        <Icon name={icon} size={20} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-2xl font-bold leading-none text-slate-900">{value}</p>
+        <p className="mt-1 truncate text-xs font-medium text-slate-500">{label}</p>
+      </div>
     </div>
   );
 }

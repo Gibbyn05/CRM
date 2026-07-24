@@ -72,12 +72,12 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   }
 
   return (
-    <div className="max-w-lg space-y-5 rounded-xl bg-white p-6 shadow-sm">
+    <div className="card max-w-lg space-y-5 p-6">
       {/* Profilbilde */}
       <div className="flex items-center gap-4">
         <Avatar name={fullName || profile.email} url={avatarUrl} size={72} />
         <div>
-          <label className="inline-block cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+          <label className="inline-block cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
             {uploading ? "Laster opp …" : "Last opp bilde"}
             <input
               type="file"
@@ -96,7 +96,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         <input
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -105,7 +105,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         <input
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -115,7 +115,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           value={avatarUrl}
           onChange={(e) => setAvatarUrl(e.target.value)}
           placeholder="https://…"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -141,7 +141,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       <button
         onClick={save}
         disabled={saving}
-        className="rounded-lg bg-slate-900 px-5 py-2.5 font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        className="rounded-lg bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-50"
       >
         {saving ? "Lagrer …" : "Lagre profil"}
       </button>

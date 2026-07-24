@@ -72,7 +72,7 @@ export default function NotesLog({
   }
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm">
+    <div className="card p-5">
       <h2 className="mb-3 text-lg font-bold text-slate-900">Logg</h2>
 
       <div className="mb-4 space-y-2">
@@ -81,7 +81,7 @@ export default function NotesLog({
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           placeholder="Skriv notat fra samtale/interaksjon …"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <div className="flex items-center gap-2">
           <select
@@ -96,7 +96,7 @@ export default function NotesLog({
           <button
             onClick={addNote}
             disabled={saving || !body.trim()}
-            className="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             Lagre notat
           </button>

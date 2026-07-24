@@ -53,16 +53,30 @@ export default async function CustomerDetailPage({
   );
 
   return (
-    <div className="space-y-4">
-      <Link href="/customers" className="text-sm text-slate-500 hover:underline">
+    <div className="space-y-5">
+      <Link
+        href="/customers"
+        className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-800"
+      >
         ← Tilbake til kunder
       </Link>
 
       {/* Kundekort-header */}
-      <div className="rounded-xl bg-white p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">{customer.name}</h1>
-        <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-600 sm:grid-cols-3">
-          <Field label="Org.nr" value={formatOrgNumber(customer.org_number)} />
+      <div className="card p-6">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold text-white shadow-sm">
+            {customer.name.trim().charAt(0).toUpperCase() || "?"}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold text-slate-900">
+              {customer.name}
+            </h1>
+            <p className="text-sm text-slate-500">
+              Org.nr {formatOrgNumber(customer.org_number)}
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-4">
           <Field label="Kontakt" value={customer.contact_name ?? "–"} />
           <Field label="E-post" value={customer.email ?? "–"} />
           <Field label="Telefon" value={customer.phone ?? "–"} />
@@ -102,9 +116,11 @@ export default async function CustomerDetailPage({
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <span className="text-slate-400">{label}: </span>
-      <span className="font-medium text-slate-700">{value}</span>
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate font-medium text-slate-700">{value}</p>
     </div>
   );
 }

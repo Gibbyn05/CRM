@@ -69,7 +69,7 @@ export default function NewCustomerButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
       >
         + Ny kunde
       </button>
@@ -96,7 +96,7 @@ export default function NewCustomerButton() {
                   <input
                     value={form[field]}
                     onChange={(e) => update(field, e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
                   />
                 </div>
               ))}
@@ -113,7 +113,7 @@ export default function NewCustomerButton() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {saving ? "Lagrer …" : "Lagre"}
               </button>

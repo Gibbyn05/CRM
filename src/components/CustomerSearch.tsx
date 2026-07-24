@@ -6,12 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/lib/types";
 import { formatOrgNumber } from "@/lib/format";
 import NewCustomerButton from "./NewCustomerButton";
+import Icon from "./Icon";
 
 // Søkbar kundeliste. Søker på navn (ILIKE) og org.nr. RLS sørger for at
 // selgere primært ser sine egne + ikke-tildelte kunder.
-export default function CustomerSearch() {
+export default function CustomerSearch({
+  initialQuery = "",
+}: {
+  initialQuery?: string;
+}) {
   const supabase = createClient();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -51,18 +56,25 @@ export default function CustomerSearch() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Søk navn eller org.nr …"
-          className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-        />
+        <div className="relative w-full max-w-md">
+          <Icon
+            name="search"
+            size={18}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Søk navn eller org.nr …"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
         <NewCustomerButton />
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+      <div className="card overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500">
+          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-3">Navn</th>
               <th className="hidden px-4 py-3 sm:table-cell">Org.nr</th>

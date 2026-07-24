@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 import Sidebar from "@/components/Sidebar";
+import Topbar from "@/components/Topbar";
 import ChatWidget from "@/components/ChatWidget";
 import StatusBar from "@/components/StatusBar";
 import type { AuthorInfo } from "@/lib/chat-types";
@@ -38,10 +39,14 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar profile={profile} />
-      {/* pb-20 gir plass til den faste statuslinja nederst */}
-      <main className="flex-1 overflow-x-hidden bg-slate-100 p-4 pb-24 md:p-6 md:pb-24">
-        {children}
-      </main>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar profile={profile} />
+        {/* pb-24 gir plass til den faste statuslinja nederst */}
+        <main className="flex-1 overflow-x-hidden p-4 pb-24 md:p-8 md:pb-24">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </main>
+      </div>
 
       {/* Flytende chat-boble + fast statuslinje nederst */}
       <ChatWidget authors={authors} />

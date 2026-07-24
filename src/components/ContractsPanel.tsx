@@ -48,7 +48,7 @@ export default function ContractsPanel({
   }
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm">
+    <div className="card p-5">
       <h2 className="mb-3 text-lg font-bold text-slate-900">Kontrakt</h2>
 
       <div className="mb-4 space-y-2">
@@ -69,14 +69,14 @@ export default function ContractsPanel({
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
             placeholder={channel === "email" ? "E-postadresse" : "Mobilnummer"}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           onClick={send}
           disabled={sending}
-          className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {sending ? "Sender …" : "Send kontrakt"}
         </button>

@@ -3,18 +3,35 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AgentState, AgentStatus } from "@/lib/types";
+import Icon, { type IconName } from "./Icon";
 
 // Fast bunnlinje med tre statusknapper. Én er alltid aktiv (nåværende status).
 // Reflekterer og setter innlogget brukers egen status (agent_states), og holdes
 // synkronisert via Supabase Realtime (f.eks. når telefoni setter "i samtale").
-const OPTIONS: { value: AgentStatus; label: string; active: string }[] = [
-  { value: "in_call", label: "I samtale", active: "bg-status-incall text-white" },
+const OPTIONS: {
+  value: AgentStatus;
+  label: string;
+  icon: IconName;
+  active: string;
+}[] = [
+  {
+    value: "in_call",
+    label: "I samtale",
+    icon: "phone",
+    active: "bg-status-incall text-white shadow-sm",
+  },
   {
     value: "not_in_call",
     label: "Ikke i samtale",
-    active: "bg-status-notincall text-white",
+    icon: "phone-off",
+    active: "bg-status-notincall text-white shadow-sm",
   },
-  { value: "offline", label: "Frakoblet", active: "bg-status-offline text-white" },
+  {
+    value: "offline",
+    label: "Frakoblet",
+    icon: "power",
+    active: "bg-slate-700 text-white shadow-sm",
+  },
 ];
 
 export default function StatusBar() {
@@ -70,28 +87,31 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur md:left-60">
-      <div className="mx-auto flex max-w-xl items-center justify-center gap-2">
-        <span className="hidden text-xs text-slate-400 sm:inline">
-          Min status:
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-3 py-2.5 backdrop-blur md:left-64">
+      <div className="mx-auto flex max-w-2xl items-center justify-center gap-2">
+        <span className="hidden text-xs font-medium text-slate-400 sm:inline">
+          Min status
         </span>
-        {OPTIONS.map((o) => {
-          const isActive = status === o.value;
-          return (
-            <button
-              key={o.value}
-              onClick={() => choose(o.value)}
-              aria-pressed={isActive}
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition sm:flex-none ${
-                isActive
-                  ? o.active
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
+        <div className="flex flex-1 items-center gap-1.5 rounded-2xl bg-slate-100 p-1 sm:flex-none">
+          {OPTIONS.map((o) => {
+            const isActive = status === o.value;
+            return (
+              <button
+                key={o.value}
+                onClick={() => choose(o.value)}
+                aria-pressed={isActive}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                  isActive
+                    ? o.active
+                    : "text-slate-500 hover:bg-white hover:text-slate-700"
+                }`}
+              >
+                <Icon name={o.icon} size={16} />
+                <span>{o.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

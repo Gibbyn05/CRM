@@ -89,7 +89,7 @@ export default function CalendarView({
     <div className="space-y-4">
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
       >
         + Book avtale
       </button>
@@ -99,7 +99,7 @@ export default function CalendarView({
       )}
 
       {grouped.map(([date, items]) => (
-        <div key={date} className="rounded-xl bg-white p-4 shadow-sm">
+        <div key={date} className="card p-4">
           <h3 className="mb-2 font-semibold text-slate-700">{formatDate(date)}</h3>
           <ul className="space-y-2">
             {items.map((a) => (
@@ -212,7 +212,7 @@ export default function CalendarView({
               </button>
               <button
                 onClick={book}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
               >
                 Book
               </button>

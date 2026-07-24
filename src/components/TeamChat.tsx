@@ -83,7 +83,7 @@ export default function TeamChat({
   return (
     <div
       className={`flex ${heightClass} flex-col ${
-        embedded ? "" : "rounded-xl bg-white shadow-sm"
+        embedded ? "" : "card"
       }`}
     >
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -113,7 +113,7 @@ export default function TeamChat({
                 </div>
                 <div
                   className={`rounded-2xl px-4 py-2 ${
-                    mine ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-800"
+                    mine ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-800"
                   }`}
                 >
                   <p className="whitespace-pre-wrap text-sm">{m.body}</p>
@@ -136,11 +136,11 @@ export default function TeamChat({
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Skriv en melding …"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <button
           onClick={send}
-          className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           Send
         </button>

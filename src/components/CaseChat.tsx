@@ -73,7 +73,7 @@ export default function CaseChat({
   }
 
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm">
+    <div className="card p-5">
       <h2 className="mb-3 text-lg font-bold text-slate-900">Kommentarer</h2>
 
       <div className="mb-3 max-h-64 space-y-2 overflow-y-auto">
@@ -98,11 +98,11 @@ export default function CaseChat({
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Skriv en kommentar …"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <button
           onClick={send}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           Send
         </button>

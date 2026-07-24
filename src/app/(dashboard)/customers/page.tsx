@@ -2,9 +2,13 @@ import CustomerSearch from "@/components/CustomerSearch";
 
 export const dynamic = "force-dynamic";
 
-export default function CustomersPage() {
+export default function CustomersPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Kunder</h1>
@@ -13,7 +17,7 @@ export default function CustomersPage() {
           </p>
         </div>
       </div>
-      <CustomerSearch />
+      <CustomerSearch initialQuery={searchParams.q ?? ""} />
     </div>
   );
 }

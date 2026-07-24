@@ -40,7 +40,8 @@ export default function DagsavisView() {
 
   if (loading) {
     return (
-      <div className="rounded-xl bg-white p-8 text-center text-slate-500 shadow-sm">
+      <div className="card flex items-center justify-center gap-3 p-10 text-center text-slate-500">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
         Genererer dagsavis …
       </div>
     );
@@ -48,11 +49,11 @@ export default function DagsavisView() {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-white p-6 shadow-sm">
+      <div className="card p-6">
         <p className="text-red-600">{error}</p>
         <button
           onClick={() => load()}
-          className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
           Prøv igjen
         </button>
@@ -71,19 +72,24 @@ export default function DagsavisView() {
         <Stat label="Avslag" value={report.rejections_count} accent="text-red-600" />
       </div>
 
-      <div className="rounded-xl bg-white p-6 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">
-            Oppsummering – {formatDate(report.report_date)}
-          </h2>
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-brand-50 to-white px-6 py-4">
+          <div>
+            <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+              AI-oppsummering
+            </span>
+            <h2 className="text-lg font-bold text-slate-900">
+              Dagsavis – {formatDate(report.report_date)}
+            </h2>
+          </div>
           <button
             onClick={() => load(true)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             Regenerer
           </button>
         </div>
-        <div className="prose prose-slate max-w-none whitespace-pre-wrap text-slate-700">
+        <div className="prose prose-slate max-w-none whitespace-pre-wrap px-6 py-5 text-slate-700">
           {report.summary_text}
         </div>
       </div>
@@ -101,9 +107,9 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm">
+    <div className="card p-4">
       <p className={`text-3xl font-bold ${accent}`}>{value}</p>
-      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-sm text-slate-500">{label}</p>
     </div>
   );
 }
