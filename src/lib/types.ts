@@ -27,7 +27,7 @@ export type ContractChannel = "email" | "sms";
 export type ContractStatus = "draft" | "sent" | "opened" | "signed" | "declined";
 
 export type NoteType = "call" | "general" | "system" | "meeting";
-export type MessageChannel = "team" | "customer";
+export type MessageChannel = "team" | "customer" | "direct";
 
 export interface Profile {
   id: string;
@@ -148,6 +148,7 @@ export interface Message {
   author_id: string | null;
   channel: MessageChannel;
   customer_id: string | null;
+  recipient_id: string | null;
   body: string;
   created_at: string;
 }

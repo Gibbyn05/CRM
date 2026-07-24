@@ -67,7 +67,7 @@ create type contract_status as enum ('draft', 'sent', 'opened', 'signed', 'decli
 create type note_type as enum ('call', 'general', 'system', 'meeting');
 
 -- Chat-kanal: 'team' = felles boble, 'customer' = kommentar på en kunde-case.
-create type message_channel as enum ('team', 'customer');
+create type message_channel as enum ('team', 'customer', 'direct');
 
 -- ---------------------------------------------------------------------------
 --  PROFILES  (utvider auth.users)
@@ -281,6 +281,8 @@ create table public.messages (
   channel     message_channel not null default 'team',
   -- Satt når channel = 'customer' (kommentar knyttet til et kundekort).
   customer_id uuid references public.customers (id) on delete cascade,
+  -- Satt når channel = 'direct' (mottaker av direktemelding).
+  recipient_id uuid references public.profiles (id) on delete cascade,
   body        text not null,
   created_at  timestamptz not null default now(),
 
@@ -292,6 +294,7 @@ comment on table public.messages is 'Intern chat (team-boble) og kommentarer på
 
 create index messages_channel_idx on public.messages (channel, created_at desc);
 create index messages_customer_idx on public.messages (customer_id, created_at desc);
+create index messages_direct_idx on public.messages (channel, author_id, recipient_id, created_at);
 
 -- ---------------------------------------------------------------------------
 --  DAILY_REPORTS  (AI-generert dagsavis)
@@ -809,6 +812,7 @@ create policy messages_select on public.messages
   using (
     channel = 'team'
     or (channel = 'customer' and public.can_access_customer(customer_id))
+    or (channel = 'direct' and (author_id = auth.uid() or recipient_id = auth.uid()))
   );
 
 create policy messages_insert on public.messages
@@ -818,6 +822,7 @@ create policy messages_insert on public.messages
     and (
       channel = 'team'
       or (channel = 'customer' and public.can_access_customer(customer_id))
+      or (channel = 'direct' and recipient_id is not null and recipient_id <> auth.uid())
     )
   );
 

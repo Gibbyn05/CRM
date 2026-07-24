@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 import ProfileForm from "@/components/ProfileForm";
+import ProfileTabs from "@/components/ProfileTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +20,14 @@ export default async function ProfilePage() {
     .single<Profile>();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Min profil</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Profil</h1>
         <p className="text-sm text-slate-500">
-          Endre navn, telefon og profilbilde
+          Din profil og teamet ditt
         </p>
       </div>
+      <ProfileTabs />
       {profile ? (
         <ProfileForm profile={profile} />
       ) : (
