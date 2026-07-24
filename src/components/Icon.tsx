@@ -2,6 +2,7 @@
 // gir et rent, profesjonelt uttrykk. Alle ikoner arver farge via currentColor.
 
 export type IconName =
+  | "dashboard"
   | "live"
   | "customers"
   | "pipeline"
@@ -27,6 +28,14 @@ export type IconName =
   | "upload";
 
 const PATHS: Record<IconName, React.ReactNode> = {
+  dashboard: (
+    <>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </>
+  ),
   live: (
     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
   ),

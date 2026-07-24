@@ -7,6 +7,7 @@ import NotesLog from "@/components/NotesLog";
 import DealsPanel from "@/components/DealsPanel";
 import ContractsPanel from "@/components/ContractsPanel";
 import CaseChat from "@/components/CaseChat";
+import DeleteCustomerButton from "@/components/DeleteCustomerButton";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,10 @@ export default async function CustomerDetailPage({
 }) {
   const supabase = createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data: customer } = await supabase
     .from("customers")
     .select("*")
@@ -24,6 +29,13 @@ export default async function CustomerDetailPage({
     .single<Customer>();
 
   if (!customer) notFound();
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user?.id ?? "")
+    .single<Pick<Profile, "role">>();
+  const isManager = me?.role === "manager";
 
   const [{ data: notes }, { data: deals }, { data: contracts }, { data: profiles }] =
     await Promise.all([
@@ -63,18 +75,26 @@ export default async function CustomerDetailPage({
 
       {/* Kundekort-header */}
       <div className="card p-6">
-        <div className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold text-white shadow-sm">
-            {customer.name.trim().charAt(0).toUpperCase() || "?"}
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-slate-900">
-              {customer.name}
-            </h1>
-            <p className="text-sm text-slate-500">
-              Org.nr {formatOrgNumber(customer.org_number)}
-            </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold text-white shadow-sm">
+              {customer.name.trim().charAt(0).toUpperCase() || "?"}
+            </span>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold text-slate-900">
+                {customer.name}
+              </h1>
+              <p className="text-sm text-slate-500">
+                Org.nr {formatOrgNumber(customer.org_number)}
+              </p>
+            </div>
           </div>
+          {isManager && (
+            <DeleteCustomerButton
+              customerId={customer.id}
+              customerName={customer.name}
+            />
+          )}
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-4">
           <Field label="Kontakt" value={customer.contact_name ?? "–"} />

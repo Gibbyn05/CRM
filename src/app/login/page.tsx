@@ -27,7 +27,7 @@ export default function LoginPage() {
       setError("Kunne ikke logge inn. Sjekk e-post og passord.");
       return;
     }
-    router.push("/live");
+    router.push("/dashboard");
     router.refresh();
   }
 

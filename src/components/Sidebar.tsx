@@ -8,13 +8,20 @@ import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 import Icon, { type IconName } from "./Icon";
 
-type NavItem = { href: string; label: string; icon: IconName };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: IconName;
+  managerOnly?: boolean;
+};
 
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Oversikt",
     items: [
-      { href: "/live", label: "Live-tavle", icon: "live" },
+      { href: "/dashboard", label: "Dashbord", icon: "dashboard" },
+      // Live-tavla er kun for ledere — selgere skal ikke overvåke hverandre.
+      { href: "/live", label: "Live-tavle", icon: "live", managerOnly: true },
       { href: "/leaderboard", label: "Ledertavle", icon: "leaderboard" },
       { href: "/dagsavis", label: "Dagsavis", icon: "dagsavis" },
     ],
@@ -88,14 +95,16 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                 {group.title}
               </p>
               <div className="space-y-1">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    active={pathname.startsWith(item.href)}
-                    onClick={() => setOpen(false)}
-                  />
-                ))}
+                {group.items
+                  .filter((item) => !item.managerOnly || isManager)
+                  .map((item) => (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      active={pathname.startsWith(item.href)}
+                      onClick={() => setOpen(false)}
+                    />
+                  ))}
                 {group.title === "Konto" && isManager && (
                   <Link
                     href="/tv"

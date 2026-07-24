@@ -701,7 +701,7 @@ create policy customers_update on public.customers
 
 create policy customers_delete on public.customers
   for delete to authenticated
-  using (public.is_manager() or owner_id = auth.uid());
+  using (public.is_manager());
 
 -- Hjelpefunksjon: har innlogget bruker tilgang til en kunde?
 create or replace function public.can_access_customer(p_customer_id uuid)
@@ -895,3 +895,107 @@ drop policy if exists "avatars_update" on storage.objects;
 create policy "avatars_update" on storage.objects
   for update to authenticated
   using (bucket_id = 'avatars');
+
+-- ============================================================================
+--  Rollebasert dashbord (fra 0006_role_dashboard.sql)
+--  Personlige nøkkeltall + samtaler per tidsbøtte. Selgere ser kun egne tall.
+-- ============================================================================
+create or replace function public.get_agent_stats(
+  p_agent_id uuid,
+  p_start    timestamptz,
+  p_end      timestamptz
+)
+returns table (
+  calls_count        bigint,
+  meetings_confirmed bigint,
+  sales_count        bigint,
+  rejections_count   bigint,
+  sales_amount       numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_agent uuid := p_agent_id;
+begin
+  if not public.is_manager() then
+    v_agent := auth.uid();
+  end if;
+
+  return query
+  select
+    (select count(*) from public.call_logs cl
+       where cl.started_at >= p_start and cl.started_at < p_end
+         and (v_agent is null or cl.agent_id = v_agent))::bigint,
+    (select count(*) from public.appointments a
+       where a.starts_at >= p_start and a.starts_at < p_end
+         and a.status = 'bekreftet'
+         and (v_agent is null or a.agent_id = v_agent))::bigint,
+    (select count(*) from public.deals d
+       where d.updated_at >= p_start and d.updated_at < p_end
+         and d.stage = 'akseptert'
+         and (v_agent is null or d.agent_id = v_agent))::bigint,
+    (select count(*) from public.deals d
+       where d.updated_at >= p_start and d.updated_at < p_end
+         and d.stage = 'tapt'
+         and (v_agent is null or d.agent_id = v_agent))::bigint,
+    coalesce((select sum(d.amount) from public.deals d
+       where d.updated_at >= p_start and d.updated_at < p_end
+         and d.stage = 'akseptert'
+         and (v_agent is null or d.agent_id = v_agent)), 0)::numeric;
+end;
+$$;
+
+create or replace function public.get_call_buckets(
+  p_agent_id uuid,
+  p_start    timestamptz,
+  p_end      timestamptz,
+  p_trunc    text
+)
+returns table (
+  bucket timestamptz,
+  calls  bigint
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_agent uuid := p_agent_id;
+  v_step  interval := case p_trunc
+    when 'hour'  then interval '1 hour'
+    when 'day'   then interval '1 day'
+    when 'week'  then interval '1 week'
+    when 'month' then interval '1 month'
+    else interval '1 day' end;
+begin
+  if not public.is_manager() then
+    v_agent := auth.uid();
+  end if;
+
+  return query
+  with b as (
+    select generate_series(
+      date_trunc(p_trunc, p_start),
+      date_trunc(p_trunc, greatest(p_start, p_end - interval '1 microsecond')),
+      v_step
+    ) as bucket
+  )
+  select b.bucket,
+         count(cl.id)::bigint as calls
+  from b
+  left join public.call_logs cl
+    on cl.started_at is not null
+   and date_trunc(p_trunc, cl.started_at) = b.bucket
+   and cl.started_at >= p_start and cl.started_at < p_end
+   and (v_agent is null or cl.agent_id = v_agent)
+  group by b.bucket
+  order by b.bucket;
+end;
+$$;
+
+grant execute on function public.get_agent_stats(uuid, timestamptz, timestamptz) to authenticated;
+grant execute on function public.get_call_buckets(uuid, timestamptz, timestamptz, text) to authenticated;
