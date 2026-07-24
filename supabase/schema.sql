@@ -686,12 +686,12 @@ create policy agent_states_update_own on public.agent_states
 -- ---------------------------------------------------------------------------
 --  CUSTOMERS
 --  Selger: egne kunder + ikke-tildelte. Salgssjef: alle.
---  Innsett: enhver innlogget (blir eier/created_by). Oppdater/slett: eier
---  eller leder.
+--  Delt kundetilgang: alle innloggede ser og oppdaterer alle kunder (delt
+--  team-CRM). Innsett: enhver innlogget. Slett: KUN leder.
 -- ---------------------------------------------------------------------------
 create policy customers_select on public.customers
   for select to authenticated
-  using (public.is_manager() or owner_id = auth.uid() or owner_id is null);
+  using (true);
 
 create policy customers_insert on public.customers
   for insert to authenticated
@@ -699,14 +699,15 @@ create policy customers_insert on public.customers
 
 create policy customers_update on public.customers
   for update to authenticated
-  using (public.is_manager() or owner_id = auth.uid())
-  with check (public.is_manager() or owner_id = auth.uid());
+  using (true)
+  with check (true);
 
 create policy customers_delete on public.customers
   for delete to authenticated
   using (public.is_manager());
 
 -- Hjelpefunksjon: har innlogget bruker tilgang til en kunde?
+-- Delt team-CRM: alle innloggede har tilgang (notater/deals/kontrakter/chat).
 create or replace function public.can_access_customer(p_customer_id uuid)
 returns boolean
 language sql
@@ -714,11 +715,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select public.is_manager() or exists (
-    select 1 from public.customers c
-    where c.id = p_customer_id
-      and (c.owner_id = auth.uid() or c.owner_id is null)
-  );
+  select auth.uid() is not null;
 $$;
 
 -- ---------------------------------------------------------------------------
