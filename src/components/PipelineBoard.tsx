@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { DealStage } from "@/lib/types";
 import type { DealWithCustomer } from "@/app/(dashboard)/pipeline/page";
@@ -16,9 +16,18 @@ export default function PipelineBoard({
   initialDeals: DealWithCustomer[];
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const [deals, setDeals] = useState<DealWithCustomer[]>(initialDeals);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<DealStage | null>(null);
+  // Skiller et ekte klikk fra slutten av en dra-operasjon, slik at man ikke
+  // navigerer til kundesiden rett etter å ha dratt et kort.
+  const draggedRef = useRef(false);
+
+  function openCustomer(deal: DealWithCustomer) {
+    if (draggedRef.current) return;
+    router.push(`/customers/${deal.customer_id}`);
+  }
 
   async function move(deal: DealWithCustomer, stage: DealStage) {
     if (deal.stage === stage) return;
@@ -76,37 +85,59 @@ export default function PipelineBoard({
               {stageDeals.map((d) => (
                 <div
                   key={d.id}
+                  role="button"
+                  tabIndex={0}
                   draggable
-                  onDragStart={() => setDraggingId(d.id)}
+                  onClick={() => openCustomer(d)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/customers/${d.customer_id}`);
+                    }
+                  }}
+                  onDragStart={() => {
+                    draggedRef.current = true;
+                    setDraggingId(d.id);
+                  }}
                   onDragEnd={() => {
                     setDraggingId(null);
                     setOverStage(null);
+                    // Nullstill etter at et eventuelt klikk-event har passert.
+                    setTimeout(() => (draggedRef.current = false), 50);
                   }}
-                  className={`cursor-grab rounded-lg border-l-4 bg-white p-3 shadow-sm active:cursor-grabbing ${
+                  className={`group cursor-pointer rounded-lg border-l-4 bg-white p-3 shadow-sm transition hover:shadow-soft hover:ring-1 hover:ring-brand-200 active:cursor-grabbing ${
                     DEAL_STAGE_COLORS[stage]
                   } ${draggingId === d.id ? "opacity-40" : ""}`}
                 >
-                  <Link
-                    href={`/customers/${d.customer_id}`}
-                    className="text-sm font-medium text-slate-800 hover:underline"
-                  >
-                    {d.customer_name}
-                  </Link>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-semibold text-slate-800 group-hover:text-brand-700">
+                      {d.customer_name}
+                    </span>
+                    <span className="mt-0.5 shrink-0 text-slate-300 transition group-hover:text-brand-500">
+                      →
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500">{d.title}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-700">
                     {formatCurrency(d.amount, d.currency)}
                   </p>
-                  <div className="mt-2 flex justify-between">
+                  <div className="mt-2 flex justify-between border-t border-slate-100 pt-2">
                     <button
                       disabled={stageIndex === 0}
-                      onClick={() => move(d, DEAL_STAGES[stageIndex - 1])}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(d, DEAL_STAGES[stageIndex - 1]);
+                      }}
                       className="text-xs text-slate-400 hover:text-slate-700 disabled:invisible"
                     >
                       ← Flytt
                     </button>
                     <button
                       disabled={stageIndex === DEAL_STAGES.length - 1}
-                      onClick={() => move(d, DEAL_STAGES[stageIndex + 1])}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(d, DEAL_STAGES[stageIndex + 1]);
+                      }}
                       className="text-xs text-slate-400 hover:text-slate-700 disabled:invisible"
                     >
                       Flytt →
