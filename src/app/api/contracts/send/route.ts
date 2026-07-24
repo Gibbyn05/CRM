@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractChannel } from "@/lib/types";
+import { sendEmail, contractEmailHtml } from "@/lib/email";
 
 // ============================================================================
 //  Send kontrakt via e-post eller SMS fra kundekortet.
 //
-//  Utsendelsen er stubbet: hvis EMAIL_PROVIDER_API_KEY / SMS_PROVIDER_API_KEY
-//  ikke er satt, kjøres en "dry-run" som logger og markerer kontrakten som
-//  sendt. Koble på en faktisk leverandør (Resend/Postmark/Twilio/Sveve) i
-//  sendEmail/sendSms nedenfor. Status-sporing (åpnet/signert) oppdateres
-//  senere av leverandørens webhook (se kommentar nederst).
+//  E-post går via Resend når RESEND_API_KEY er satt (se src/lib/email.ts),
+//  ellers kjøres en "dry-run". SMS er fortsatt stubbet – koble på en norsk
+//  SMS-leverandør (Sveve/Link Mobility) i sendSms nedenfor. Status-sporing
+//  (åpnet/signert) oppdateres senere av leverandørens webhook.
 // ============================================================================
 
 interface Body {
@@ -18,17 +18,6 @@ interface Body {
   recipient?: string;
   deal_id?: string;
   document_url?: string;
-}
-
-async function sendEmail(to: string, appUrl: string, contractId: string) {
-  if (!process.env.EMAIL_PROVIDER_API_KEY) {
-    console.log(`[dry-run] E-post kontrakt til ${to} (id: ${contractId})`);
-    return { provider: "dry-run", provider_ref: null as string | null };
-  }
-  // TODO: integrer e-postleverandør her. Lenke til signering:
-  // `${appUrl}/sign/${contractId}`
-  console.log(`Sender e-post til ${to} via leverandør (${appUrl}/sign/${contractId})`);
-  return { provider: "email-provider", provider_ref: null as string | null };
 }
 
 async function sendSms(to: string, appUrl: string, contractId: string) {
@@ -86,12 +75,37 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Kontekst til en pen e-post (kundenavn + selgernavn).
+  const [{ data: customer }, { data: sender }] = await Promise.all([
+    supabase.from("customers").select("name").eq("id", body.customer_id).single(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+  ]);
+
   // 2) Send via valgt kanal.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const signUrl = body.document_url ?? `${appUrl}/sign/${contract.id}`;
+
   const result =
     body.channel === "email"
-      ? await sendEmail(body.recipient, appUrl, contract.id)
+      ? await sendEmail({
+          to: body.recipient,
+          subject: `Tilbud fra Salgssentral${customer?.name ? " – " + customer.name : ""}`,
+          html: contractEmailHtml({
+            customerName: customer?.name ?? "der",
+            signUrl,
+            senderName: sender?.full_name || undefined,
+          }),
+          text: `Hei ${customer?.name ?? "der"},\n\nVi har sendt deg et tilbud/kontrakt. Åpne og signer her: ${signUrl}`,
+        })
       : await sendSms(body.recipient, appUrl, contract.id);
+
+  // Hvis e-postleverandøren feilet, la kontrakten stå som kladd og meld fra.
+  if ("error" in result && result.error) {
+    return NextResponse.json(
+      { error: "Kunne ikke sende e-post: " + result.error, contract },
+      { status: 502 },
+    );
+  }
 
   // 3) Marker som sendt.
   const { data: updated } = await supabase
