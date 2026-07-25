@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
@@ -44,6 +44,28 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   const router = useRouter();
   const supabase = createClient();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Husk komprimert tilstand, og eksponer bredden som CSS-variabel slik at den
+  // faste statuslinja nederst kan justere seg (--sidebar-w).
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar-collapsed") === "1";
+    setCollapsed(saved);
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-w",
+      collapsed ? "4rem" : "16rem",
+    );
+  }, [collapsed]);
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -52,10 +74,11 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   }
 
   const isManager = profile?.role === "manager";
+  const hide = collapsed ? "md:hidden" : "";
 
   return (
     <>
-      {/* Mobil topbar (fast øverst, med safe-area for iPhone-hakk) */}
+      {/* Mobil topbar */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
         <span className="flex items-center gap-2 font-bold text-slate-900">
           <BrandMark />
@@ -74,24 +97,45 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       <aside
         className={`${
           open ? "flex" : "hidden"
-        } w-full shrink-0 flex-col border-r border-slate-200 bg-white md:flex md:h-screen md:w-64`}
+        } w-full shrink-0 flex-col border-r border-slate-200 bg-white md:flex md:h-screen ${
+          collapsed ? "md:w-16" : "md:w-64"
+        }`}
       >
-        {/* Merkevare */}
-        <div className="hidden items-center gap-2.5 px-5 py-5 md:flex">
-          <BrandMark />
-          <div className="leading-tight">
-            <p className="text-[15px] font-bold text-slate-900">Salgssentral</p>
-            <p className="text-xs text-slate-400">
-              {isManager ? "Salgssjef" : "Selger"}
-            </p>
-          </div>
+        {/* Merkevare + komprimer-knapp (kun desktop) */}
+        <div
+          className={`hidden items-center px-3 py-4 md:flex ${
+            collapsed ? "md:justify-center" : "justify-between"
+          }`}
+        >
+          <span className={`flex items-center gap-2.5 ${hide}`}>
+            <BrandMark />
+            <div className="leading-tight">
+              <p className="text-[15px] font-bold text-slate-900">Salgssentral</p>
+              <p className="text-xs text-slate-400">
+                {isManager ? "Salgssjef" : "Selger"}
+              </p>
+            </div>
+          </span>
+          <button
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Utvid meny" : "Komprimer meny"}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <Icon name={collapsed ? "chevron-right" : "chevron-left"} size={18} />
+          </button>
         </div>
 
-        {/* Navigasjon (fyller tilgjengelig plass) */}
-        <nav className="thin-scroll flex-1 space-y-6 overflow-y-auto px-3 py-4">
+        {/* Navigasjon */}
+        <nav
+          className={`thin-scroll flex-1 space-y-6 overflow-y-auto py-4 ${
+            collapsed ? "md:px-2" : "px-3"
+          }`}
+        >
           {NAV_GROUPS.map((group) => (
             <div key={group.title}>
-              <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p
+                className={`px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 ${hide}`}
+              >
                 {group.title}
               </p>
               <div className="space-y-1">
@@ -102,6 +146,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                       key={item.href}
                       item={item}
                       active={pathname.startsWith(item.href)}
+                      collapsed={collapsed}
                       onClick={() => setOpen(false)}
                     />
                   ))}
@@ -110,10 +155,13 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                     href="/tv"
                     target="_blank"
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                    title="TV-visning"
+                    className={`flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                      collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+                    }`}
                   >
                     <Icon name="tv" size={18} className="text-slate-400" />
-                    <span>TV-visning</span>
+                    <span className={hide}>TV-visning</span>
                   </Link>
                 )}
               </div>
@@ -121,15 +169,19 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           ))}
         </nav>
 
-        {/* Bruker + logg ut, pinnet nederst i kolonnen */}
+        {/* Bruker + logg ut */}
         <div className="mt-auto border-t border-slate-200 p-3">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
+          <div
+            className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
+              collapsed ? "md:justify-center md:px-0" : ""
+            }`}
+          >
             <Avatar
               name={profile?.full_name || profile?.email || "?"}
               url={profile?.avatar_url}
               size={38}
             />
-            <div className="min-w-0 flex-1">
+            <div className={`min-w-0 flex-1 ${hide}`}>
               <p className="truncate text-sm font-semibold text-slate-800">
                 {profile?.full_name || "—"}
               </p>
@@ -138,10 +190,13 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           </div>
           <button
             onClick={signOut}
-            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+            title="Logg ut"
+            className={`mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600 ${
+              collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+            }`}
           >
             <Icon name="logout" size={18} />
-            <span>Logg ut</span>
+            <span className={hide}>Logg ut</span>
           </button>
         </div>
       </aside>
@@ -152,18 +207,24 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
 function NavLink({
   item,
   active,
+  collapsed,
   onClick,
 }: {
   item: NavItem;
   active: boolean;
+  collapsed: boolean;
   onClick: () => void;
 }) {
+  const hide = collapsed ? "md:hidden" : "";
   return (
     <Link
       href={item.href}
       onClick={onClick}
+      title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+      className={`flex items-center gap-3 rounded-xl py-2.5 text-sm transition ${
+        collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+      } ${
         active
           ? "bg-brand-50 font-semibold text-brand-700"
           : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -174,14 +235,14 @@ function NavLink({
         size={18}
         className={active ? "text-brand-600" : "text-slate-400"}
       />
-      <span>{item.label}</span>
+      <span className={hide}>{item.label}</span>
     </Link>
   );
 }
 
 function BrandMark() {
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
       <Icon name="live" size={20} strokeWidth={2.25} />
     </span>
   );

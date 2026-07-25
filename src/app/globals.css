@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: light;
+  /* Bredden på sidebaren – oppdateres av Sidebar ved komprimering, brukes av
+     den faste statuslinja nederst. */
+  --sidebar-w: 16rem;
 }
 
 html {
