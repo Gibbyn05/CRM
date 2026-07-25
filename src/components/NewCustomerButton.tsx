@@ -41,9 +41,39 @@ export default function NewCustomerButton() {
   // Automatisk utfylling
   const [smartText, setSmartText] = useState("");
   const [extracting, setExtracting] = useState(false);
+  const [brregLoading, setBrregLoading] = useState(false);
   const [smartNote, setSmartNote] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
+
+  // Slår opp firmadata i Brønnøysundregistrene fra org.nr og fyller inn.
+  async function lookupBrreg() {
+    const orgnr = form.org_number.replace(/\s/g, "");
+    if (!/^\d{9}$/.test(orgnr)) {
+      setSmartNote({ ok: false, text: "Skriv inn et gyldig org.nr (9 siffer) først." });
+      return;
+    }
+    setBrregLoading(true);
+    setSmartNote(null);
+    try {
+      const res = await fetch(`/api/customers/brreg?orgnr=${orgnr}`);
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Fant ikke bedriften.");
+      setForm((f) => ({
+        ...f,
+        name: j.fields.name || f.name,
+        city: j.fields.city || f.city,
+      }));
+      setSmartNote({ ok: true, text: `Hentet «${j.fields.name}» fra Brønnøysund.` });
+    } catch (e) {
+      setSmartNote({
+        ok: false,
+        text: e instanceof Error ? e.message : "Ukjent feil.",
+      });
+    } finally {
+      setBrregLoading(false);
+    }
+  }
 
   function update(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -200,11 +230,31 @@ export default function NewCustomerButton() {
                   <label className="mb-1 block text-sm text-slate-600">
                     {label}
                   </label>
-                  <input
-                    value={form[field]}
-                    onChange={(e) => update(field, e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  />
+                  {field === "org_number" ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={form.org_number}
+                        onChange={(e) => update("org_number", e.target.value)}
+                        placeholder="9 siffer"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={lookupBrreg}
+                        disabled={brregLoading}
+                        title="Hent firmadata fra Brønnøysund"
+                        className="shrink-0 whitespace-nowrap rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+                      >
+                        {brregLoading ? "Henter …" : "Brønnøysund"}
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      value={form[field]}
+                      onChange={(e) => update(field, e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  )}
                 </div>
               ))}
               {error && <p className="text-sm text-red-600">{error}</p>}

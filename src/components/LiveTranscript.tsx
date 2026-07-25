@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { CallTranscript } from "@/lib/types";
 import { formatTime } from "@/lib/format";
@@ -16,8 +17,31 @@ const SPEAKER_LABEL: Record<string, string> = {
 // /api/telephony/transcript og oppdateres uten refresh via Supabase Realtime.
 export default function LiveTranscript({ customerId }: { customerId: string }) {
   const supabase = createClient();
+  const router = useRouter();
   const [rows, setRows] = useState<CallTranscript[]>([]);
+  const [summarizing, setSummarizing] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  async function summarize() {
+    setSummarizing(true);
+    setNote(null);
+    try {
+      const res = await fetch("/api/calls/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: customerId }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Kunne ikke lage sammendrag.");
+      setNote({ ok: true, text: "Sammendrag lagt til i loggen." });
+      router.refresh();
+    } catch (e) {
+      setNote({ ok: false, text: e instanceof Error ? e.message : "Ukjent feil." });
+    } finally {
+      setSummarizing(false);
+    }
+  }
 
   useEffect(() => {
     supabase
@@ -58,16 +82,36 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
 
   return (
     <div className="card p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
           <Icon name="mic" size={18} className="text-brand-600" />
           Live transkript
         </h2>
-        <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-          Sanntid
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+            Sanntid
+          </span>
+          <button
+            type="button"
+            onClick={summarize}
+            disabled={summarizing || rows.length === 0}
+            className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+          >
+            {summarizing ? "Oppsummerer …" : "Oppsummer med AI"}
+          </button>
+        </div>
       </div>
+
+      {note && (
+        <p
+          className={`mb-2 text-xs ${
+            note.ok ? "text-emerald-600" : "text-red-600"
+          }`}
+        >
+          {note.text}
+        </p>
+      )}
 
       <div className="max-h-72 space-y-2 overflow-y-auto thin-scroll">
         {rows.map((t) => (
