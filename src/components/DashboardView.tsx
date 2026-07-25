@@ -210,7 +210,8 @@ export default function DashboardView({
           </p>
         </div>
 
-        <div className="mt-4 flex h-48 items-end gap-1.5">
+        <div className="mt-4 overflow-x-auto thin-scroll">
+          <div className="flex h-48 items-end gap-1.5">
           {buckets.length === 0 && (
             <p className="m-auto text-sm text-slate-400">
               Ingen samtaledata for perioden.
@@ -221,7 +222,7 @@ export default function DashboardView({
             return (
               <div
                 key={b.bucket}
-                className="group flex min-w-0 flex-1 flex-col items-center gap-1.5"
+                className="group flex min-w-[18px] flex-1 flex-col items-center gap-1.5"
                 title={`${b.calls} samtaler`}
               >
                 <div className="flex h-40 w-full items-end justify-center rounded-md bg-slate-50">
@@ -236,6 +237,7 @@ export default function DashboardView({
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 

@@ -37,13 +37,13 @@ export default async function DashboardLayout({
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar profile={profile} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar profile={profile} />
-        {/* pb-24 gir plass til den faste statuslinja nederst */}
-        <main className="flex-1 overflow-x-hidden p-4 pb-24 md:p-8 md:pb-24">
+        {/* Bunn-padding gir plass til den faste statuslinja + iPhone safe-area */}
+        <main className="flex-1 overflow-x-hidden p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(7rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>

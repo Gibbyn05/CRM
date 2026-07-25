@@ -87,7 +87,7 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-3 py-2.5 backdrop-blur md:left-64">
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur md:left-64">
       <div className="mx-auto flex max-w-2xl items-center justify-center gap-2">
         <span className="hidden text-xs font-medium text-slate-400 sm:inline">
           Min status

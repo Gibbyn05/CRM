@@ -86,7 +86,7 @@ export default function ChatWidget({ authors }: { authors: AuthorMap }) {
     <>
       {/* Pop-up-panel (ligger over statuslinja nederst) */}
       {open && (
-        <div className="fixed bottom-40 right-4 z-50 flex w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-slate-200 sm:right-6">
+        <div className="fixed bottom-[calc(10rem+env(safe-area-inset-bottom))] right-4 z-50 flex w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-slate-200 sm:right-6">
           {/* Header med faner */}
           <div className="flex items-center justify-between bg-brand-600 px-3 py-2.5 text-white">
             <div className="flex gap-0.5 rounded-lg bg-white/15 p-0.5">
@@ -173,7 +173,7 @@ export default function ChatWidget({ authors }: { authors: AuthorMap }) {
               ? `Åpne chat (${unread} uleste)`
               : "Åpne chat"
         }
-        className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition hover:scale-105 hover:bg-brand-700 sm:right-6"
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition hover:scale-105 hover:bg-brand-700 sm:right-6"
       >
         {open ? <Icon name="close" size={24} /> : <Icon name="chat" size={24} />}
 

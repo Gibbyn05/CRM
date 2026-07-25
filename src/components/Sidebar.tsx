@@ -56,8 +56,8 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
 
   return (
     <>
-      {/* Mobil topbar */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white p-3 md:hidden">
+      {/* Mobil topbar (fast øverst, med safe-area for iPhone-hakk) */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
         <span className="flex items-center gap-2 font-bold text-slate-900">
           <BrandMark />
           Salgssentral
@@ -65,9 +65,10 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Meny"
+          aria-expanded={open}
           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
         >
-          <Icon name="menu" />
+          <Icon name={open ? "close" : "menu"} />
         </button>
       </div>
 

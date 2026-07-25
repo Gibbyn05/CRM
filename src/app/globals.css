@@ -6,10 +6,27 @@
   color-scheme: light;
 }
 
+html {
+  /* Hindre at iOS blåser opp tekst i landskap. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   @apply text-slate-800 antialiased;
   background-color: #f5f6f8;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  /* Ingen utilsiktet horisontal scroll på mobil. */
+  overflow-x: hidden;
+  /* Dempet tap-highlight for et mer app-aktig preg. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Media/tabeller skal aldri sprenge layouten på små skjermer. */
+img,
+svg,
+video {
+  max-width: 100%;
 }
 
 @layer components {
