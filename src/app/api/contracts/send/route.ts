@@ -18,6 +18,7 @@ interface Body {
   recipient?: string;
   deal_id?: string;
   document_url?: string;
+  message?: string;
 }
 
 async function sendSms(to: string, appUrl: string, contractId: string) {
@@ -94,8 +95,12 @@ export async function POST(req: NextRequest) {
             customerName: customer?.name ?? "der",
             signUrl,
             senderName: sender?.full_name || undefined,
+            bodyText: body.message,
           }),
-          text: `Hei ${customer?.name ?? "der"},\n\nVi har sendt deg et tilbud/kontrakt. Åpne og signer her: ${signUrl}`,
+          text: `Hei ${customer?.name ?? "der"},\n\n${
+            body.message?.trim() ||
+            "Vi har sendt deg et tilbud/kontrakt."
+          }\n\nÅpne og signer her: ${signUrl}`,
         })
       : await sendSms(body.recipient, appUrl, contract.id);
 

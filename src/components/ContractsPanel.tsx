@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Contract, ContractChannel, Customer } from "@/lib/types";
 import { CONTRACT_STATUS_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
+import Icon from "./Icon";
 
 // Kontrakt-utsendelse via e-post/SMS direkte fra kundekortet, med status-
 // sporing (sendt / åpnet / signert). Selve utsendelsen håndteres server-side
@@ -18,8 +19,29 @@ export default function ContractsPanel({
   const [contracts, setContracts] = useState<Contract[]>(initialContracts);
   const [channel, setChannel] = useState<ContractChannel>("email");
   const [recipient, setRecipient] = useState(customer.email ?? "");
+  const [message, setMessage] = useState("");
+  const [drafting, setDrafting] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function draftWithAi() {
+    setDrafting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/contracts/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: customer.id }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Kunne ikke lage forslag.");
+      setMessage(j.message ?? "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ukjent feil.");
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   async function send() {
     setError(null);
@@ -35,6 +57,7 @@ export default function ContractsPanel({
         customer_id: customer.id,
         channel,
         recipient: recipient.trim(),
+        message: channel === "email" ? message.trim() || undefined : undefined,
       }),
     });
     setSending(false);
@@ -72,6 +95,33 @@ export default function ContractsPanel({
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+
+        {channel === "email" && (
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-xs font-medium text-slate-500">
+                Melding i e-posten (valgfritt)
+              </label>
+              <button
+                type="button"
+                onClick={draftWithAi}
+                disabled={drafting}
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline disabled:opacity-50"
+              >
+                <Icon name="upload" size={13} />
+                {drafting ? "Lager forslag …" : "Foreslå tekst med AI"}
+              </button>
+            </div>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              placeholder="La stå tom for standardtekst, eller skriv/generer en egen melding."
+              className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           onClick={send}

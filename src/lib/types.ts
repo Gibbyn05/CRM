@@ -29,6 +29,16 @@ export type ContractStatus = "draft" | "sent" | "opened" | "signed" | "declined"
 export type NoteType = "call" | "general" | "system" | "meeting";
 export type MessageChannel = "team" | "customer" | "direct";
 
+export type NotificationType =
+  | "message"
+  | "reminder"
+  | "contract"
+  | "appointment"
+  | "deal"
+  | "system";
+
+export type TranscriptSpeaker = "agent" | "customer" | "system";
+
 export interface Profile {
   id: string;
   full_name: string;
@@ -164,6 +174,45 @@ export interface DailyReport {
   summary_text: string | null;
   metrics: Record<string, unknown>;
   generated_at: string | null;
+  created_at: string;
+}
+
+export interface Reminder {
+  id: string;
+  agent_id: string;
+  customer_id: string | null;
+  created_by: string | null;
+  title: string;
+  note: string | null;
+  due_at: string;
+  done: boolean;
+  done_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface CallTranscript {
+  id: string;
+  call_log_id: string | null;
+  external_call_id: string | null;
+  agent_id: string | null;
+  customer_id: string | null;
+  speaker: TranscriptSpeaker;
+  text: string;
+  is_final: boolean;
+  seq: number | null;
+  spoken_at: string;
   created_at: string;
 }
 

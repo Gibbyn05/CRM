@@ -63,13 +63,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 }
 
-// Enkel, ren HTML-mal for en kontrakt-/tilbudsutsendelse.
+// Enkel, ren HTML-mal for en kontrakt-/tilbudsutsendelse. `bodyText` lar
+// selgeren (eller AI-forslaget) sette en egen brødtekst; ellers brukes en
+// standard setning.
 export function contractEmailHtml(opts: {
   customerName: string;
   signUrl: string;
   senderName?: string;
+  bodyText?: string;
 }): string {
-  const { customerName, signUrl, senderName } = opts;
+  const { customerName, signUrl, senderName, bodyText } = opts;
+  const body = bodyText?.trim()
+    ? escapeHtml(bodyText.trim()).replace(/\n/g, "<br />")
+    : "Vi har sendt deg et tilbud/kontrakt for gjennomgang og signering. Klikk på knappen under for å åpne dokumentet.";
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f5f6f8;padding:32px 0;">
     <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
@@ -79,8 +85,7 @@ export function contractEmailHtml(opts: {
       <div style="padding:32px;">
         <p style="margin:0 0 16px;color:#0f172a;font-size:16px;">Hei ${escapeHtml(customerName)},</p>
         <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;">
-          Vi har sendt deg et tilbud/kontrakt for gjennomgang og signering.
-          Klikk på knappen under for å åpne dokumentet.
+          ${body}
         </p>
         <p style="text-align:center;margin:28px 0;">
           <a href="${signUrl}" style="background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:15px;display:inline-block;">

@@ -8,6 +8,7 @@ import DealsPanel from "@/components/DealsPanel";
 import ContractsPanel from "@/components/ContractsPanel";
 import CaseChat from "@/components/CaseChat";
 import DeleteCustomerButton from "@/components/DeleteCustomerButton";
+import LiveTranscript from "@/components/LiveTranscript";
 
 export const dynamic = "force-dynamic";
 
@@ -105,8 +106,9 @@ export default async function CustomerDetailPage({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Venstre: logg + chat */}
+        {/* Venstre: transkript + logg + chat */}
         <div className="space-y-4 lg:col-span-2">
+          <LiveTranscript customerId={customer.id} />
           <NotesLog
             customerId={customer.id}
             initialNotes={(notes as Note[]) ?? []}

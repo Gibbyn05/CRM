@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
+import NotificationBell from "./NotificationBell";
 
 // Slank topplinje med hurtigsøk og brukerchip. Søket hopper til kundelista der
 // den fulle søkefunksjonen bor.
@@ -48,13 +49,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
         />
       </form>
 
-      <button
-        type="button"
-        aria-label="Varsler"
-        className="relative rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-      >
-        <Icon name="bell" size={18} />
-      </button>
+      {profile?.id && <NotificationBell userId={profile.id} />}
 
       <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
         <Avatar
