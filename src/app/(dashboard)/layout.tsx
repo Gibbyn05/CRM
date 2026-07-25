@@ -37,13 +37,15 @@ export default async function DashboardLayout({
   );
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    // App-skall: på desktop er høyden låst til skjermen slik at sidebaren står
+    // fast og KUN <main> scroller. På mobil beholder vi vanlig sidescroll.
+    <div className="flex min-h-screen flex-col md:h-screen md:flex-row md:overflow-hidden">
       <Sidebar profile={profile} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
         <Topbar profile={profile} />
         {/* Bunn-padding gir plass til den faste statuslinja + iPhone safe-area */}
-        <main className="flex-1 overflow-x-hidden p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(7rem+env(safe-area-inset-bottom))]">
+        <main className="thin-scroll flex-1 overflow-x-hidden p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:p-8 md:pb-[calc(7rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>

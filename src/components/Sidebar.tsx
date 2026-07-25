@@ -74,7 +74,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       <aside
         className={`${
           open ? "flex" : "hidden"
-        } w-full shrink-0 flex-col border-r border-slate-200 bg-white md:flex md:min-h-screen md:w-64`}
+        } w-full shrink-0 flex-col border-r border-slate-200 bg-white md:flex md:h-screen md:w-64`}
       >
         {/* Merkevare */}
         <div className="hidden items-center gap-2.5 px-5 py-5 md:flex">
