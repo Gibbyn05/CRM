@@ -127,8 +127,10 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
 
         {/* Navigasjon */}
         <nav
-          className={`thin-scroll flex-1 space-y-6 overflow-y-auto py-4 ${
-            collapsed ? "md:px-2" : "px-3"
+          className={`thin-scroll flex-1 space-y-6 py-4 ${
+            collapsed
+              ? "overflow-y-auto md:overflow-visible md:px-2"
+              : "overflow-y-auto px-3"
           }`}
         >
           {NAV_GROUPS.map((group) => (
@@ -155,13 +157,20 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                     href="/tv"
                     target="_blank"
                     onClick={() => setOpen(false)}
-                    title="TV-visning"
-                    className={`flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                    aria-label="TV-visning"
+                    className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
                       collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
                     }`}
                   >
-                    <Icon name="tv" size={18} className="text-slate-400" />
+                    <Icon
+                      name="tv"
+                      size={18}
+                      className={`text-slate-400 transition-transform duration-150 ${
+                        collapsed ? "md:group-hover:scale-110" : ""
+                      }`}
+                    />
                     <span className={hide}>TV-visning</span>
+                    {collapsed && <RailTooltip label="TV-visning" />}
                   </Link>
                 )}
               </div>
@@ -190,13 +199,20 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           </div>
           <button
             onClick={signOut}
-            title="Logg ut"
-            className={`mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600 ${
+            aria-label="Logg ut"
+            className={`group relative mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600 ${
               collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
             }`}
           >
-            <Icon name="logout" size={18} />
+            <Icon
+              name="logout"
+              size={18}
+              className={`transition-transform duration-150 ${
+                collapsed ? "md:group-hover:scale-110" : ""
+              }`}
+            />
             <span className={hide}>Logg ut</span>
+            {collapsed && <RailTooltip label="Logg ut" />}
           </button>
         </div>
       </aside>
@@ -220,9 +236,9 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onClick}
-      title={collapsed ? item.label : undefined}
+      aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 rounded-xl py-2.5 text-sm transition ${
+      className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm transition ${
         collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
       } ${
         active
@@ -233,10 +249,25 @@ function NavLink({
       <Icon
         name={item.icon}
         size={18}
-        className={active ? "text-brand-600" : "text-slate-400"}
+        className={`transition-transform duration-150 ${
+          collapsed ? "md:group-hover:scale-110" : ""
+        } ${active ? "text-brand-600" : "text-slate-400"}`}
       />
       <span className={hide}>{item.label}</span>
+      {collapsed && <RailTooltip label={item.label} />}
     </Link>
+  );
+}
+
+// Stilig tooltip som dukker opp til høyre for ikonet på hover når sidebaren er
+// komprimert (kun desktop). Erstatter nettleserens standard title-tooltip.
+function RailTooltip({ label }: { label: string }) {
+  return (
+    <span
+      className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 md:block"
+    >
+      {label}
+    </span>
   );
 }
 
