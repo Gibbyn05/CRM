@@ -25,9 +25,10 @@ const EMPTY: FormState = {
   city: "",
 };
 
-// Skjema (modal) for å opprette ny kunde. Støtter automatisk utfylling ved å
-// lime inn fritekst eller laste opp/scanne et bilde (visittkort, e-postsignatur
-// osv.) som Claude tolker via /api/customers/extract.
+// Skjema (modal) for å opprette ny kunde. Under feltene ligger en "Fyll inn
+// automatisk"-boks der man kan lime inn fritekst eller laste opp/scanne et
+// bilde (visittkort, e-postsignatur osv.) som Claude tolker via
+// /api/customers/extract og fyller inn feltene fra.
 export default function NewCustomerButton() {
   const supabase = createClient();
   const router = useRouter();
@@ -183,8 +184,34 @@ export default function NewCustomerButton() {
           <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
             <h2 className="mb-4 text-lg font-bold">Ny kunde</h2>
 
-            {/* Automatisk utfylling */}
-            <div className="mb-5 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+            {/* Felter */}
+            <div className="space-y-3">
+              {(
+                [
+                  ["name", "Navn *"],
+                  ["org_number", "Org.nr (9 siffer)"],
+                  ["contact_name", "Kontaktperson"],
+                  ["email", "E-post"],
+                  ["phone", "Telefon"],
+                  ["city", "Sted"],
+                ] as const
+              ).map(([field, label]) => (
+                <div key={field}>
+                  <label className="mb-1 block text-sm text-slate-600">
+                    {label}
+                  </label>
+                  <input
+                    value={form[field]}
+                    onChange={(e) => update(field, e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+              ))}
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+
+            {/* Automatisk utfylling (under Sted) */}
+            <div className="mt-5 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
               <div className="mb-2 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
                   <Icon name="upload" size={15} />
@@ -194,7 +221,7 @@ export default function NewCustomerButton() {
                     Fyll inn automatisk
                   </p>
                   <p className="text-xs text-slate-500">
-                    Lim inn tekst eller scan et bilde – så fylles feltene ut.
+                    Lim inn tekst eller scan et bilde – så fylles feltene over ut.
                   </p>
                 </div>
               </div>
@@ -242,32 +269,6 @@ export default function NewCustomerButton() {
                   {smartNote.text}
                 </p>
               )}
-            </div>
-
-            {/* Felter */}
-            <div className="space-y-3">
-              {(
-                [
-                  ["name", "Navn *"],
-                  ["org_number", "Org.nr (9 siffer)"],
-                  ["contact_name", "Kontaktperson"],
-                  ["email", "E-post"],
-                  ["phone", "Telefon"],
-                  ["city", "Sted"],
-                ] as const
-              ).map(([field, label]) => (
-                <div key={field}>
-                  <label className="mb-1 block text-sm text-slate-600">
-                    {label}
-                  </label>
-                  <input
-                    value={form[field]}
-                    onChange={(e) => update(field, e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  />
-                </div>
-              ))}
-              {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
