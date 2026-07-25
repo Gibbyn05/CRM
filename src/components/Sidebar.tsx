@@ -20,8 +20,6 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: "Oversikt",
     items: [
       { href: "/dashboard", label: "Dashbord", icon: "dashboard" },
-      // Live-tavla er kun for ledere — selgere skal ikke overvåke hverandre.
-      { href: "/live", label: "Live-tavle", icon: "live", managerOnly: true },
       { href: "/leaderboard", label: "Ledertavle", icon: "leaderboard" },
       { href: "/dagsavis", label: "Dagsavis", icon: "dagsavis" },
     ],
