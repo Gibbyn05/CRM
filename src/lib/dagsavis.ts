@@ -97,13 +97,13 @@ export async function generateSummary(
   dateISO: string,
   metrics: DagsavisMetrics,
 ): Promise<string> {
-  const prompt = `Du er en hjelpsom salgscoach i et norsk callcenter. Skriv en kort, motiverende og konkret "dagsavis" (2-4 avsnitt) på norsk til selgeren ${agentName} om gårsdagens (${dateISO}) prestasjon.
+  const prompt = `Du er en erfaren salgscoach i et norsk callcenter. Skriv en kort, poengtert dagsavis på norsk til selgeren ${agentName} om gårsdagens (${dateISO}) prestasjon.
 
 Nøkkeltall:
-- Antall telefoner ringt: ${metrics.calls_count}
-- Antall bekreftede møter: ${metrics.meetings_confirmed}
-- Antall salg: ${metrics.sales_count}
-- Antall avslag: ${metrics.rejections_count}
+- Telefoner ringt: ${metrics.calls_count}
+- Bekreftede møter: ${metrics.meetings_confirmed}
+- Salg: ${metrics.sales_count}
+- Avslag: ${metrics.rejections_count}
 
 Årsaker til tapte kunder (fritekst):
 ${metrics.lost_reasons.length ? metrics.lost_reasons.map((r) => `- ${r}`).join("\n") : "- (ingen registrert)"}
@@ -111,11 +111,17 @@ ${metrics.lost_reasons.length ? metrics.lost_reasons.map((r) => `- ${r}`).join("
 Loggnotater fra samtalene:
 ${metrics.sample_notes.length ? metrics.sample_notes.map((n) => `- ${n}`).join("\n") : "- (ingen notater)"}
 
-Oppsummer prestasjonen, pek ut hvor i salgsprosessen selgeren ser ut til å miste flest kunder (basert på notater/avslagsårsaker), og gi ett konkret tips til i dag. Hold tonen positiv og profesjonell. Ikke bruk punktlister – skriv i sammenhengende avsnitt. Ikke gjenta tallene mekanisk; tolk dem.`;
+Krav til teksten:
+- Maks 3–4 korte setninger. Kom rett til poenget.
+- Åpne med hovedbildet av gårsdagen (ett kort utsagn).
+- Pek på hvor i salgsprosessen kunder ser ut til å glippe HVIS notater/avslagsårsaker gir grunnlag for det. Har du ikke data, hopp over det – ikke fyll med generelle betraktninger.
+- Avslutt med ÉTT konkret, handlingsrettet tips til i dag.
+- Ingen emoji, ingen klisjeer, ingen peptalk-fyll, ingen overskrift. Ikke gjenta tallene mekanisk – tolk dem kort.
+- Skriv i sammenhengende prosa (ikke punktliste).`;
 
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 1024,
+    max_tokens: 400,
     messages: [{ role: "user", content: prompt }],
   });
 
