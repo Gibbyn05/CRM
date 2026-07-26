@@ -211,7 +211,7 @@ export default function NewCustomerButton() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
             <h2 className="mb-4 text-lg font-bold">Ny kunde</h2>
 
             {/* Felter */}
@@ -261,10 +261,10 @@ export default function NewCustomerButton() {
             </div>
 
             {/* Automatisk utfylling (under Sted) */}
-            <div className="mt-5 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+            <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
               <div className="mb-2 flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
-                  <Icon name="upload" size={15} />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                  <Icon name="upload" size={13} />
                 </span>
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-slate-800">
@@ -276,43 +276,45 @@ export default function NewCustomerButton() {
                 </div>
               </div>
 
-              <textarea
-                value={smartText}
-                onChange={(e) => setSmartText(e.target.value)}
-                rows={4}
-                placeholder={
-                  "Lim inn f.eks.:\nKontakt: Kjell\nE-post: kjell@oslobil.test\nTelefon: 23232323\nSted: Oslo"
-                }
-                className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
+              <div className="flex gap-3">
+                <textarea
+                  value={smartText}
+                  onChange={(e) => setSmartText(e.target.value)}
+                  rows={3}
+                  placeholder={
+                    "Lim inn f.eks.:\nKontakt: Kjell\nE-post: kjell@oslobil.test\nTelefon: 23232323\nSted: Oslo"
+                  }
+                  className="w-full flex-1 resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
 
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button
-                  onClick={fillFromText}
-                  disabled={extracting}
-                  className="rounded-lg bg-brand-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                  {extracting ? "Leser …" : "Fyll inn fra tekst"}
-                </button>
-
-                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                  <Icon name="upload" size={15} />
-                  Scan bilde
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleImage}
+                <div className="flex w-36 shrink-0 flex-col gap-1.5">
+                  <button
+                    onClick={fillFromText}
                     disabled={extracting}
-                    className="hidden"
-                  />
-                </label>
+                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    {extracting ? "Leser …" : "Fyll inn fra tekst"}
+                  </button>
+
+                  <label className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                    <Icon name="upload" size={15} />
+                    Scan bilde
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImage}
+                      disabled={extracting}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
               {smartNote && (
                 <p
-                  className={`mt-2 text-xs ${
+                  className={`mt-1.5 text-xs ${
                     smartNote.ok ? "text-emerald-600" : "text-red-600"
                   }`}
                 >
@@ -321,7 +323,7 @@ export default function NewCustomerButton() {
               )}
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={close}
                 className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
