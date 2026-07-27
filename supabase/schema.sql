@@ -1257,3 +1257,55 @@ drop policy if exists "branding_delete" on storage.objects;
 create policy "branding_delete" on storage.objects
   for delete to authenticated
   using (bucket_id = 'branding' and public.is_manager());
+
+-- ===========================================================================
+--  EVENT TYPES + TEAM-KALENDER  (0011)
+-- ===========================================================================
+create table public.event_types (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  color       text not null default '#6366f1',
+  sort_order  integer not null default 0,
+  created_by  uuid references public.profiles (id) on delete set null,
+  created_at  timestamptz not null default now(),
+  constraint event_types_color_hex check (color ~* '^#[0-9a-f]{6}$')
+);
+
+comment on table public.event_types is
+  'Egendefinerte hendelsestyper med farge, brukt i kalenderen.';
+
+insert into public.event_types (name, color, sort_order) values
+  ('Møte',        '#6366f1', 1),
+  ('Oppfølging',  '#f59e0b', 2),
+  ('Signering',   '#22c55e', 3),
+  ('Demo',        '#3b82f6', 4),
+  ('Telefon',     '#14b8a6', 5),
+  ('Annet',       '#94a3b8', 6);
+
+alter table public.event_types enable row level security;
+
+create policy event_types_select on public.event_types
+  for select to authenticated using (true);
+create policy event_types_insert on public.event_types
+  for insert to authenticated
+  with check (created_by = auth.uid() or public.is_manager());
+create policy event_types_update on public.event_types
+  for update to authenticated
+  using (public.is_manager() or created_by = auth.uid())
+  with check (public.is_manager() or created_by = auth.uid());
+create policy event_types_delete on public.event_types
+  for delete to authenticated
+  using (public.is_manager() or created_by = auth.uid());
+
+alter table public.appointments
+  add column if not exists event_type_id uuid
+    references public.event_types (id) on delete set null;
+create index if not exists appointments_event_type_idx
+  on public.appointments (event_type_id);
+
+drop policy if exists appointments_select on public.appointments;
+create policy appointments_select on public.appointments
+  for select to authenticated
+  using (true);
+
+alter publication supabase_realtime add table public.event_types;

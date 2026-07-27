@@ -126,6 +126,7 @@ export interface Appointment {
   customer_id: string | null;
   title: string;
   type: AppointmentType;
+  event_type_id: string | null;
   status: AppointmentStatus;
   starts_at: string;
   ends_at: string | null;
@@ -133,6 +134,15 @@ export interface Appointment {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface EventType {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface Contract {
