@@ -1191,3 +1191,69 @@ create trigger reminders_notify_assigned
 alter publication supabase_realtime add table public.notifications;
 alter publication supabase_realtime add table public.reminders;
 alter publication supabase_realtime add table public.call_transcripts;
+
+-- ===========================================================================
+--  ORGANIZATION  (0010) – singleton med selskapsinfo/branding for maler.
+-- ===========================================================================
+create table public.organization (
+  id               smallint primary key default 1 check (id = 1),
+  name             text not null default '',
+  org_number       char(9),
+  email            text,
+  phone            text,
+  website          text,
+  address          text,
+  postal_code      text,
+  city             text,
+  logo_url         text,
+  email_signature  text,
+  contract_footer  text,
+  updated_by       uuid references public.profiles (id) on delete set null,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  constraint org_number_9_digits
+    check (org_number is null or org_number ~ '^[0-9]{9}$')
+);
+
+comment on table public.organization is
+  'Singleton med selskapsinfo/branding som gjenbrukes i maler. Kun én rad (id=1).';
+
+insert into public.organization (id) values (1) on conflict (id) do nothing;
+
+create trigger organization_set_updated_at
+  before update on public.organization
+  for each row execute function public.set_updated_at();
+
+alter table public.organization enable row level security;
+
+create policy organization_select on public.organization
+  for select to authenticated
+  using (true);
+create policy organization_insert on public.organization
+  for insert to authenticated
+  with check (public.is_manager());
+create policy organization_update on public.organization
+  for update to authenticated
+  using (public.is_manager())
+  with check (public.is_manager());
+
+insert into storage.buckets (id, name, public)
+values ('branding', 'branding', true)
+on conflict (id) do nothing;
+
+drop policy if exists "branding_read" on storage.objects;
+create policy "branding_read" on storage.objects
+  for select
+  using (bucket_id = 'branding');
+drop policy if exists "branding_insert" on storage.objects;
+create policy "branding_insert" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'branding' and public.is_manager());
+drop policy if exists "branding_update" on storage.objects;
+create policy "branding_update" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'branding' and public.is_manager());
+drop policy if exists "branding_delete" on storage.objects;
+create policy "branding_delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'branding' and public.is_manager());

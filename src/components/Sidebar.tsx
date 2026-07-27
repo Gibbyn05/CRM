@@ -35,7 +35,15 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   },
   {
     title: "Konto",
-    items: [{ href: "/profile", label: "Min profil", icon: "profile" }],
+    items: [
+      { href: "/profile", label: "Min profil", icon: "profile" },
+      {
+        href: "/organization",
+        label: "Min organisasjon",
+        icon: "building",
+        managerOnly: true,
+      },
+    ],
   },
 ];
 

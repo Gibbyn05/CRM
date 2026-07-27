@@ -76,11 +76,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Kontekst til en pen e-post (kundenavn + selgernavn).
-  const [{ data: customer }, { data: sender }] = await Promise.all([
+  // Kontekst til en pen e-post (kundenavn + selgernavn + selskaps-branding).
+  const [{ data: customer }, { data: sender }, { data: org }] = await Promise.all([
     supabase.from("customers").select("name").eq("id", body.customer_id).single(),
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    supabase
+      .from("organization")
+      .select("name, logo_url, contract_footer")
+      .eq("id", 1)
+      .maybeSingle(),
   ]);
+  const brandName = (org as { name: string | null } | null)?.name?.trim() || undefined;
 
   // 2) Send via valgt kanal.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -90,12 +96,18 @@ export async function POST(req: NextRequest) {
     body.channel === "email"
       ? await sendEmail({
           to: body.recipient,
-          subject: `Tilbud fra Salgssentral${customer?.name ? " – " + customer.name : ""}`,
+          subject: `Tilbud fra ${brandName ?? "Salgssentral"}${customer?.name ? " – " + customer.name : ""}`,
           html: contractEmailHtml({
             customerName: customer?.name ?? "der",
             signUrl,
             senderName: sender?.full_name || undefined,
             bodyText: body.message,
+            orgName: brandName,
+            logoUrl:
+              (org as { logo_url: string | null } | null)?.logo_url || undefined,
+            footer:
+              (org as { contract_footer: string | null } | null)?.contract_footer ||
+              undefined,
           }),
           text: `Hei ${customer?.name ?? "der"},\n\n${
             body.message?.trim() ||

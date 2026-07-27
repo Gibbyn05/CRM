@@ -28,7 +28,8 @@ export type IconName =
   | "upload"
   | "clock"
   | "trash"
-  | "mic";
+  | "mic"
+  | "building";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -152,6 +153,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3" />
+    </>
+  ),
+  building: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="1.5" />
+      <path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M10 21v-3a2 2 0 0 1 4 0v3" />
     </>
   ),
 };

@@ -71,16 +71,42 @@ export function contractEmailHtml(opts: {
   signUrl: string;
   senderName?: string;
   bodyText?: string;
+  // Branding fra «Min organisasjon» (gjenbruk i maler).
+  orgName?: string;
+  logoUrl?: string;
+  footer?: string;
 }): string {
-  const { customerName, signUrl, senderName, bodyText } = opts;
+  const { customerName, signUrl, senderName, bodyText, orgName, logoUrl, footer } =
+    opts;
+  const brand = orgName?.trim() || "Salgssentral";
   const body = bodyText?.trim()
     ? escapeHtml(bodyText.trim()).replace(/\n/g, "<br />")
     : "Vi har sendt deg et tilbud/kontrakt for gjennomgang og signering. Klikk på knappen under for å åpne dokumentet.";
+
+  // Toppfelt: logo hvis satt, ellers firmanavn som tekst.
+  const header = logoUrl?.trim()
+    ? `<img src="${escapeAttr(logoUrl.trim())}" alt="${escapeHtml(brand)}" style="max-height:40px;max-width:70%;display:block;" />`
+    : `<h1 style="margin:0;color:#ffffff;font-size:20px;">${escapeHtml(brand)}</h1>`;
+
+  const signatureLine = senderName
+    ? `<p style="margin:24px 0 0;color:#334155;font-size:15px;">Med vennlig hilsen,<br/>${escapeHtml(senderName)}${
+        orgName?.trim() ? `<br/>${escapeHtml(orgName.trim())}` : ""
+      }</p>`
+    : orgName?.trim()
+      ? `<p style="margin:24px 0 0;color:#334155;font-size:15px;">Med vennlig hilsen,<br/>${escapeHtml(orgName.trim())}</p>`
+      : "";
+
+  const footerLine = footer?.trim()
+    ? `<p style="margin:20px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">${escapeHtml(
+        footer.trim(),
+      ).replace(/\n/g, "<br />")}</p>`
+    : "";
+
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f5f6f8;padding:32px 0;">
     <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
       <div style="background:linear-gradient(135deg,#6366f1,#4338ca);padding:28px 32px;">
-        <h1 style="margin:0;color:#ffffff;font-size:20px;">Salgssentral</h1>
+        ${header}
       </div>
       <div style="padding:32px;">
         <p style="margin:0 0 16px;color:#0f172a;font-size:16px;">Hei ${escapeHtml(customerName)},</p>
@@ -96,11 +122,8 @@ export function contractEmailHtml(opts: {
           Fungerer ikke knappen? Kopier denne lenken:<br />
           <a href="${signUrl}" style="color:#4f46e5;">${escapeHtml(signUrl)}</a>
         </p>
-        ${
-          senderName
-            ? `<p style="margin:24px 0 0;color:#334155;font-size:15px;">Med vennlig hilsen,<br/>${escapeHtml(senderName)}</p>`
-            : ""
-        }
+        ${signatureLine}
+        ${footerLine}
       </div>
     </div>
   </div>`;
@@ -112,4 +135,10 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// For bruk i HTML-attributter (f.eks. src="…"). Fjerner farlige tegn slik at
+// en URL ikke kan bryte ut av attributtet.
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/'/g, "&#39;");
 }

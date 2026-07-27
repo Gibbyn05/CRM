@@ -216,6 +216,24 @@ export interface CallTranscript {
   created_at: string;
 }
 
+export interface Organization {
+  id: number;
+  name: string;
+  org_number: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  logo_url: string | null;
+  email_signature: string | null;
+  contract_footer: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LeaderboardRow {
   agent_id: string;
   full_name: string;
