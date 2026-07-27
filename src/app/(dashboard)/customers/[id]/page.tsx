@@ -2,13 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Contract, Customer, Deal, Note, Profile } from "@/lib/types";
-import { formatOrgNumber } from "@/lib/format";
-import NotesLog from "@/components/NotesLog";
-import DealsPanel from "@/components/DealsPanel";
-import ContractsPanel from "@/components/ContractsPanel";
-import CaseChat from "@/components/CaseChat";
+import { formatDate, formatOrgNumber } from "@/lib/format";
 import DeleteCustomerButton from "@/components/DeleteCustomerButton";
-import LiveTranscript from "@/components/LiveTranscript";
+import CustomerTabs from "@/components/CustomerTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +60,14 @@ export default async function CustomerDetailPage({
       p.full_name,
     ]),
   );
+  const ownerName = customer.owner_id ? nameMap.get(customer.owner_id) : null;
+
+  const fullAddress = [
+    customer.address,
+    [customer.postal_code, customer.city].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="space-y-5">
@@ -74,7 +78,7 @@ export default async function CustomerDetailPage({
         ← Tilbake til kunder
       </Link>
 
-      {/* Kundekort-header */}
+      {/* Kundekort-header: det viktigste øverst */}
       <div className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -82,6 +86,9 @@ export default async function CustomerDetailPage({
               {customer.name.trim().charAt(0).toUpperCase() || "?"}
             </span>
             <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Bedriftskunde
+              </p>
               <h1 className="truncate text-2xl font-bold text-slate-900">
                 {customer.name}
               </h1>
@@ -97,38 +104,39 @@ export default async function CustomerDetailPage({
             />
           )}
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-4">
-          <Field label="Kontakt" value={customer.contact_name ?? "–"} />
-          <Field label="E-post" value={customer.email ?? "–"} />
-          <Field label="Telefon" value={customer.phone ?? "–"} />
-          <Field label="Sted" value={customer.city ?? "–"} />
-        </div>
       </div>
 
+      {/* To kolonner: venstre = faste kundefakta, høyre = faner */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Venstre: transkript + logg + chat */}
-        <div className="space-y-4 lg:col-span-2">
-          <LiveTranscript customerId={customer.id} />
-          <NotesLog
-            customerId={customer.id}
-            initialNotes={(notes as Note[]) ?? []}
-            nameMap={Object.fromEntries(nameMap)}
-          />
-          <CaseChat
-            customerId={customer.id}
-            nameMap={Object.fromEntries(nameMap)}
-          />
-        </div>
+        {/* Venstre: Om kunden */}
+        <aside className="card h-fit p-5 lg:sticky lg:top-4">
+          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Om kunden
+          </h2>
+          <dl className="space-y-4">
+            <Fact label="Kontaktperson" value={customer.contact_name} />
+            <Fact label="E-post" value={customer.email} breakAll />
+            <Fact label="Telefon" value={customer.phone} />
+            <Fact label="Adresse" value={fullAddress || null} />
+            <Fact
+              label="Organisasjonsnummer"
+              value={
+                customer.org_number ? formatOrgNumber(customer.org_number) : null
+              }
+            />
+            <Fact label="Tildelt" value={ownerName ?? null} />
+            <Fact label="Opprettet" value={formatDate(customer.created_at)} />
+          </dl>
+        </aside>
 
-        {/* Høyre: deals + kontrakter */}
-        <div className="space-y-4">
-          <DealsPanel
-            customerId={customer.id}
-            initialDeals={(deals as Deal[]) ?? []}
-          />
-          <ContractsPanel
+        {/* Høyre: fanebasert innhold */}
+        <div className="lg:col-span-2">
+          <CustomerTabs
             customer={customer}
-            initialContracts={(contracts as Contract[]) ?? []}
+            notes={(notes as Note[]) ?? []}
+            deals={(deals as Deal[]) ?? []}
+            contracts={(contracts as Contract[]) ?? []}
+            nameMap={Object.fromEntries(nameMap)}
           />
         </div>
       </div>
@@ -136,13 +144,27 @@ export default async function CustomerDetailPage({
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Fact({
+  label,
+  value,
+  breakAll = false,
+}: {
+  label: string;
+  value: string | null;
+  breakAll?: boolean;
+}) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+      <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
         {label}
-      </p>
-      <p className="mt-0.5 truncate font-medium text-slate-700">{value}</p>
+      </dt>
+      <dd
+        className={`mt-0.5 font-medium text-slate-700 ${
+          breakAll ? "break-all" : "break-words"
+        }`}
+      >
+        {value ?? <span className="text-slate-300">–</span>}
+      </dd>
     </div>
   );
 }
