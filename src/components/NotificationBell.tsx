@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Notification, Reminder } from "@/lib/types";
@@ -13,6 +13,12 @@ import Icon, { type IconName } from "./Icon";
 export default function NotificationBell({ userId }: { userId: string }) {
   const supabase = createClient();
   const router = useRouter();
+  // Sidebar (mobil) og Topbar (desktop) monterer hver sin NotificationBell
+  // samtidig — CSS skjuler bare den ene, den fjernes ikke fra DOM-en. Uten en
+  // unik kanal-topic kolliderer de to instansenes Realtime-abonnement på
+  // samme delte Supabase-klient ("cannot add postgres_changes callbacks …
+  // after subscribe()").
+  const instanceId = useId();
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<Notification[]>([]);
   const [dueReminders, setDueReminders] = useState<Reminder[]>([]);
@@ -39,7 +45,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
     loadDue();
 
     const channel = supabase
-      .channel("bell")
+      .channel(`bell:${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -79,7 +85,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       supabase.removeChannel(channel);
       clearInterval(t);
     };
-  }, [supabase, userId, loadDue]);
+  }, [supabase, userId, loadDue, instanceId]);
 
   const unread = notes.filter((n) => !n.read).length;
   const badge = unread + dueReminders.length;

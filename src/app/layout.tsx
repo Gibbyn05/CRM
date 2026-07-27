@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Salgssentral",
   },
+  // Next sin Metadata-API har ikke et eget felt for denne ennå (kun Apple-
+  // varianten over) — den ikke-prefiksede taggen er nå standarden på tvers
+  // av nettlesere, så begge sendes.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 // viewport-fit=cover gir tilgang til safe-area (iPhone-hakk/hjemindikator).
