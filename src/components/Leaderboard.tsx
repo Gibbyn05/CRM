@@ -96,8 +96,17 @@ export default function Leaderboard() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.agent_id} className="border-b border-slate-100">
-                <td className="px-4 py-3 font-bold text-slate-400">
+              <tr
+                key={r.agent_id}
+                className={`border-b border-slate-100 ${
+                  i === 0 ? "bg-gradient-to-r from-amber-50 to-transparent" : ""
+                }`}
+              >
+                <td
+                  className={`px-4 py-3 font-bold ${
+                    i === 0 ? "text-lg" : "text-slate-400"
+                  }`}
+                >
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                 </td>
                 <td className="px-4 py-3">
@@ -107,7 +116,13 @@ export default function Leaderboard() {
                       url={profiles[r.agent_id]?.avatar_url}
                       size={28}
                     />
-                    <span className="font-medium text-slate-800">
+                    <span
+                      className={
+                        i === 0
+                          ? "font-bold text-slate-900"
+                          : "font-medium text-slate-800"
+                      }
+                    >
                       {displayName(r)}
                     </span>
                   </div>

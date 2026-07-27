@@ -191,6 +191,7 @@ export default function DashboardView({
               ? formatCurrency(stats.sales_amount)
               : undefined
           }
+          emphasis
         />
         <StatCard
           label="Avslag"
@@ -350,13 +351,36 @@ function StatCard({
   icon,
   tint,
   sub,
+  emphasis = false,
 }: {
   label: string;
   value: number;
   icon: IconName;
   tint: string;
   sub?: string;
+  emphasis?: boolean;
 }) {
+  // "Salg" er utfallsmålet på raden — den eneste som skal skille seg ut.
+  // Gjenbruker BrandMark sitt eksisterende gradient-motiv (bare i emerald,
+  // fargen salg allerede eier andre steder i appen) i stedet for å finne
+  // opp en ny overflate.
+  if (emphasis) {
+    return (
+      <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 shadow-pop sm:p-5">
+        <div className="flex items-center justify-between">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white">
+            <Icon name={icon} size={19} />
+          </span>
+        </div>
+        <p className="mt-3 text-4xl font-bold leading-none text-white tabular-nums">
+          {value}
+        </p>
+        <p className="mt-1.5 text-sm font-medium text-emerald-50">{label}</p>
+        {sub && <p className="mt-0.5 text-sm font-semibold text-white">{sub}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="card p-4 sm:p-5">
       <div className="flex items-center justify-between">

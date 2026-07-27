@@ -66,6 +66,28 @@ video {
   }
 }
 
+/* Vunnet salg i pipelinen — den ene fortjente feiringen i appen. Blendes
+   inn, holder, blendes ut; fjernes fra DOM-en av PipelineBoard idet den er
+   ferdig (1600ms), så det ikke trengs noen separat "forwards"-utgang. */
+@keyframes deal-won {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .animate-overlay-in {
     animation: overlay-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -85,12 +107,18 @@ video {
   .animate-row-flash {
     animation: row-flash 1200ms ease-out both;
   }
+  .animate-deal-won {
+    animation: deal-won 1600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
 }
 
 @layer components {
-  /* Standard kort-flate brukt over hele appen. */
+  /* Standard kort-flate brukt over hele appen. shadow-soft (ikke den nesten
+     usynlige shadow-card) — resten av systemet beviser allerede at denne
+     dybden fungerer (hover-tilstander, modaler); hvilende kort skal ikke
+     være den eneste flaten som ikke bruker den. */
   .card {
-    @apply rounded-2xl bg-white shadow-card ring-1 ring-slate-200/70;
+    @apply rounded-2xl bg-white shadow-soft ring-1 ring-slate-200/70;
   }
 
   /* Eyebrow/meta-label: tabellhoder, navigasjonsgrupper og skjema-underoverskrifter. */

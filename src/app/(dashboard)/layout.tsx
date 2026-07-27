@@ -50,8 +50,10 @@ export default async function DashboardLayout({
 
       <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
         <Topbar profile={profile} />
-        {/* Bunn-padding gir plass til den faste statuslinja + iPhone safe-area */}
-        <main className="thin-scroll flex-1 overflow-x-hidden p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:p-8 md:pb-[calc(7rem+env(safe-area-inset-bottom))]">
+        {/* Bunn-padding må klarere det høyeste faste elementet: chat-bobla
+            (bottom-[5rem] + h-14 => toppkant på 8.5rem), ikke bare
+            statuslinja (~4rem). Pluss iPhone safe-area. */}
+        <main className="thin-scroll flex-1 overflow-x-hidden p-4 pb-[calc(9rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:p-8 md:pb-[calc(9rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>

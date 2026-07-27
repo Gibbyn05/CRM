@@ -7,6 +7,7 @@ import type { DealStage } from "@/lib/types";
 import type { DealWithCustomer } from "@/app/(dashboard)/pipeline/page";
 import { DEAL_STAGES, DEAL_STAGE_LABELS, DEAL_STAGE_COLORS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
+import Icon from "./Icon";
 
 // Kanban-pipeline med drag-and-drop. Dra kortene mellom kolonnene, eller bruk
 // pilene (nyttig på touch). Summerer beløp per kolonne.
@@ -20,6 +21,9 @@ export default function PipelineBoard({
   const [deals, setDeals] = useState<DealWithCustomer[]>(initialDeals);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<DealStage | null>(null);
+  // Kort feiring når et tilbud aksepteres — den eneste virkelige
+  // milepælen i pipelinen. Nullstilles selv (1600ms, matcher animasjonen).
+  const [justWonId, setJustWonId] = useState<string | null>(null);
   // Skiller et ekte klikk fra slutten av en dra-operasjon, slik at man ikke
   // navigerer til kundesiden rett etter å ha dratt et kort.
   const draggedRef = useRef(false);
@@ -34,12 +38,17 @@ export default function PipelineBoard({
     const patch: Partial<DealWithCustomer> = { stage };
     if (stage === "tilbud_sendt" && !deal.offer_sent_at)
       patch.offer_sent_at = new Date().toISOString();
-    if (stage === "akseptert" && !deal.offer_accepted_at)
-      patch.offer_accepted_at = new Date().toISOString();
+    const isNewWin = stage === "akseptert" && !deal.offer_accepted_at;
+    if (isNewWin) patch.offer_accepted_at = new Date().toISOString();
 
     // Optimistisk oppdatering.
     setDeals((ds) => ds.map((d) => (d.id === deal.id ? { ...d, ...patch } : d)));
     await supabase.from("deals").update(patch).eq("id", deal.id);
+
+    if (isNewWin) {
+      setJustWonId(deal.id);
+      setTimeout(() => setJustWonId((id) => (id === deal.id ? null : id)), 1600);
+    }
   }
 
   function onDrop(stage: DealStage) {
@@ -105,10 +114,16 @@ export default function PipelineBoard({
                     // Nullstill etter at et eventuelt klikk-event har passert.
                     setTimeout(() => (draggedRef.current = false), 50);
                   }}
-                  className={`group cursor-pointer rounded-lg border-l-4 bg-white p-3 shadow-sm transition hover:shadow-soft hover:ring-1 hover:ring-brand-200 active:cursor-grabbing ${
+                  className={`group relative cursor-pointer overflow-hidden rounded-lg border-l-4 bg-white p-3 shadow-sm transition hover:shadow-soft hover:ring-1 hover:ring-brand-200 active:cursor-grabbing ${
                     DEAL_STAGE_COLORS[stage]
                   } ${draggingId === d.id ? "opacity-40" : ""}`}
                 >
+                  {justWonId === d.id && (
+                    <div className="animate-deal-won pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                      <Icon name="check" size={18} />
+                      <span className="text-sm font-bold">Vunnet!</span>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm font-semibold text-slate-800 group-hover:text-brand-700">
                       {d.customer_name}

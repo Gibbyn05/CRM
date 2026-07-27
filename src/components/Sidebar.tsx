@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 import Icon, { type IconName } from "./Icon";
+import NotificationBell from "./NotificationBell";
 
 type NavItem = {
   href: string;
@@ -98,14 +99,24 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           <BrandMark />
           Salgssentral
         </span>
-        <button
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Meny"
-          aria-expanded={open}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-        >
-          <Icon name={open ? "close" : "menu"} />
-        </button>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/customers"
+            aria-label="Søk etter kunde"
+            className="rounded-xl p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+          >
+            <Icon name="search" size={20} />
+          </Link>
+          {profile?.id && <NotificationBell userId={profile.id} />}
+          <button
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Meny"
+            aria-expanded={open}
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+          >
+            <Icon name={open ? "close" : "menu"} />
+          </button>
+        </div>
       </div>
 
       <aside

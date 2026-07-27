@@ -23,15 +23,16 @@ const AgentCard = forwardRef<
 
   const color = AGENT_STATUS_COLORS[agent.status];
   const label = AGENT_STATUS_LABELS[agent.status];
+  const isInCall = agent.status === "in_call";
 
   const lastCall = agent.last_call_ended_at ?? agent.last_call_started_at;
 
   return (
     <div
       ref={ref}
-      className={`card animate-card-in flex items-center justify-between gap-3 transition hover:shadow-soft ${
+      className={`card animate-card-in flex items-center justify-between gap-3 transition hover:shadow-pop ${
         big ? "p-6" : "p-4"
-      }`}
+      } ${isInCall ? "border-2 border-status-incall shadow-pop" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative shrink-0">
