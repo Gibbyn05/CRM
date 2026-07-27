@@ -75,7 +75,7 @@ export default function DagsavisView() {
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-brand-50 to-white px-6 py-4">
           <div>
-            <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+            <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-brand-700">
               AI-oppsummering
             </span>
             <h2 className="text-lg font-bold text-slate-900">

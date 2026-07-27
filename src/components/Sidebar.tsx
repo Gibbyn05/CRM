@@ -124,7 +124,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           <span className={`flex items-center gap-2.5 ${hide}`}>
             <BrandMark />
             <div className="leading-tight">
-              <p className="text-[15px] font-bold text-slate-900">Salgssentral</p>
+              <p className="text-base font-bold text-slate-900">Salgssentral</p>
               <p className="text-xs text-slate-400">
                 {isManager ? "Salgssjef" : "Selger"}
               </p>
@@ -149,9 +149,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         >
           {NAV_GROUPS.map((group) => (
             <div key={group.title}>
-              <p
-                className={`px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 ${hide}`}
-              >
+              <p className={`label-eyebrow px-3 pb-2 ${hide}`}>
                 {group.title}
               </p>
               <div className="space-y-1">

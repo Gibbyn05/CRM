@@ -114,7 +114,7 @@ export default function NotesLog({
               <span>·</span>
               <span>{n.author_id ? nameMap[n.author_id] ?? "Ukjent" : "System"}</span>
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
               {n.body}
             </p>
           </li>

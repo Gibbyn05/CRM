@@ -119,7 +119,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       >
         <Icon name="bell" size={18} />
         {badge > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-3xs font-bold text-white ring-2 ring-white">
             {badge > 99 ? "99+" : badge}
           </span>
         )}
@@ -128,7 +128,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-slate-200">
+          <div className="animate-popover-in absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl bg-white shadow-pop ring-1 ring-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
               <span className="font-semibold text-slate-800">Varsler</span>
               {unread > 0 && (
@@ -182,7 +182,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     {n.body && (
                       <p className="truncate text-xs text-slate-500">{n.body}</p>
                     )}
-                    <p className="text-[11px] text-slate-400">{timeAgo(n.created_at)}</p>
+                    <p className="text-2xs text-slate-400">{timeAgo(n.created_at)}</p>
                   </div>
                   {!n.read && (
                     <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />

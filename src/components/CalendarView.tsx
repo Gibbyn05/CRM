@@ -241,7 +241,7 @@ export default function CalendarView({
           {WEEKDAYS.map((w) => (
             <div
               key={w}
-              className="py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400"
+              className="label-eyebrow py-2 text-center"
             >
               {w}
             </div>
@@ -285,12 +285,12 @@ export default function CalendarView({
                           e.stopPropagation();
                           setEditing(a);
                         }}
-                        className={`flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                        className={`flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-2xs font-medium ${
                           a.status === "avlyst" ? "line-through opacity-60" : ""
                         }`}
                         style={{ backgroundColor: `${color}22`, color }}
                       >
-                        <span className="shrink-0 text-[9px] opacity-80">
+                        <span className="shrink-0 text-3xs opacity-80">
                           {formatTime(a.starts_at)}
                         </span>
                         <span className="truncate">{a.title}</span>
@@ -298,7 +298,7 @@ export default function CalendarView({
                     );
                   })}
                   {dayEvents.length > 3 && (
-                    <span className="px-1 text-[10px] font-medium text-slate-400">
+                    <span className="px-1 text-3xs font-medium text-slate-400">
                       +{dayEvents.length - 3} flere
                     </span>
                   )}
@@ -728,11 +728,11 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl thin-scroll"
+        className="animate-panel-in max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl thin-scroll"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

@@ -86,9 +86,7 @@ export default async function CustomerDetailPage({
               {customer.name.trim().charAt(0).toUpperCase() || "?"}
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Bedriftskunde
-              </p>
+              <p className="label-eyebrow">Bedriftskunde</p>
               <h1 className="truncate text-2xl font-bold text-slate-900">
                 {customer.name}
               </h1>
@@ -110,9 +108,7 @@ export default async function CustomerDetailPage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Venstre: Om kunden */}
         <aside className="card h-fit p-5 lg:sticky lg:top-4">
-          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Om kunden
-          </h2>
+          <h2 className="label-eyebrow mb-4">Om kunden</h2>
           <dl className="space-y-4">
             <Fact label="Kontaktperson" value={customer.contact_name} />
             <Fact label="E-post" value={customer.email} breakAll />
@@ -155,9 +151,7 @@ function Fact({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-        {label}
-      </dt>
+      <dt className="label-eyebrow">{label}</dt>
       <dd
         className={`mt-0.5 font-medium text-slate-700 ${
           breakAll ? "break-all" : "break-words"

@@ -110,9 +110,7 @@ export default function OrganizationForm({
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       {/* Logo + identitet */}
       <div className="card space-y-4 p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Logo
-        </h2>
+        <h2 className="label-eyebrow">Logo</h2>
         <div className="flex flex-col items-center gap-4">
           <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
             {logoUrl ? (
@@ -156,9 +154,7 @@ export default function OrganizationForm({
 
       {/* Selskapsinfo */}
       <div className="card space-y-4 p-6 lg:col-span-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Selskapsinformasjon
-        </h2>
+        <h2 className="label-eyebrow">Selskapsinformasjon</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Firmanavn" className="sm:col-span-2">
             <Input value={form.name} onChange={(v) => set("name", v)} placeholder="Firma AS" />
@@ -196,9 +192,7 @@ export default function OrganizationForm({
           </Field>
         </div>
 
-        <h2 className="pt-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Gjenbruk i maler
-        </h2>
+        <h2 className="label-eyebrow pt-2">Gjenbruk i maler</h2>
         <Field label="E-postsignatur">
           <textarea
             value={form.email_signature}

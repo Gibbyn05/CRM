@@ -45,8 +45,8 @@ export default function DeleteCustomerButton({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-pop">
+        <div className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-pop">
             <h2 className="text-lg font-bold text-slate-900">Slette kunde?</h2>
             <p className="mt-2 text-sm text-slate-600">
               Er du sikker på at du vil slette{" "}

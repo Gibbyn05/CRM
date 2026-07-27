@@ -127,8 +127,8 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
             >
               {SPEAKER_LABEL[t.speaker] ?? "—"}
             </span>
-            <span className="text-[10px] text-slate-400">{formatTime(t.spoken_at)}</span>
-            <p className={`text-slate-700 ${t.is_final ? "" : "italic opacity-70"}`}>
+            <span className="text-3xs text-slate-400">{formatTime(t.spoken_at)}</span>
+            <p className={`leading-relaxed text-slate-700 ${t.is_final ? "" : "italic opacity-70"}`}>
               {t.text}
             </p>
           </div>

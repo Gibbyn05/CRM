@@ -121,7 +121,7 @@ export default function RemindersView({
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       {/* Ny påminnelse */}
       <div className="card h-fit p-5 lg:col-span-1">
-        <h2 className="mb-3 font-semibold text-slate-900">Ny påminnelse</h2>
+        <h2 className="mb-3 text-lg font-bold text-slate-900">Ny påminnelse</h2>
         <div className="space-y-3">
           <input
             value={title}

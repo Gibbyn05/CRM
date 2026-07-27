@@ -95,12 +95,12 @@ export default function UsersAdmin({
                     <p className="flex items-center gap-2 font-semibold text-slate-800">
                       <span className="truncate">{p.full_name || "—"}</span>
                       {!p.is_active && (
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-3xs font-medium text-slate-500">
                           Deaktivert
                         </span>
                       )}
                       {isSelf && (
-                        <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-600">
+                        <span className="rounded bg-brand-50 px-1.5 py-0.5 text-3xs font-medium text-brand-600">
                           Deg
                         </span>
                       )}
@@ -235,11 +235,11 @@ function CreateUserModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-4 text-lg font-bold text-slate-900">Ny bruker</h2>

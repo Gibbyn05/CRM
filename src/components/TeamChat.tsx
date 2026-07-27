@@ -107,7 +107,7 @@ export default function TeamChat({
                   <span className="text-xs font-medium text-slate-600">
                     {mine ? "Deg" : a.name}
                   </span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-3xs text-slate-400">
                     {formatTime(m.created_at)}
                   </span>
                 </div>
@@ -116,7 +116,7 @@ export default function TeamChat({
                     mine ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-800"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm">{m.body}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
                 </div>
               </div>
             </div>

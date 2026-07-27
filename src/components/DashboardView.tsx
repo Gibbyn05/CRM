@@ -164,7 +164,11 @@ export default function DashboardView({
       </div>
 
       {/* KPI-kort */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div
+        className={`grid grid-cols-2 gap-3 transition-opacity duration-300 sm:gap-4 lg:grid-cols-4 ${
+          loading ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <StatCard
           label="Ringt"
           value={stats?.calls_count ?? 0}
@@ -197,10 +201,14 @@ export default function DashboardView({
       </div>
 
       {/* Søylegraf: antall samtaler per periode */}
-      <div className="card p-5">
+      <div
+        className={`card p-5 transition-opacity duration-300 ${
+          loading ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <div className="mb-1 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-slate-900">Samtaler</h2>
+            <h2 className="text-lg font-bold text-slate-900">Samtaler</h2>
             <p className="text-sm text-slate-500">
               {isManager ? "Hele teamet" : "Dine samtaler"} · {PERIOD_LABELS[period]}
             </p>
@@ -231,7 +239,7 @@ export default function DashboardView({
                     style={{ height: `${Math.max(b.calls > 0 ? 6 : 0, h)}%` }}
                   />
                 </div>
-                <span className="w-full truncate text-center text-[10px] font-medium capitalize text-slate-400">
+                <span className="w-full truncate text-center text-3xs font-medium capitalize text-slate-400">
                   {bucketLabel(b.bucket, period)}
                 </span>
               </div>
@@ -245,7 +253,7 @@ export default function DashboardView({
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
-            <h2 className="font-semibold text-slate-900">Sist ringt</h2>
+            <h2 className="text-lg font-bold text-slate-900">Sist ringt</h2>
             <p className="text-sm text-slate-500">
               Oppdateres automatisk når nye samtaler kommer inn
             </p>
@@ -258,7 +266,7 @@ export default function DashboardView({
 
         <div className="overflow-x-auto thin-scroll">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <thead className="label-eyebrow border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="px-5 py-3">Kunde / nummer</th>
                 {isManager && <th className="px-5 py-3">Selger</th>}
@@ -269,7 +277,10 @@ export default function DashboardView({
             </thead>
             <tbody>
               {recent.map((c) => (
-                <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50">
+                <tr
+                  key={c.id}
+                  className="animate-row-flash border-b border-slate-50 hover:bg-slate-50"
+                >
                   <td className="px-5 py-3">
                     {c.customer_id && c.customers?.name ? (
                       <Link

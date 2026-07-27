@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
   content: [
@@ -8,6 +9,17 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Inter, self-hosted via next/font (src/app/layout.tsx) and exposed
+        // as --font-sans; falls back to the system stack while it loads.
+        sans: ["var(--font-sans)", ...defaultTheme.fontFamily.sans],
+      },
+      fontSize: {
+        // Delte mikro-roller: eyebrow/tabellhoder (2xs) og tidsstempler/badges (3xs).
+        // Erstatter spredte text-[10px]/text-[11px]-verdier med navngitte steg.
+        "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+        "3xs": ["0.625rem", { lineHeight: "0.875rem" }],
+      },
       colors: {
         // Merkevare-aksent (indigo/violett) – primærfargen i hele UI-et.
         brand: {

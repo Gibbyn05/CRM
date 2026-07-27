@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LiveAgentRow } from "@/lib/types";
 import AgentCard from "./AgentCard";
+
+const REPOSITION_MS = 500;
+const REPOSITION_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 const STATUS_ORDER: Record<string, number> = {
   in_call: 0,
@@ -50,6 +53,43 @@ export default function TvBoard() {
     [agents],
   );
 
+  // FLIP: statusendringer omsorterer kortene (in_call flyttes øverst). I
+  // stedet for at de hopper til ny posisjon, måler vi forrige plassering og
+  // animerer differansen bort – selve poenget med denne tavla er å se
+  // hvem som nettopp gikk i samtale.
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const prevRects = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const nextRects = new Map<string, DOMRect>();
+
+    for (const a of sorted) {
+      const el = cardRefs.current.get(a.agent_id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      nextRects.set(a.agent_id, rect);
+
+      const prev = prevRects.current.get(a.agent_id);
+      if (!prev || reduceMotion) continue;
+
+      const dx = prev.left - rect.left;
+      const dy = prev.top - rect.top;
+      if (!dx && !dy) continue;
+
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.getBoundingClientRect(); // force reflow før vi fjerner transform
+      requestAnimationFrame(() => {
+        el.style.transition = `transform ${REPOSITION_MS}ms ${REPOSITION_EASE}`;
+        el.style.transform = "";
+      });
+    }
+
+    prevRects.current = nextRects;
+  }, [sorted]);
+
   const inCall = agents.filter((a) => a.status === "in_call").length;
 
   return (
@@ -80,7 +120,15 @@ export default function TvBoard() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {sorted.map((a) => (
-          <AgentCard key={a.agent_id} agent={a} big />
+          <AgentCard
+            key={a.agent_id}
+            agent={a}
+            big
+            ref={(el) => {
+              if (el) cardRefs.current.set(a.agent_id, el);
+              else cardRefs.current.delete(a.agent_id);
+            }}
+          />
         ))}
       </div>
     </div>

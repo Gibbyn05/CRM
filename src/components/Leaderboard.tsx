@@ -81,7 +81,7 @@ export default function Leaderboard() {
 
       <div className="card overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <thead className="label-eyebrow border-b border-slate-200 bg-slate-50">
             <tr>
               <th className="px-4 py-3">#</th>
               <th className="px-4 py-3">Selger</th>

@@ -1,5 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+// Selvhostet (ingen ekstern nettverksforespørsel), variabel font eksponert
+// som --font-sans i tailwind.config.ts. Fullfører font-feature-settings i
+// globals.css, som allerede målretter Inters egne cv0x-varianter.
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Salgssentral – CRM",
@@ -27,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="nb">
+    <html lang="nb" className={inter.variable}>
       <body>{children}</body>
     </html>
   );

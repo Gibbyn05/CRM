@@ -83,7 +83,7 @@ export default function CaseChat({
               {m.author_id ? nameMap[m.author_id] ?? "Ukjent" : "System"}
             </span>{" "}
             <span className="text-xs text-slate-400">{formatTime(m.created_at)}</span>
-            <p className="text-slate-700">{m.body}</p>
+            <p className="leading-relaxed text-slate-700">{m.body}</p>
           </div>
         ))}
         {messages.length === 0 && (

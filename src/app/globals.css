@@ -18,6 +18,7 @@ html {
 body {
   @apply text-slate-800 antialiased;
   background-color: #f5f6f8;
+  /* Inter-spesifikke character variants (åpen 4/6/9, enkeltetasjes a). */
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   /* Ingen utilsiktet horisontal scroll på mobil. */
   overflow-x: hidden;
@@ -32,10 +33,69 @@ video {
   max-width: 100%;
 }
 
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes row-flash {
+  from {
+    background-color: rgb(238 242 255); /* brand-50 */
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-overlay-in {
+    animation: overlay-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-panel-in {
+    animation: panel-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-popover-in {
+    animation: popover-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  /* backwards (ikke both/forwards): unngår at animasjonen fortsetter å
+     eie transform-egenskapen etter at den er ferdig, siden TvBoards
+     FLIP-reposisjonering setter transform via inline style på samme kort. */
+  .animate-card-in {
+    animation: card-in 300ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .animate-row-flash {
+    animation: row-flash 1200ms ease-out both;
+  }
+}
+
 @layer components {
   /* Standard kort-flate brukt over hele appen. */
   .card {
     @apply rounded-2xl bg-white shadow-card ring-1 ring-slate-200/70;
+  }
+
+  /* Eyebrow/meta-label: tabellhoder, navigasjonsgrupper og skjema-underoverskrifter. */
+  .label-eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-wider text-slate-400;
   }
 
   /* Diskré, avrundet rullefelt som matcher det rene uttrykket. */
