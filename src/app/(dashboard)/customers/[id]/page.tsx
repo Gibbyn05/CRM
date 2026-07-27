@@ -1,7 +1,16 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Contract, Customer, Deal, Note, Profile } from "@/lib/types";
+import type {
+  Contract,
+  ContractTemplate,
+  Customer,
+  Deal,
+  DealItem,
+  Note,
+  Product,
+  Profile,
+} from "@/lib/types";
 import { formatOrgNumber } from "@/lib/format";
 import NotesLog from "@/components/NotesLog";
 import DealsPanel from "@/components/DealsPanel";
@@ -38,25 +47,49 @@ export default async function CustomerDetailPage({
     .single<Pick<Profile, "role">>();
   const isManager = me?.role === "manager";
 
-  const [{ data: notes }, { data: deals }, { data: contracts }, { data: profiles }] =
-    await Promise.all([
-      supabase
-        .from("notes")
+  const [
+    { data: notes },
+    { data: deals },
+    { data: contracts },
+    { data: profiles },
+    { data: products },
+    { data: contractTemplates },
+  ] = await Promise.all([
+    supabase
+      .from("notes")
+      .select("*")
+      .eq("customer_id", params.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("deals")
+      .select("*")
+      .eq("customer_id", params.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("contracts")
+      .select("*")
+      .eq("customer_id", params.id)
+      .order("created_at", { ascending: false }),
+    supabase.from("profiles").select("id, full_name"),
+    supabase.from("products").select("*").eq("is_active", true).order("name"),
+    supabase.from("contract_templates").select("*").eq("is_active", true).order("name"),
+  ]);
+
+  const dealIds = ((deals as Deal[]) ?? []).map((d) => d.id);
+  const { data: dealItems } = dealIds.length
+    ? await supabase
+        .from("deal_items")
         .select("*")
-        .eq("customer_id", params.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("deals")
-        .select("*")
-        .eq("customer_id", params.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contracts")
-        .select("*")
-        .eq("customer_id", params.id)
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, full_name"),
-    ]);
+        .in("deal_id", dealIds)
+        .order("created_at", { ascending: true })
+    : { data: [] as DealItem[] };
+
+  const itemsByDeal = new Map<string, DealItem[]>();
+  for (const item of (dealItems as DealItem[]) ?? []) {
+    const list = itemsByDeal.get(item.deal_id) ?? [];
+    list.push(item);
+    itemsByDeal.set(item.deal_id, list);
+  }
 
   const nameMap = new Map(
     ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
@@ -125,10 +158,16 @@ export default async function CustomerDetailPage({
           <DealsPanel
             customerId={customer.id}
             initialDeals={(deals as Deal[]) ?? []}
+            initialItemsByDeal={Object.fromEntries(itemsByDeal)}
+            products={(products as Product[]) ?? []}
           />
           <ContractsPanel
             customer={customer}
             initialContracts={(contracts as Contract[]) ?? []}
+            deals={(deals as Deal[]) ?? []}
+            itemsByDeal={Object.fromEntries(itemsByDeal)}
+            templates={(contractTemplates as ContractTemplate[]) ?? []}
+            advisorName={nameMap.get(user?.id ?? "") ?? undefined}
           />
         </div>
       </div>

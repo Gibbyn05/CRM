@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  CompanyNotFoundError,
+  InvalidOrgNumberError,
+  lookupCompany,
+} from "@/lib/company-lookup";
 
 // ============================================================================
-//  Slår opp firmadata i Brønnøysundregistrene (Enhetsregisteret) fra org.nr.
-//  Gratis, åpent API – ingen nøkkel. Brukes til å autofylle "Ny kunde".
-//  Docs: https://data.brreg.no/enhetsregisteret/api/enheter/{orgnr}
+//  Automatisk firmaoppslag på organisasjonsnummer. Brønnøysundregistrene
+//  (Enhetsregisteret) er primærkilde for navn/adresse/daglig leder – gratis,
+//  offisielt, ingen nøkkel, ingen scraping. Telefonnummer forsøkes hentet fra
+//  pluggbare sekundærkilder (1881/Gule Sider/180.no) hvis konfigurert, se
+//  src/lib/company-lookup/. Brukes til å autofylle "Ny kunde" og tilbud.
 // ============================================================================
-
-interface BrregAddress {
-  adresse?: string[];
-  postnummer?: string;
-  poststed?: string;
-}
-interface BrregEnhet {
-  organisasjonsnummer?: string;
-  navn?: string;
-  forretningsadresse?: BrregAddress;
-  postadresse?: BrregAddress;
-  naeringskode1?: { beskrivelse?: string };
-}
 
 export async function GET(req: NextRequest) {
   const supabase = createClient();
@@ -36,49 +30,41 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(
-      `https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`,
-      { headers: { Accept: "application/json" }, cache: "no-store" },
-    );
-    if (res.status === 404) {
-      return NextResponse.json(
-        { error: "Fant ingen bedrift med dette organisasjonsnummeret." },
-        { status: 404 },
-      );
-    }
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Brønnøysund svarte ikke akkurat nå. Prøv igjen." },
-        { status: 502 },
-      );
-    }
-
-    const e = (await res.json()) as BrregEnhet;
-    const addr = e.forretningsadresse ?? e.postadresse;
+    const result = await lookupCompany(orgnr);
 
     return NextResponse.json({
       fields: {
-        name: e.navn ?? "",
-        org_number: e.organisasjonsnummer ?? orgnr,
-        city: addr?.poststed
-          ? capitalizeWords(addr.poststed)
-          : "",
-        address: (addr?.adresse ?? []).filter(Boolean).join(", "),
-        postal_code: addr?.postnummer ?? "",
-        industry: e.naeringskode1?.beskrivelse ?? "",
+        name: result.name.value ?? "",
+        org_number: result.org_number,
+        contact_name: result.ceo_name.value ?? "",
+        ceo_name: result.ceo_name.value ?? "",
+        phone: result.phone.value ?? "",
+        city: result.city.value ?? "",
+        address: result.address.value ?? "",
+        postal_code: result.postal_code.value ?? "",
+        industry: result.industry.value ?? "",
       },
+      // "Vis kilde": hvilken leverandør hvert felt kom fra (null = ikke funnet).
+      sources: {
+        name: result.name.source,
+        ceo_name: result.ceo_name.source,
+        phone: result.phone.source,
+        address: result.address.source,
+        city: result.city.source,
+      },
+      notes: result.notes,
     });
   } catch (err) {
+    if (err instanceof InvalidOrgNumberError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err instanceof CompanyNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     const m = err instanceof Error ? err.message : "Ukjent feil";
     return NextResponse.json(
       { error: "Kunne ikke kontakte Brønnøysund: " + m },
       { status: 502 },
     );
   }
-}
-
-function capitalizeWords(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/(^|[\s-])\p{L}/gu, (c) => c.toUpperCase());
 }

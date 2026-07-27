@@ -37,6 +37,10 @@ export default function NewCustomerButton() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
+  // Daglig leder holdes atskilt fra det frie "Kontaktperson"-feltet slik at
+  // den lagres i customers.ceo_name (se migrasjon 0010) selv om selgeren
+  // endrer/overstyrer kontaktpersonen.
+  const [ceoName, setCeoName] = useState("");
 
   // Automatisk utfylling
   const [smartText, setSmartText] = useState("");
@@ -45,8 +49,10 @@ export default function NewCustomerButton() {
   const [smartNote, setSmartNote] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
+  const [lookupNotes, setLookupNotes] = useState<string[]>([]);
 
-  // Slår opp firmadata i Brønnøysundregistrene fra org.nr og fyller inn.
+  // Slår opp firmadata i Brønnøysundregistrene (+ ev. telefonileverandør) fra
+  // org.nr og fyller inn navn, daglig leder, telefon og sted.
   async function lookupBrreg() {
     const orgnr = form.org_number.replace(/\s/g, "");
     if (!/^\d{9}$/.test(orgnr)) {
@@ -55,6 +61,7 @@ export default function NewCustomerButton() {
     }
     setBrregLoading(true);
     setSmartNote(null);
+    setLookupNotes([]);
     try {
       const res = await fetch(`/api/customers/brreg?orgnr=${orgnr}`);
       const j = await res.json();
@@ -63,8 +70,13 @@ export default function NewCustomerButton() {
         ...f,
         name: j.fields.name || f.name,
         city: j.fields.city || f.city,
+        contact_name: f.contact_name || j.fields.ceo_name || "",
+        phone: f.phone || j.fields.phone || "",
       }));
-      setSmartNote({ ok: true, text: `Hentet «${j.fields.name}» fra Brønnøysund.` });
+      if (j.fields.ceo_name) setCeoName(j.fields.ceo_name);
+      setLookupNotes(j.notes ?? []);
+      const source = j.sources?.name === "brreg" ? "Brønnøysund" : "registeret";
+      setSmartNote({ ok: true, text: `Hentet «${j.fields.name}» fra ${source}.` });
     } catch (e) {
       setSmartNote({
         ok: false,
@@ -153,8 +165,10 @@ export default function NewCustomerButton() {
   function close() {
     setOpen(false);
     setForm(EMPTY);
+    setCeoName("");
     setSmartText("");
     setSmartNote(null);
+    setLookupNotes([]);
     setError(null);
   }
 
@@ -182,6 +196,7 @@ export default function NewCustomerButton() {
         name: form.name.trim(),
         org_number: form.org_number || null,
         contact_name: form.contact_name || null,
+        ceo_name: ceoName || null,
         email: form.email || null,
         phone: form.phone || null,
         city: form.city || null,
@@ -248,6 +263,17 @@ export default function NewCustomerButton() {
                         {brregLoading ? "Henter …" : "Brønnøysund"}
                       </button>
                     </div>
+                  ) : field === "contact_name" && ceoName ? (
+                    <div>
+                      <input
+                        value={form.contact_name}
+                        onChange={(e) => update("contact_name", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      />
+                      <p className="mt-1 text-xs text-slate-400">
+                        Daglig leder «{ceoName}» hentet fra Brønnøysundregistrene.
+                      </p>
+                    </div>
                   ) : (
                     <input
                       value={form[field]}
@@ -257,6 +283,13 @@ export default function NewCustomerButton() {
                   )}
                 </div>
               ))}
+              {lookupNotes.length > 0 && (
+                <ul className="space-y-0.5 text-xs text-slate-400">
+                  {lookupNotes.map((n, i) => (
+                    <li key={i}>· {n}</li>
+                  ))}
+                </ul>
+              )}
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
 

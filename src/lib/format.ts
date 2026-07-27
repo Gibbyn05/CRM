@@ -1,5 +1,6 @@
 import { formatDistanceToNowStrict, format } from "date-fns";
 import { nb } from "date-fns/locale";
+import type { Contract, ContractStatus } from "./types";
 
 // Norske formateringshjelpere.
 
@@ -42,6 +43,17 @@ export function formatCurrency(
 export function formatOrgNumber(org: string | null | undefined): string {
   if (!org) return "–";
   return org.replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3");
+}
+
+// "Utløpt" er avledet (expired_at), ikke en egen contract_status-verdi –
+// denne gir statusen slik den skal vises i UI.
+export function contractDisplayStatus(
+  contract: Pick<Contract, "status" | "expired_at">,
+): ContractStatus | "expired" {
+  if (contract.expired_at && contract.status !== "signed" && contract.status !== "declined") {
+    return "expired";
+  }
+  return contract.status;
 }
 
 // Validerer norsk org.nr med MOD11-kontrollsiffer.

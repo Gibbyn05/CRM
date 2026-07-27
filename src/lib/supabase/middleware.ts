@@ -43,11 +43,17 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname;
 
-    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook.
+    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook,
+    // digital signering (kunden har ingen Supabase-sesjon – token i URL-en
+    // er selve autentiseringen, se /api/sign/[token]) og kontrakt-utløps-
+    // jobben (kalles av en ekstern scheduler, egen X-Cron-Secret-header).
     const isPublic =
       path.startsWith("/login") ||
       path.startsWith("/tv") ||
-      path.startsWith("/api/telephony");
+      path.startsWith("/api/telephony") ||
+      path.startsWith("/sign") ||
+      path.startsWith("/api/sign") ||
+      path.startsWith("/api/contracts/expire");
 
     if (!user && !isPublic) {
       const redirectUrl = request.nextUrl.clone();

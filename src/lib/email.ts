@@ -106,7 +106,36 @@ export function contractEmailHtml(opts: {
   </div>`;
 }
 
-function escapeHtml(s: string): string {
+// E-post med signert kopi av dokumentet, sendt til både kunde og selger når
+// en kontrakt signeres (se /api/sign/[token]). documentBody forventes å være
+// trygg, ferdig-escapet HTML (produsert av renderTemplateHtml, se
+// src/lib/templates.ts) – limes derfor inn direkte, ikke escapet på nytt.
+export function signedCopyEmailHtml(opts: {
+  customerName: string;
+  documentBody: string;
+  signedByName: string;
+  signedAt: string;
+}): string {
+  return `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f5f6f8;padding:32px 0;">
+    <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:24px 32px;">
+        <h1 style="margin:0;color:#ffffff;font-size:18px;">✓ Signert</h1>
+      </div>
+      <div style="padding:32px;">
+        <p style="margin:0 0 16px;color:#0f172a;font-size:15px;">
+          Signert av <strong>${escapeHtml(opts.signedByName)}</strong>
+          (${escapeHtml(opts.customerName)}) – ${escapeHtml(opts.signedAt)}.
+        </p>
+        <div style="border-top:1px solid #e2e8f0;padding-top:16px;color:#334155;font-size:14px;line-height:1.6;">
+          ${opts.documentBody}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

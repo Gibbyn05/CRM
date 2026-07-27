@@ -28,7 +28,10 @@ export type IconName =
   | "upload"
   | "clock"
   | "trash"
-  | "mic";
+  | "mic"
+  | "edit"
+  | "package"
+  | "file-text";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -152,6 +155,23 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </>
+  ),
+  package: (
+    <>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" />
+      <path d="M3 8l9 5 9-5M12 13v9" />
+    </>
+  ),
+  "file-text": (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6M8 13h8M8 17h5" />
     </>
   ),
 };

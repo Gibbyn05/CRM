@@ -1,35 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ContractChannel } from "@/lib/types";
+import type { ContractChannel, DealItem } from "@/lib/types";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { sendSms } from "@/lib/sms";
+import { generateSigningToken } from "@/lib/tokens";
+import { calculateTotal } from "@/lib/templates";
 
 // ============================================================================
-//  Send kontrakt via e-post eller SMS fra kundekortet.
+//  Send tilbud/kontrakt via e-post eller SMS fra kundekortet, med sikker,
+//  unik signeringslenke (/sign/[token]).
+//
+//  Selve gjengivelsen av kontrakt-/e-postmaler (plassholdere -> tekst) skjer
+//  KLIENT-side i ContractsPanel (src/lib/templates.ts er en ren, isomorf
+//  funksjon) slik at selgeren kan forhåndsvise og redigere manuelt før
+//  utsending. Denne routen lagrer/sender akkurat det som faktisk ble
+//  forhåndsvist (document_body/email_body/subject), genererer en tilfeldig
+//  signeringstoken (se src/lib/tokens.ts) og logger hele hendelsesforløpet i
+//  contract_events (revisjonslogg, vist på kundekortet).
 //
 //  E-post går via Resend når RESEND_API_KEY er satt (se src/lib/email.ts),
-//  ellers kjøres en "dry-run". SMS er fortsatt stubbet – koble på en norsk
-//  SMS-leverandør (Sveve/Link Mobility) i sendSms nedenfor. Status-sporing
-//  (åpnet/signert) oppdateres senere av leverandørens webhook.
+//  SMS via den konfigurerte leverandøren i src/lib/sms.ts – begge kjører
+//  "dry-run" uten nøkkel. Status-oppdatering ved åpning/signering/avslag
+//  skjer i /api/sign/[token] (se der for idempotens/IP-håndtering).
 // ============================================================================
 
 interface Body {
   customer_id?: string;
+  deal_id?: string;
   channel?: ContractChannel;
   recipient?: string;
-  deal_id?: string;
-  document_url?: string;
-  message?: string;
+  contract_template_id?: string | null;
+  email_template_id?: string | null;
+  // Emne (kun e-post), samt ferdig gjengitt (og ev. manuelt redigert)
+  // kontrakt-/e-postinnhold. document_body er det som vises/signeres på
+  // /sign/[token] – uten dette kan ikke kontrakten sendes.
+  subject?: string;
+  document_body?: string;
+  email_body?: string;
+  sms_message?: string;
 }
 
-async function sendSms(to: string, appUrl: string, contractId: string) {
-  if (!process.env.SMS_PROVIDER_API_KEY) {
-    console.log(`[dry-run] SMS kontrakt til ${to} (id: ${contractId})`);
-    return { provider: "dry-run", provider_ref: null as string | null };
-  }
-  // TODO: integrer SMS-leverandør her.
-  console.log(`Sender SMS til ${to} via leverandør (${appUrl}/sign/${contractId})`);
-  return { provider: "sms-provider", provider_ref: null as string | null };
-}
+const SIGNING_LINK_TTL_DAYS = Number(process.env.SIGNING_LINK_TTL_DAYS ?? 14) || 14;
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -53,6 +64,31 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  if (!body.document_body?.trim()) {
+    return NextResponse.json(
+      { error: "Kontraktinnhold (det kunden skal signere) er påkrevd." },
+      { status: 400 },
+    );
+  }
+  if (body.channel === "email" && !body.subject?.trim()) {
+    return NextResponse.json({ error: "Emnefelt er påkrevd for e-post." }, { status: 400 });
+  }
+
+  // Kontekst: kundens org.nr (snapshot), selgers navn (rådgiver), og ev.
+  // tilbudslinjer for totalbeløp.
+  const [{ data: customer }, { data: sender }, { data: itemsRes }] = await Promise.all([
+    supabase.from("customers").select("name, org_number").eq("id", body.customer_id).single(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    body.deal_id
+      ? supabase.from("deal_items").select("*").eq("deal_id", body.deal_id)
+      : Promise.resolve({ data: null }),
+  ]);
+  const items = (itemsRes as DealItem[] | null) ?? [];
+
+  const token = generateSigningToken();
+  const tokenExpiresAt = new Date(
+    Date.now() + SIGNING_LINK_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   // 1) Opprett kontrakt-rad (RLS sikrer at brukeren har tilgang til kunden).
   const { data: contract, error: insErr } = await supabase
@@ -64,7 +100,16 @@ export async function POST(req: NextRequest) {
       channel: body.channel,
       recipient: body.recipient,
       status: "draft",
-      document_url: body.document_url ?? null,
+      contract_template_id: body.contract_template_id ?? null,
+      email_template_id: body.channel === "email" ? body.email_template_id ?? null : null,
+      subject: body.channel === "email" ? body.subject!.trim() : null,
+      document_body: body.document_body,
+      email_body: body.channel === "email" ? body.email_body ?? null : null,
+      org_number: customer?.org_number ?? null,
+      advisor_name: sender?.full_name || null,
+      total_amount: items.length ? calculateTotal(items) : null,
+      signing_token: token,
+      token_expires_at: tokenExpiresAt,
     })
     .select("*")
     .single();
@@ -76,43 +121,45 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Kontekst til en pen e-post (kundenavn + selgernavn).
-  const [{ data: customer }, { data: sender }] = await Promise.all([
-    supabase.from("customers").select("name").eq("id", body.customer_id).single(),
-    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-  ]);
+  await supabase
+    .from("contract_events")
+    .insert({ contract_id: contract.id, event_type: "created", actor: "agent" });
 
   // 2) Send via valgt kanal.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const signUrl = body.document_url ?? `${appUrl}/sign/${contract.id}`;
+  const signUrl = `${appUrl}/sign/${token}`;
 
   const result =
     body.channel === "email"
       ? await sendEmail({
           to: body.recipient,
-          subject: `Tilbud fra Salgssentral${customer?.name ? " – " + customer.name : ""}`,
+          subject: body.subject!.trim(),
           html: contractEmailHtml({
             customerName: customer?.name ?? "der",
             signUrl,
             senderName: sender?.full_name || undefined,
-            bodyText: body.message,
+            bodyText: body.email_body,
           }),
           text: `Hei ${customer?.name ?? "der"},\n\n${
-            body.message?.trim() ||
-            "Vi har sendt deg et tilbud/kontrakt."
+            body.email_body?.trim() || "Vi har sendt deg et tilbud/kontrakt."
           }\n\nÅpne og signer her: ${signUrl}`,
         })
-      : await sendSms(body.recipient, appUrl, contract.id);
+      : await sendSms({
+          to: body.recipient,
+          message:
+            body.sms_message?.trim() ||
+            `Hei! ${sender?.full_name ? sender.full_name + " har" : "Du har"} sendt deg et tilbud. Åpne og signer: ${signUrl}`,
+        });
 
-  // Hvis e-postleverandøren feilet, la kontrakten stå som kladd og meld fra.
+  // Hvis leverandøren feilet, la kontrakten stå som kladd og meld fra.
   if ("error" in result && result.error) {
     return NextResponse.json(
-      { error: "Kunne ikke sende e-post: " + result.error, contract },
+      { error: "Kunne ikke sende: " + result.error, contract },
       { status: 502 },
     );
   }
 
-  // 3) Marker som sendt.
+  // 3) Marker som sendt + logg hendelsen.
   const { data: updated } = await supabase
     .from("contracts")
     .update({
@@ -125,12 +172,12 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
 
+  await supabase.from("contract_events").insert({
+    contract_id: contract.id,
+    event_type: "sent",
+    actor: "agent",
+    metadata: { channel: body.channel, provider: result.provider },
+  });
+
   return NextResponse.json({ ok: true, contract: updated ?? contract });
 }
-
-// ─────────────────────────────────────────────────────────────
-//  Fremtidig: leverandør-webhook for åpnet/signert-status.
-//  Opprett f.eks. /api/contracts/status som mottar callbacks fra
-//  e-signaturløsningen og oppdaterer contracts.status til 'opened'/'signed'
-//  med tilhørende tidsstempel. Datamodellen støtter allerede dette.
-// ─────────────────────────────────────────────────────────────

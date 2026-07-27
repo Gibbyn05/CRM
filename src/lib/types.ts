@@ -26,6 +26,18 @@ export type AppointmentStatus =
 export type ContractChannel = "email" | "sms";
 export type ContractStatus = "draft" | "sent" | "opened" | "signed" | "declined";
 
+export type BillingInterval = "month" | "year" | "once";
+export type TemplateType = "contract" | "email";
+export type SigningEventType =
+  | "created"
+  | "sent"
+  | "opened"
+  | "signed"
+  | "declined"
+  | "expired"
+  | "resent";
+export type SigningEventActor = "agent" | "customer" | "system";
+
 export type NoteType = "call" | "general" | "system" | "meeting";
 export type MessageChannel = "team" | "customer" | "direct";
 
@@ -67,6 +79,9 @@ export interface Customer {
   name: string;
   org_number: string | null;
   contact_name: string | null;
+  // Daglig leder, hentet fra Brønnøysundregisterets rolleoversikt (se
+  // src/lib/company-lookup).
+  ceo_name: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -116,6 +131,57 @@ export interface Deal {
   offer_sent_at: string | null;
   offer_accepted_at: string | null;
   lost_reason: string | null;
+  valid_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Produkt-/priskatalog og tilbudslinjer
+// ─────────────────────────────────────────────────────────────
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  billing_interval: BillingInterval;
+  binding_months: number | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Produktlinje på et tilbud (deal). unit_price er en snapshot av
+// standardprisen; override_price (om satt) er selgers overstyrte pris.
+export interface DealItem {
+  id: string;
+  deal_id: string;
+  product_id: string | null;
+  name: string;
+  description: string | null;
+  quantity: number;
+  unit_price: number;
+  override_price: number | null;
+  billing_interval: BillingInterval;
+  binding_months: number | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Kontrakt-/e-postmaler
+// ─────────────────────────────────────────────────────────────
+
+export interface ContractTemplate {
+  id: string;
+  name: string;
+  type: TemplateType;
+  subject: string | null;
+  body: string;
+  is_active: boolean;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,8 +215,43 @@ export interface Contract {
   provider: string | null;
   provider_ref: string | null;
   document_url: string | null;
+  contract_template_id: string | null;
+  email_template_id: string | null;
+  // Sikker, unik signeringslenke-token (se src/lib/tokens.ts). Aldri
+  // eksponert til andre enn eieren av lenken.
+  signing_token: string | null;
+  token_expires_at: string | null;
+  subject: string | null;
+  document_body: string | null;
+  email_body: string | null;
+  org_number: string | null;
+  advisor_name: string | null;
+  total_amount: number | null;
+  opened_ip: string | null;
+  signed_ip: string | null;
+  signed_by_name: string | null;
+  signed_by_email: string | null;
+  declined_at: string | null;
+  declined_reason: string | null;
+  // Satt av /api/contracts/expire når token_expires_at er passert uten
+  // signering/avslag. status beholder siste reelle verdi (typisk sent/opened).
+  expired_at: string | null;
+  resend_count: number;
   created_at: string;
   updated_at: string;
+}
+
+// Kronologisk revisjonslogg for signeringsflyten til én kontrakt.
+export interface ContractEvent {
+  id: string;
+  contract_id: string;
+  event_type: SigningEventType;
+  occurred_at: string;
+  actor: SigningEventActor;
+  ip: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface Message {
