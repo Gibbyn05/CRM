@@ -35,13 +35,6 @@ export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
   tapt: "Tapt",
 };
 
-export const DEAL_STAGE_COLORS: Record<DealStage, string> = {
-  ringt: "border-slate-400",
-  tilbud_sendt: "border-amber-400",
-  akseptert: "border-green-500",
-  tapt: "border-red-500",
-};
-
 export const APPOINTMENT_TYPE_LABELS: Record<AppointmentType, string> = {
   oppfolgingsmote: "Oppfølgingsmøte",
   demo: "Demo",

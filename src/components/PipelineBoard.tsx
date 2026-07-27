@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { DealStage } from "@/lib/types";
 import type { DealWithCustomer } from "@/app/(dashboard)/pipeline/page";
-import { DEAL_STAGES, DEAL_STAGE_LABELS, DEAL_STAGE_COLORS } from "@/lib/constants";
+import { DEAL_STAGES, DEAL_STAGE_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import Icon from "./Icon";
 
@@ -114,9 +114,9 @@ export default function PipelineBoard({
                     // Nullstill etter at et eventuelt klikk-event har passert.
                     setTimeout(() => (draggedRef.current = false), 50);
                   }}
-                  className={`group relative cursor-pointer overflow-hidden rounded-lg border-l-4 bg-white p-3 shadow-sm transition hover:shadow-soft hover:ring-1 hover:ring-brand-200 active:cursor-grabbing ${
-                    DEAL_STAGE_COLORS[stage]
-                  } ${draggingId === d.id ? "opacity-40" : ""}`}
+                  className={`group relative cursor-pointer overflow-hidden rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200/70 transition hover:shadow-soft hover:ring-brand-200 active:cursor-grabbing ${
+                    draggingId === d.id ? "opacity-40" : ""
+                  }`}
                 >
                   {justWonId === d.id && (
                     <div className="animate-deal-won pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
