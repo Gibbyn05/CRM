@@ -12,8 +12,10 @@ import Icon from "./Icon";
 // selgere primært ser sine egne + ikke-tildelte kunder.
 export default function CustomerSearch({
   initialQuery = "",
+  canCreate = true,
 }: {
   initialQuery?: string;
+  canCreate?: boolean;
 }) {
   const supabase = createClient();
   const [query, setQuery] = useState(initialQuery);
@@ -69,7 +71,7 @@ export default function CustomerSearch({
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
-        <NewCustomerButton />
+        {canCreate && <NewCustomerButton />}
       </div>
 
       <div className="card overflow-hidden">

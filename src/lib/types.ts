@@ -244,6 +244,25 @@ export interface Organization {
   updated_at: string;
 }
 
+export type PermissionResource = "customers" | "contracts" | "events" | "products";
+export type PermissionAction = "view" | "create" | "edit" | "delete";
+
+export interface RolePermission {
+  role: UserRole;
+  resource: PermissionResource;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  updated_at: string;
+}
+
+// Flat oppslagsmodell brukt i UI: perms[resource][action] === boolean.
+export type PermissionMap = Record<
+  PermissionResource,
+  Record<PermissionAction, boolean>
+>;
+
 export interface LeaderboardRow {
   agent_id: string;
   full_name: string;

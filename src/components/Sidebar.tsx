@@ -43,6 +43,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         icon: "building",
         managerOnly: true,
       },
+      {
+        href: "/users",
+        label: "Brukere",
+        icon: "customers",
+        managerOnly: true,
+      },
     ],
   },
 ];

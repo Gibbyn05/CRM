@@ -1,12 +1,14 @@
 import CustomerSearch from "@/components/CustomerSearch";
+import { getMyPermissions } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-export default function CustomersPage({
+export default async function CustomersPage({
   searchParams,
 }: {
   searchParams: { q?: string };
 }) {
+  const perms = await getMyPermissions();
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -17,7 +19,10 @@ export default function CustomersPage({
           </p>
         </div>
       </div>
-      <CustomerSearch initialQuery={searchParams.q ?? ""} />
+      <CustomerSearch
+        initialQuery={searchParams.q ?? ""}
+        canCreate={perms.customers.create}
+      />
     </div>
   );
 }

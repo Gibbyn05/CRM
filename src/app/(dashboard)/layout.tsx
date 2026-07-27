@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import ChatWidget from "@/components/ChatWidget";
 import StatusBar from "@/components/StatusBar";
+import DeactivatedScreen from "@/components/DeactivatedScreen";
 import type { AuthorInfo } from "@/lib/chat-types";
 
 export default async function DashboardLayout({
@@ -25,6 +26,11 @@ export default async function DashboardLayout({
     supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
     supabase.from("profiles").select("id, full_name, email, avatar_url"),
   ]);
+
+  // Deaktiverte brukere blokkeres fra hele appen.
+  if (profile && profile.is_active === false) {
+    return <DeactivatedScreen />;
+  }
 
   const authors: Record<string, AuthorInfo> = Object.fromEntries(
     (
