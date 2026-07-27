@@ -12,7 +12,7 @@ import {
   ACTION_LABELS,
   RESOURCE_LABELS,
   RESOURCES,
-} from "@/lib/permissions";
+} from "@/lib/permissions-shared";
 import Icon from "./Icon";
 
 const ACTIONS: PermissionAction[] = ["view", "create", "edit", "delete"];

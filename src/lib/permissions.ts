@@ -1,68 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
-import type {
-  PermissionAction,
-  PermissionMap,
-  PermissionResource,
-  RolePermission,
-  UserRole,
-} from "@/lib/types";
+import type { PermissionMap, RolePermission, UserRole } from "@/lib/types";
+import { buildPermissionMap, emptyMap } from "@/lib/permissions-shared";
 
-export const RESOURCES: PermissionResource[] = [
-  "customers",
-  "contracts",
-  "events",
-  "products",
-];
-
-export const RESOURCE_LABELS: Record<PermissionResource, string> = {
-  customers: "Kundekort",
-  contracts: "Kontrakter",
-  events: "Hendelser",
-  products: "Produkter",
-};
-
-export const ACTION_LABELS: Record<PermissionAction, string> = {
-  view: "Se",
-  create: "Opprette",
-  edit: "Endre",
-  delete: "Slette",
-};
-
-const ALL_TRUE: Record<PermissionAction, boolean> = {
-  view: true,
-  create: true,
-  edit: true,
-  delete: true,
-};
-
-function emptyMap(value: boolean): PermissionMap {
-  return RESOURCES.reduce((acc, r) => {
-    acc[r] = { view: value, create: value, edit: value, delete: value };
-    return acc;
-  }, {} as PermissionMap);
-}
-
-// Bygger en full rettighetsmatrise for en gitt rolle ut fra role_permissions-
-// radene. Ledere er alltid fulle administratorer. Manglende rad => fail-open
-// (true), likt has_perm() i databasen.
-export function buildPermissionMap(
-  role: UserRole | null,
-  rows: RolePermission[],
-): PermissionMap {
-  if (role === "manager") return emptyMap(true);
-  const map = emptyMap(true); // fail-open default
-  for (const row of rows) {
-    if (row.role !== role) continue;
-    if (!RESOURCES.includes(row.resource)) continue;
-    map[row.resource] = {
-      view: row.can_view,
-      create: row.can_create,
-      edit: row.can_edit,
-      delete: row.can_delete,
-    };
-  }
-  return map;
-}
+// Server-only: leser innlogget brukers rettigheter. Klientkode må importere
+// konstanter/hjelpere fra "@/lib/permissions-shared" (denne filen drar inn
+// server-klienten via next/headers og kan ikke bunles i klienten).
+export {
+  RESOURCES,
+  RESOURCE_LABELS,
+  ACTION_LABELS,
+  buildPermissionMap,
+} from "@/lib/permissions-shared";
 
 // Henter rettighetene til innlogget bruker (server). Brukes til å gate UI.
 export async function getMyPermissions(): Promise<PermissionMap> {
@@ -80,5 +28,3 @@ export async function getMyPermissions(): Promise<PermissionMap> {
   const role = (me as { role: UserRole } | null)?.role ?? null;
   return buildPermissionMap(role, (rows as RolePermission[]) ?? []);
 }
-
-export { ALL_TRUE };
