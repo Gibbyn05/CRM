@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { CallDirection } from "@/lib/types";
 
 // ============================================================================
@@ -46,6 +47,14 @@ interface TelephonyEvent {
 }
 
 export async function POST(req: NextRequest) {
+  // 0) Rate limit pr. IP (maskin-til-maskin, romslig grense).
+  const limited = await enforceRateLimit(req, {
+    name: "telephony:webhook",
+    limit: 600,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   // 1) Verifiser delt hemmelighet.
   const secret = req.headers.get("x-webhook-secret");
   if (!secret || secret !== process.env.TELEPHONY_WEBHOOK_SECRET) {

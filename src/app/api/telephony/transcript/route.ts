@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { TranscriptSpeaker } from "@/lib/types";
 
 // ============================================================================
@@ -38,6 +39,14 @@ interface Body {
 const SPEAKERS = new Set<TranscriptSpeaker>(["agent", "customer", "system"]);
 
 export async function POST(req: NextRequest) {
+  // Rate limit pr. IP – romslig, siden live-transkript sender mange segmenter.
+  const limited = await enforceRateLimit(req, {
+    name: "telephony:transcript",
+    limit: 1200,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   const secret = req.headers.get("x-webhook-secret");
   if (!process.env.TELEPHONY_WEBHOOK_SECRET) {
     return NextResponse.json(

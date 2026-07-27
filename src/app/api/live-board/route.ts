@@ -1,14 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AgentState, Profile } from "@/lib/types";
 import { toLiveRows } from "@/lib/live";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // Offentlig live-tavle-data for TV/kiosk-visningen. Bruker service-role slik
 // at storskjermen kan vise status uten innlogging. Returnerer kun ikke-
 // sensitive statusfelter.
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Offentlig endepunkt (ingen innlogging) – begrens pr. IP.
+  const limited = await enforceRateLimit(req, {
+    name: "live-board",
+    limit: 180,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   const supabase = createAdminClient();
 
   const [{ data: profiles }, { data: states }] = await Promise.all([

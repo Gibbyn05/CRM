@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { UserRole } from "@/lib/types";
 
 // ============================================================================
@@ -22,6 +23,14 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
+  const limited = await enforceRateLimit(req, {
+    name: "users:create",
+    limit: 20,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   // Kun ledere kan opprette brukere.
   const { data: me } = await supabase

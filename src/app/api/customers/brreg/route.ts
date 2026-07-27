@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Slår opp firmadata i Brønnøysundregistrene (Enhetsregisteret) fra org.nr.
@@ -26,6 +27,14 @@ export async function GET(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
+  const limited = await enforceRateLimit(req, {
+    name: "customers:brreg",
+    limit: 30,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   const orgnr = (req.nextUrl.searchParams.get("orgnr") ?? "").replace(/\s/g, "");
   if (!/^\d{9}$/.test(orgnr)) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeMetrics, generateSummary } from "@/lib/dagsavis";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { Profile } from "@/lib/types";
 
 // ============================================================================
@@ -28,6 +29,14 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
   }
+
+  const limited = await enforceRateLimit(req, {
+    name: "dagsavis",
+    limit: 15,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   const body = await req.json().catch(() => ({}));
   const dateISO: string = body.date ?? yesterdayISO();

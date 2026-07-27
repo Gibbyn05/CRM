@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Trekk ut kundeopplysninger fra fritekst eller et bilde (visittkort,
@@ -52,6 +53,14 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
   }
+
+  const limited = await enforceRateLimit(req, {
+    name: "customers:extract",
+    limit: 15,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(

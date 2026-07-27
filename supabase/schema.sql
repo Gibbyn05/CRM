@@ -1390,3 +1390,56 @@ drop policy if exists customers_delete on public.customers;
 create policy customers_delete on public.customers
   for delete to authenticated
   using (public.has_perm('customers', 'delete'));
+
+-- ===========================================================================
+--  RATE LIMITING  (0013) – delt teller pr. nøkkel, kun service-role.
+-- ===========================================================================
+create table public.rate_limits (
+  key          text primary key,
+  count        integer not null default 0,
+  window_start timestamptz not null default now()
+);
+
+comment on table public.rate_limits is
+  'Rate-limit-tellere pr. nøkkel (endepunkt:ip / endepunkt:user). Kun service-role.';
+
+alter table public.rate_limits enable row level security;
+
+create or replace function public.rl_hit(p_key text, p_limit integer, p_window integer)
+returns table (allowed boolean, remaining integer, reset_at timestamptz)
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_count integer;
+  v_start timestamptz;
+begin
+  insert into public.rate_limits (key, count, window_start)
+    values (p_key, 1, now())
+  on conflict (key) do update set
+    count = case
+      when rate_limits.window_start < now() - make_interval(secs => p_window)
+      then 1 else rate_limits.count + 1 end,
+    window_start = case
+      when rate_limits.window_start < now() - make_interval(secs => p_window)
+      then now() else rate_limits.window_start end
+  returning count, window_start into v_count, v_start;
+
+  allowed := v_count <= p_limit;
+  remaining := greatest(0, p_limit - v_count);
+  reset_at := v_start + make_interval(secs => p_window);
+  return next;
+end;
+$$;
+
+create or replace function public.rl_cleanup(p_older_than_seconds integer default 3600)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare v_deleted integer;
+begin
+  delete from public.rate_limits
+    where window_start < now() - make_interval(secs => p_older_than_seconds);
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;

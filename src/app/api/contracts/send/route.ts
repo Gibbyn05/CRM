@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractChannel } from "@/lib/types";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Send kontrakt via e-post eller SMS fra kundekortet.
@@ -39,6 +40,14 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
   }
+
+  const limited = await enforceRateLimit(req, {
+    name: "contracts:send",
+    limit: 20,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   let body: Body;
   try {

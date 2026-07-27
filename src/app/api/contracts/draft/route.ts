@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Foreslå en kort, profesjonell kontrakt-/tilbudstekst med Claude, basert på
@@ -19,6 +20,14 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+
+  const limited = await enforceRateLimit(req, {
+    name: "contracts:draft",
+    limit: 15,
+    windowSeconds: 60,
+    userId: user.id,
+  });
+  if (limited) return limited;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
