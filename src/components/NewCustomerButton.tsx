@@ -211,22 +211,22 @@ export default function NewCustomerButton() {
 
       {open && (
         <div className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="animate-panel-in max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
+          <div className="animate-panel-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
             <h2 className="mb-4 text-lg font-bold">Ny kunde</h2>
 
-            {/* Felter */}
-            <div className="space-y-3">
+            {/* Felter – bredt to-kolonners oppsett */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["name", "Navn *"],
-                  ["org_number", "Org.nr (9 siffer)"],
-                  ["contact_name", "Kontaktperson"],
-                  ["email", "E-post"],
-                  ["phone", "Telefon"],
-                  ["city", "Sted"],
+                  ["name", "Navn *", "full"],
+                  ["org_number", "Org.nr (9 siffer)", "full"],
+                  ["contact_name", "Kontaktperson", "half"],
+                  ["email", "E-post", "half"],
+                  ["phone", "Telefon", "half"],
+                  ["city", "Sted", "half"],
                 ] as const
-              ).map(([field, label]) => (
-                <div key={field}>
+              ).map(([field, label, span]) => (
+                <div key={field} className={span === "full" ? "sm:col-span-2" : ""}>
                   <label className="mb-1 block text-sm text-slate-600">
                     {label}
                   </label>
@@ -257,7 +257,9 @@ export default function NewCustomerButton() {
                   )}
                 </div>
               ))}
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-600 sm:col-span-2">{error}</p>
+              )}
             </div>
 
             {/* Automatisk utfylling (under Sted) */}
