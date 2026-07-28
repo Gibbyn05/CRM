@@ -44,18 +44,41 @@ npm start
 | `RECORDINGS_DIR` | Bria sin opptaksmappe |
 | `DELETE_AFTER_UPLOAD` | Slett lokal fil etter opplasting (true/false) |
 
-## Distribusjon til 10 PC-er
+## Bygg kjørbar fil (ingen Node på selger-PC-ene)
 
-Bygg én kjørbar fil (ingen Node kreves på PC-ene):
+Koden er CommonJS, så `pkg` produserer kjørbare filer som faktisk starter.
 
+### Anbefalt: bygg i GitHub Actions (rene, native maskiner)
+Ikke bygg lokalt – da slipper du kryss-kompilering. Workflow-en
+`.github/workflows/build-bridge.yml` bygger både **Windows-** og **Mac-**binær
+på native runnere:
+
+1. GitHub → **Actions** → «Bygg telefoni-bro» → **Run workflow** (eller push til
+   `telephony-bridge/`).
+2. Åpne kjøringen → last ned filene under **Artifacts**:
+   - `salgssentral-telephony-bridge-win.exe` (til selgernes Windows-PC-er)
+   - `salgssentral-telephony-bridge-macos` (til Mac)
+
+### Alternativ: bygg lokalt
 ```bash
-npm run build:exe        # lager dist/ med Windows- og Mac-binær
+npm run build:exe   # dist/ med Windows- (x64) og Mac- (x64) binær
+```
+NB: bygges på Apple Silicon lager dette en Intel-Mac-binær (kjører via Rosetta).
+Windows-.exe-en er den som betyr noe for selgerne.
+
+### Enkleste alternativ (uten pakking): kjør fra kildekode
+Hvis IT uansett kan installere Node ≥18 på maskinene:
+```bash
+npm install
+npm start
 ```
 
-Legg binæren + en ferdig `.env` (med riktig `AGENT_ID` per selger) på hver
-maskin, og få den til å **starte automatisk**:
+## Utrulling til 10 PC-er
 
-- **Windows:** Oppgaveplanlegger → «Ved pålogging» → kjør binæren. (Eventuelt
+Legg binæren (eller kildekoden) + en ferdig `.env` (med riktig `AGENT_ID` per
+selger) på hver maskin, og få den til å **starte automatisk**:
+
+- **Windows:** Oppgaveplanlegger → «Ved pålogging» → kjør `.exe`-en. (Eventuelt
   som Windows-tjeneste via `nssm`.)
 - **Mac:** en `launchd`-agent i `~/Library/LaunchAgents`.
 

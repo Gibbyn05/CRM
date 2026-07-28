@@ -1,0 +1,41 @@
+name: Bygg telefoni-bro
+
+# Bygger de kjørbare filene for telefoni-broen på RENE, NATIVE maskiner
+# (Windows + Mac) – slik at man slipper lokal kryss-kompilering. Last ned
+# resultatet under «Artifacts» på kjøringen i Actions-fanen.
+
+on:
+  workflow_dispatch: # kan startes manuelt fra Actions-fanen
+  push:
+    paths:
+      - "telephony-bridge/**"
+      - ".github/workflows/build-bridge.yml"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: node18-win-x64
+            out: salgssentral-telephony-bridge-win.exe
+          - os: macos-latest
+            target: node18-macos-arm64
+            out: salgssentral-telephony-bridge-macos
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: telephony-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm install
+      - run: npx pkg . --targets ${{ matrix.target }} --output dist/${{ matrix.out }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: telephony-bridge/dist/${{ matrix.out }}
+          if-no-files-found: error

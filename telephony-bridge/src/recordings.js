@@ -1,8 +1,8 @@
-import fs from "node:fs";
-import fsp from "node:fs/promises";
-import path from "node:path";
-import chokidar from "chokidar";
-import { log, sleep } from "./util.js";
+const fs = require("node:fs");
+const fsp = require("node:fs/promises");
+const path = require("node:path");
+const chokidar = require("chokidar");
+const { log, sleep } = require("./util.js");
 
 // ============================================================================
 //  Overvåker Bria sin opptaksmappe og kobler en ferdig opptaksfil til rett
@@ -14,7 +14,7 @@ import { log, sleep } from "./util.js";
 
 const AUDIO_EXT = new Set([".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus"]);
 
-export class RecordingWatcher {
+class RecordingWatcher {
   constructor({ dir }) {
     this.dir = dir;
     // filbane -> { mtimeMs, size }
@@ -26,7 +26,6 @@ export class RecordingWatcher {
     if (!fs.existsSync(this.dir)) {
       log.error(`Opptaksmappa finnes ikke: ${this.dir} (sjekk RECORDINGS_DIR).`);
     }
-    // Registrer eksisterende filer uten å trigge (ignoreInitial).
     this.watcher = chokidar.watch(this.dir, {
       ignoreInitial: false,
       awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 300 },
@@ -83,3 +82,5 @@ export class RecordingWatcher {
     }
   }
 }
+
+module.exports = { RecordingWatcher };

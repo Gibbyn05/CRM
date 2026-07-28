@@ -295,24 +295,24 @@ export default function NewCustomerButton() {
 
       {open && (
         <div className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="animate-panel-in max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
+          <div className="animate-panel-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-pop thin-scroll">
             <h2 className="mb-4 text-lg font-bold">Ny kunde</h2>
 
-            {/* Felter */}
-            <div className="space-y-3">
+            {/* Felter – bredt to-kolonners oppsett */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["name", "Navn *"],
-                  ["org_number", "Org.nr (9 siffer)"],
-                  ["contact_name", "Kontaktperson"],
-                  ["email", "E-post"],
-                  ["phone", "Telefon"],
-                  ["address", "Adresse"],
-                  ["postal_code", "Postnr"],
-                  ["city", "Sted"],
+                  ["name", "Navn *", "full"],
+                  ["org_number", "Org.nr (9 siffer)", "full"],
+                  ["contact_name", "Kontaktperson", "half"],
+                  ["email", "E-post", "half"],
+                  ["phone", "Telefon", "half"],
+                  ["address", "Adresse", "half"],
+                  ["postal_code", "Postnr", "half"],
+                  ["city", "Sted", "half"],
                 ] as const
-              ).map(([field, label]) => (
-                <div key={field}>
+              ).map(([field, label, span]) => (
+                <div key={field} className={span === "full" ? "sm:col-span-2" : ""}>
                   <label className="mb-1 block text-sm text-slate-600">
                     {label}
                   </label>
@@ -356,11 +356,13 @@ export default function NewCustomerButton() {
                 </div>
               ))}
 
-              {lookupError && <p className="text-sm text-red-600">{lookupError}</p>}
+              {lookupError && (
+                <p className="text-sm text-red-600 sm:col-span-2">{lookupError}</p>
+              )}
 
               {/* Forhåndsvisning av registertreffet, tydelig merket som ekstern kilde. */}
               {lookup && !lookup.existingCustomer && (
-                <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+                <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-3 sm:col-span-2">
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
                       <Icon name="building" size={15} />
@@ -404,7 +406,7 @@ export default function NewCustomerButton() {
               {/* Duplikatvarsel: skiller tydelig fra et rent registertreff og
                   blokkerer lagring for å unngå utilsiktede duplikater. */}
               {lookup?.existingCustomer && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
                   <div className="mb-1.5 flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                       <Icon name="customers" size={15} />
@@ -431,7 +433,9 @@ export default function NewCustomerButton() {
                 </div>
               )}
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-600 sm:col-span-2">{error}</p>
+              )}
             </div>
 
             {/* Automatisk utfylling (under Sted) */}

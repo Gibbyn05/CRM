@@ -1,6 +1,6 @@
-import { EventEmitter } from "node:events";
-import WebSocket from "ws";
-import { log, sleep } from "./util.js";
+const { EventEmitter } = require("node:events");
+const WebSocket = require("ws");
+const { log, sleep } = require("./util.js");
 
 // ============================================================================
 //  Bria Desktop API-klient.
@@ -21,7 +21,7 @@ import { log, sleep } from "./util.js";
 //  og samlet i parseBriaMessage() slik at det er ett sted å justere.
 // ============================================================================
 
-export class BriaClient extends EventEmitter {
+class BriaClient extends EventEmitter {
   constructor({ url, user, password }) {
     super();
     this.url = url;
@@ -108,7 +108,7 @@ export class BriaClient extends EventEmitter {
 // ── XML-tolkning ────────────────────────────────────────────────────────────
 // Trekker ut samtale-ID, tilstand og motpartsnummer fra en Bria statusChange-
 // melding. JUSTER tag-/attributtnavn her mot Developer Guide ved behov.
-export function parseBriaMessage(xml) {
+function parseBriaMessage(xml) {
   // Bare interessert i «call»-status-endringer.
   if (!/statusChange|<call/i.test(xml)) return null;
 
@@ -151,3 +151,5 @@ function tag(xml, name) {
   const m = xml.match(new RegExp(`<${name}>([^<]+)</${name}>`, "i"));
   return m ? m[1] : null;
 }
+
+module.exports = { BriaClient, parseBriaMessage };

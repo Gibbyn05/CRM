@@ -7,12 +7,14 @@ function ts() {
   return new Date().toISOString();
 }
 
-export const log = {
+const log = {
   error: (...a) => current >= LEVELS.error && console.error(`[${ts()}] ERROR`, ...a),
   info: (...a) => current >= LEVELS.info && console.log(`[${ts()}] INFO `, ...a),
   debug: (...a) => current >= LEVELS.debug && console.log(`[${ts()}] DEBUG`, ...a),
 };
 
-export function sleep(ms) {
+function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+module.exports = { log, sleep };
