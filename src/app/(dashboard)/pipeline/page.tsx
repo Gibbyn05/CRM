@@ -1,50 +1,51 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Customer, Deal } from "@/lib/types";
+import type { Customer, Deal, Profile } from "@/lib/types";
 import PipelineBoard from "@/components/PipelineBoard";
 
 export const dynamic = "force-dynamic";
 
 export interface DealWithCustomer extends Deal {
   customer_name: string;
+  owner_name: string | null;
 }
 
 export default async function PipelinePage() {
   const supabase = createClient();
 
-  const { data: deals } = await supabase
-    .from("deals")
-    .select("*")
-    .order("updated_at", { ascending: false });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const customerIds = [
-    ...new Set(((deals as Deal[]) ?? []).map((d) => d.customer_id)),
-  ];
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name")
-    .in("id", customerIds.length ? customerIds : ["00000000-0000-0000-0000-000000000000"]);
+  const [{ data: deals }, { data: customers }, { data: profiles }] =
+    await Promise.all([
+      supabase.from("deals").select("*").order("updated_at", { ascending: false }),
+      supabase.from("customers").select("id, name").order("name"),
+      supabase.from("profiles").select("id, full_name"),
+    ]);
 
-  const nameMap = new Map(
-    ((customers as Pick<Customer, "id" | "name">[]) ?? []).map((c) => [
-      c.id,
-      c.name,
+  const customerList = (customers as Pick<Customer, "id" | "name">[]) ?? [];
+  const nameMap = new Map(customerList.map((c) => [c.id, c.name]));
+  const ownerMap = new Map(
+    ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
+      p.id,
+      p.full_name,
     ]),
   );
 
   const enriched: DealWithCustomer[] = ((deals as Deal[]) ?? []).map((d) => ({
     ...d,
     customer_name: nameMap.get(d.customer_id) ?? "Ukjent kunde",
+    owner_name: d.agent_id ? ownerMap.get(d.agent_id) ?? null : null,
   }));
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Pipeline</h1>
-        <p className="text-sm text-slate-500">
-          Ringt → Tilbud sendt → Akseptert / Tapt
-        </p>
-      </div>
-      <PipelineBoard initialDeals={enriched} />
-    </div>
+    <PipelineBoard
+      initialDeals={enriched}
+      customers={customerList}
+      currentUserId={user.id}
+      currentUserName={ownerMap.get(user.id) ?? ""}
+    />
   );
 }
