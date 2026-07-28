@@ -1,6 +1,6 @@
-import fsp from "node:fs/promises";
-import path from "node:path";
-import { log, sleep } from "./util.js";
+const fsp = require("node:fs/promises");
+const path = require("node:path");
+const { log, sleep } = require("./util.js");
 
 // ============================================================================
 //  Opplaster med gjenforsøk-kø. Alt sendes over HTTPS til CRM-en med den delte
@@ -9,7 +9,7 @@ import { log, sleep } from "./util.js";
 //  blokkere selgeren.
 // ============================================================================
 
-export class Uploader {
+class Uploader {
   constructor({ baseUrl, secret }) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.secret = secret;
@@ -42,7 +42,6 @@ export class Uploader {
         log.error(
           `Opplasting feilet (${job.kind}, forsøk ${job.attempts}): ${e.message}. Nytt forsøk om ${wait} ms.`,
         );
-        // Legg bakerst og vent litt før neste runde.
         this.queue.push(job);
         await sleep(wait);
       }
@@ -89,3 +88,5 @@ async function safeText(res) {
     return "";
   }
 }
+
+module.exports = { Uploader };

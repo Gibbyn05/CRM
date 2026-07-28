@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import "dotenv/config";
-import { BriaClient } from "./bria.js";
-import { RecordingWatcher } from "./recordings.js";
-import { Uploader } from "./uploader.js";
-import { log } from "./util.js";
+require("dotenv").config();
+const { BriaClient } = require("./bria.js");
+const { RecordingWatcher } = require("./recordings.js");
+const { Uploader } = require("./uploader.js");
+const { log } = require("./util.js");
 
 // ============================================================================
 //  Salgssentral telefoni-bro
@@ -95,10 +95,9 @@ bria.on("call", async (call) => {
       agent_id: cfg.agentId,
       extension: cfg.extension,
     });
-    // Merk: fila slettes først etter at Uploader har bekreftet opplasting.
     if (cfg.deleteAfterUpload) {
-      // Enkelt: gi opplastingen tid, så rydd. (For strengere garanti kan man
-      // vente på en callback fra Uploader.)
+      // Gi opplastingen tid, så rydd. (For strengere garanti kan man vente på
+      // en callback fra Uploader.)
       setTimeout(() => recordings.remove(match.file), 60000);
     }
   }
