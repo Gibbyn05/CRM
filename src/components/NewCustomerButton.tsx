@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { isValidOrgNumber } from "@/lib/format";
+import { isValidOrgNumber, formatOrgNumber } from "@/lib/format";
 import Icon from "./Icon";
 import type { ExtractedFields } from "@/app/api/customers/extract/route";
 
@@ -13,6 +14,8 @@ type FormState = {
   contact_name: string;
   email: string;
   phone: string;
+  address: string;
+  postal_code: string;
   city: string;
 };
 
@@ -22,13 +25,47 @@ const EMPTY: FormState = {
   contact_name: "",
   email: "",
   phone: "",
+  address: "",
+  postal_code: "",
   city: "",
 };
 
-// Skjema (modal) for å opprette ny kunde. Under feltene ligger en "Fyll inn
-// automatisk"-boks der man kan lime inn fritekst eller laste opp/scanne et
-// bilde (visittkort, e-postsignatur osv.) som Claude tolker via
-// /api/customers/extract og fyller inn feltene fra.
+interface ExistingCustomerHit {
+  id: string;
+  name: string;
+  city: string | null;
+  owner_name: string | null;
+  created_at: string;
+}
+
+interface CompanyLookupState {
+  orgnr: string;
+  fields: {
+    name: string;
+    org_form: string;
+    ceo_name: string;
+    phone: string;
+    city: string;
+    address: string;
+    postal_code: string;
+    industry: string;
+  };
+  flags: { konkurs: boolean; underAvvikling: boolean };
+  notes: string[];
+  existingCustomer: ExistingCustomerHit | null;
+}
+
+// Skjema (modal) for å opprette ny kunde.
+//
+// Org.nr-feltet har et eget "Slå opp"-steg mot Brønnøysundregistrene: treffet
+// vises i en forhåndsvisning (navn, adresse, bransje, daglig leder og
+// telefon der det finnes) FØR skjemaet fylles ut og kunden lagres. Finnes
+// org.nr allerede som kunde, vises det tydelig i stedet og lagring
+// blokkeres for å unngå utilsiktede duplikater.
+//
+// Under feltene ligger i tillegg en "Fyll inn automatisk"-boks der man kan
+// lime inn fritekst eller laste opp/scanne et bilde (visittkort,
+// e-postsignatur osv.) som Claude tolker via /api/customers/extract.
 export default function NewCustomerButton() {
   const supabase = createClient();
   const router = useRouter();
@@ -38,51 +75,81 @@ export default function NewCustomerButton() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
 
-  // Automatisk utfylling
+  // Automatisk utfylling (fritekst/bilde)
   const [smartText, setSmartText] = useState("");
   const [extracting, setExtracting] = useState(false);
-  const [brregLoading, setBrregLoading] = useState(false);
   const [smartNote, setSmartNote] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
 
-  // Slår opp firmadata i Brønnøysundregistrene fra org.nr og fyller inn.
-  async function lookupBrreg() {
+  // Registeroppslag (Brønnøysund)
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<CompanyLookupState | null>(null);
+
+  const isDuplicate = Boolean(
+    lookup?.existingCustomer && lookup.orgnr === form.org_number.replace(/\s/g, ""),
+  );
+
+  // Slår opp firmadata i Brønnøysundregistrene (+ ev. telefonileverandør) fra
+  // org.nr. Viser treffet i en forhåndsvisning og fyller inn skjemaet – men
+  // overskriver aldri felt brukeren allerede har skrevet noe i selv.
+  async function lookupOrgNumber() {
     const orgnr = form.org_number.replace(/\s/g, "");
-    if (!/^\d{9}$/.test(orgnr)) {
-      setSmartNote({ ok: false, text: "Skriv inn et gyldig org.nr (9 siffer) først." });
+    if (!isValidOrgNumber(orgnr)) {
+      setLookupError("Ugyldig organisasjonsnummer (9 siffer med gyldig kontrollsiffer).");
+      setLookup(null);
       return;
     }
-    setBrregLoading(true);
-    setSmartNote(null);
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookup(null);
     try {
       const res = await fetch(`/api/customers/brreg?orgnr=${orgnr}`);
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "Fant ikke bedriften.");
-      setForm((f) => ({
-        ...f,
-        name: j.fields.name || f.name,
-        city: j.fields.city || f.city,
-      }));
-      setSmartNote({ ok: true, text: `Hentet «${j.fields.name}» fra Brønnøysund.` });
-    } catch (e) {
-      setSmartNote({
-        ok: false,
-        text: e instanceof Error ? e.message : "Ukjent feil.",
+
+      setLookup({
+        orgnr,
+        fields: j.fields,
+        flags: j.flags ?? { konkurs: false, underAvvikling: false },
+        notes: j.notes ?? [],
+        existingCustomer: j.existingCustomer ?? null,
       });
+
+      if (!j.existingCustomer) {
+        setForm((f) => ({
+          ...f,
+          name: f.name || j.fields.name || "",
+          contact_name: f.contact_name || j.fields.ceo_name || "",
+          phone: f.phone || j.fields.phone || "",
+          city: f.city || j.fields.city || "",
+          address: f.address || j.fields.address || "",
+          postal_code: f.postal_code || j.fields.postal_code || "",
+        }));
+      }
+    } catch (e) {
+      setLookupError(e instanceof Error ? e.message : "Ukjent feil.");
     } finally {
-      setBrregLoading(false);
+      setLookupLoading(false);
     }
   }
 
   function update(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
+    // Org.nr endret for hånd etter et oppslag – forhåndsvisningen gjelder
+    // ikke lenger det nye nummeret, så den ryddes bort til neste oppslag.
+    if (field === "org_number") {
+      setLookup(null);
+      setLookupError(null);
+    }
   }
 
   // Slå sammen uttrukne felter inn i skjemaet (behold eksisterende der
   // uttrekket er tomt).
   function applyFields(fields: ExtractedFields) {
     setForm((f) => ({
+      ...f,
       name: fields.name || f.name,
       org_number: fields.org_number || f.org_number,
       contact_name: fields.contact_name || f.contact_name,
@@ -156,6 +223,8 @@ export default function NewCustomerButton() {
     setSmartText("");
     setSmartNote(null);
     setError(null);
+    setLookup(null);
+    setLookupError(null);
   }
 
   async function save() {
@@ -167,6 +236,12 @@ export default function NewCustomerButton() {
     if (form.org_number && !isValidOrgNumber(form.org_number)) {
       setError(
         "Ugyldig organisasjonsnummer (må være 9 siffer med gyldig kontrollsiffer).",
+      );
+      return;
+    }
+    if (isDuplicate) {
+      setError(
+        "Dette organisasjonsnummeret er allerede registrert som kunde. Åpne den eksisterende kunden i stedet for å lagre en duplikat.",
       );
       return;
     }
@@ -184,6 +259,8 @@ export default function NewCustomerButton() {
         contact_name: form.contact_name || null,
         email: form.email || null,
         phone: form.phone || null,
+        address: form.address || null,
+        postal_code: form.postal_code || null,
         city: form.city || null,
         owner_id: user?.id ?? null,
         created_by: user?.id ?? null,
@@ -193,7 +270,14 @@ export default function NewCustomerButton() {
 
     setSaving(false);
     if (insErr) {
-      setError(insErr.message);
+      // 23505 = unique_violation (org_number). Kan skje ved kappløp mellom to
+      // selgere som lagrer samme bedrift samtidig, selv om forhåndsvisningen
+      // ikke fanget det.
+      setError(
+        insErr.code === "23505"
+          ? "Denne bedriften ble akkurat registrert som kunde av noen andre. Last siden på nytt for å finne den."
+          : insErr.message,
+      );
       return;
     }
     close();
@@ -223,6 +307,8 @@ export default function NewCustomerButton() {
                   ["contact_name", "Kontaktperson"],
                   ["email", "E-post"],
                   ["phone", "Telefon"],
+                  ["address", "Adresse"],
+                  ["postal_code", "Postnr"],
                   ["city", "Sted"],
                 ] as const
               ).map(([field, label]) => (
@@ -240,13 +326,25 @@ export default function NewCustomerButton() {
                       />
                       <button
                         type="button"
-                        onClick={lookupBrreg}
-                        disabled={brregLoading}
-                        title="Hent firmadata fra Brønnøysund"
+                        onClick={lookupOrgNumber}
+                        disabled={lookupLoading}
+                        title="Slå opp i Brønnøysundregistrene"
                         className="shrink-0 whitespace-nowrap rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
                       >
-                        {brregLoading ? "Henter …" : "Brønnøysund"}
+                        {lookupLoading ? "Slår opp …" : "Slå opp"}
                       </button>
+                    </div>
+                  ) : field === "contact_name" && lookup?.fields.ceo_name ? (
+                    <div>
+                      <input
+                        value={form.contact_name}
+                        onChange={(e) => update("contact_name", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      />
+                      <p className="mt-1 text-xs text-slate-400">
+                        Daglig leder «{lookup.fields.ceo_name}» hentet fra
+                        Brønnøysundregistrene.
+                      </p>
                     </div>
                   ) : (
                     <input
@@ -257,6 +355,82 @@ export default function NewCustomerButton() {
                   )}
                 </div>
               ))}
+
+              {lookupError && <p className="text-sm text-red-600">{lookupError}</p>}
+
+              {/* Forhåndsvisning av registertreffet, tydelig merket som ekstern kilde. */}
+              {lookup && !lookup.existingCustomer && (
+                <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                      <Icon name="building" size={15} />
+                    </span>
+                    <p className="text-sm font-semibold text-slate-800">
+                      Treff i Brønnøysundregistrene
+                    </p>
+                  </div>
+                  <dl className="grid grid-cols-3 gap-x-2 gap-y-1 text-xs text-slate-600">
+                    <dt className="font-medium text-slate-500">Navn</dt>
+                    <dd className="col-span-2">{lookup.fields.name || "–"}</dd>
+                    <dt className="font-medium text-slate-500">Org.form</dt>
+                    <dd className="col-span-2">{lookup.fields.org_form || "–"}</dd>
+                    <dt className="font-medium text-slate-500">Bransje</dt>
+                    <dd className="col-span-2">{lookup.fields.industry || "–"}</dd>
+                    <dt className="font-medium text-slate-500">Daglig leder</dt>
+                    <dd className="col-span-2">
+                      {lookup.fields.ceo_name || "Ikke registrert"}
+                    </dd>
+                    <dt className="font-medium text-slate-500">Telefon</dt>
+                    <dd className="col-span-2">
+                      {lookup.fields.phone || "Ikke tilgjengelig"}
+                    </dd>
+                  </dl>
+                  {(lookup.flags.konkurs || lookup.flags.underAvvikling) && (
+                    <p className="mt-2 text-xs font-medium text-amber-600">
+                      ⚠ {lookup.flags.konkurs && "Registrert konkurs. "}
+                      {lookup.flags.underAvvikling && "Under avvikling."}
+                    </p>
+                  )}
+                  {lookup.notes.length > 0 && (
+                    <ul className="mt-2 space-y-0.5 text-xs text-slate-400">
+                      {lookup.notes.map((n, i) => (
+                        <li key={i}>· {n}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Duplikatvarsel: skiller tydelig fra et rent registertreff og
+                  blokkerer lagring for å unngå utilsiktede duplikater. */}
+              {lookup?.existingCustomer && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <Icon name="customers" size={15} />
+                    </span>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Allerede registrert som kunde
+                    </p>
+                  </div>
+                  <p className="text-xs text-amber-800">
+                    Org.nr {formatOrgNumber(lookup.orgnr)} finnes fra før:{" "}
+                    <span className="font-medium">{lookup.existingCustomer.name}</span>
+                    {lookup.existingCustomer.city ? ` (${lookup.existingCustomer.city})` : ""}
+                    {lookup.existingCustomer.owner_name
+                      ? `, eier: ${lookup.existingCustomer.owner_name}`
+                      : ""}
+                    .
+                  </p>
+                  <Link
+                    href={`/customers/${lookup.existingCustomer.id}`}
+                    className="mt-2 inline-block text-xs font-medium text-amber-900 underline hover:no-underline"
+                  >
+                    Åpne eksisterende kunde →
+                  </Link>
+                </div>
+              )}
+
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
 
@@ -330,7 +504,8 @@ export default function NewCustomerButton() {
               </button>
               <button
                 onClick={save}
-                disabled={saving}
+                disabled={saving || isDuplicate}
+                title={isDuplicate ? "Denne bedriften er allerede en kunde." : undefined}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {saving ? "Lagrer …" : "Lagre"}

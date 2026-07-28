@@ -1,25 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import {
+  CompanyNotFoundError,
+  InvalidOrgNumberError,
+  lookupCompany,
+} from "@/lib/company-lookup";
 
 // ============================================================================
-//  Slår opp firmadata i Brønnøysundregistrene (Enhetsregisteret) fra org.nr.
-//  Gratis, åpent API – ingen nøkkel. Brukes til å autofylle "Ny kunde".
-//  Docs: https://data.brreg.no/enhetsregisteret/api/enheter/{orgnr}
+//  Automatisk firmaoppslag på organisasjonsnummer for "Ny kunde"-flyten.
+//
+//  Brønnøysundregistrene (Enhetsregisteret) er primærkilde for navn/adresse/
+//  daglig leder – gratis, offisielt, ingen nøkkel, ingen scraping.
+//  Telefonnummer forsøkes hentet fra pluggbare, konfigurerbare
+//  sekundærkilder (1881/Gule Sider/180.no) hvis satt opp, se
+//  src/lib/company-lookup/. Manglende data feiler aldri kallet – det gis
+//  som tydelige `notes` slik at brukeren ser hva som ikke ble funnet.
+//
+//  I tillegg sjekkes om org.nr allerede er registrert som kunde i egen
+//  database, slik at "Ny kunde"-flyten kan skille et rent registertreff fra
+//  en kunde som allerede finnes og unngå utilsiktede duplikater. Dette
+//  slår bevisst opp på tvers av RLS (service-role) – duplikatvarsel skal
+//  gjelde hele kundebasen, ikke bare det innlogget selger selv ser.
 // ============================================================================
-
-interface BrregAddress {
-  adresse?: string[];
-  postnummer?: string;
-  poststed?: string;
-}
-interface BrregEnhet {
-  organisasjonsnummer?: string;
-  navn?: string;
-  forretningsadresse?: BrregAddress;
-  postadresse?: BrregAddress;
-  naeringskode1?: { beskrivelse?: string };
-}
 
 export async function GET(req: NextRequest) {
   const supabase = createClient();
@@ -45,49 +49,83 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(
-      `https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`,
-      { headers: { Accept: "application/json" }, cache: "no-store" },
-    );
-    if (res.status === 404) {
-      return NextResponse.json(
-        { error: "Fant ingen bedrift med dette organisasjonsnummeret." },
-        { status: 404 },
-      );
-    }
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Brønnøysund svarte ikke akkurat nå. Prøv igjen." },
-        { status: 502 },
-      );
-    }
-
-    const e = (await res.json()) as BrregEnhet;
-    const addr = e.forretningsadresse ?? e.postadresse;
+    const [result, existingCustomer] = await Promise.all([
+      lookupCompany(orgnr),
+      findExistingCustomer(orgnr),
+    ]);
 
     return NextResponse.json({
       fields: {
-        name: e.navn ?? "",
-        org_number: e.organisasjonsnummer ?? orgnr,
-        city: addr?.poststed
-          ? capitalizeWords(addr.poststed)
-          : "",
-        address: (addr?.adresse ?? []).filter(Boolean).join(", "),
-        postal_code: addr?.postnummer ?? "",
-        industry: e.naeringskode1?.beskrivelse ?? "",
+        name: result.name.value ?? "",
+        org_number: result.org_number,
+        org_form: result.org_form.value ?? "",
+        ceo_name: result.ceo_name.value ?? "",
+        phone: result.phone.value ?? "",
+        city: result.city.value ?? "",
+        address: result.address.value ?? "",
+        postal_code: result.postal_code.value ?? "",
+        industry: result.industry.value ?? "",
       },
+      // "Vis kilde": hvilken leverandør hvert felt kom fra (null = ikke funnet).
+      sources: {
+        name: result.name.source,
+        ceo_name: result.ceo_name.source,
+        phone: result.phone.source,
+        address: result.address.source,
+        city: result.city.source,
+      },
+      flags: result.flags,
+      notes: result.notes,
+      // Skiller eksternt registertreff fra en kunde som allerede er lagret.
+      existingCustomer,
     });
   } catch (err) {
+    if (err instanceof InvalidOrgNumberError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err instanceof CompanyNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
     const m = err instanceof Error ? err.message : "Ukjent feil";
     return NextResponse.json(
-      { error: "Kunne ikke kontakte Brønnøysund: " + m },
+      { error: "Kunne ikke kontakte Brønnøysund akkurat nå: " + m },
       { status: 502 },
     );
   }
 }
 
-function capitalizeWords(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/(^|[\s-])\p{L}/gu, (c) => c.toUpperCase());
+interface ExistingCustomerHit {
+  id: string;
+  name: string;
+  city: string | null;
+  owner_name: string | null;
+  created_at: string;
+}
+
+async function findExistingCustomer(orgnr: string): Promise<ExistingCustomerHit | null> {
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("customers")
+    .select("id, name, city, owner_id, created_at")
+    .eq("org_number", orgnr)
+    .maybeSingle();
+  if (!existing) return null;
+
+  let ownerName: string | null = null;
+  if (existing.owner_id) {
+    const { data: owner } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", existing.owner_id)
+      .maybeSingle();
+    ownerName = owner?.full_name ?? null;
+  }
+
+  return {
+    id: existing.id,
+    name: existing.name,
+    city: existing.city,
+    owner_name: ownerName,
+    created_at: existing.created_at,
+  };
 }
