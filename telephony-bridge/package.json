@@ -1,0 +1,25 @@
+{
+  "name": "salgssentral-telephony-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lokal bro mellom Bria softphone (Desktop API + opptak) og Salgssentral CRM. Kjører på hver selgers PC, lytter på Bria, kobler opptaksfil til rett samtale og laster opp til CRM-en.",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "salgssentral-bridge": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "build:exe": "pkg . --targets node18-win-x64,node18-macos-x64 --out-path dist"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
