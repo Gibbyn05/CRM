@@ -17,11 +17,12 @@ export default async function DashboardPage() {
 
   const { data: me } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, full_name")
     .eq("id", user.id)
-    .single<Pick<Profile, "role">>();
+    .single<Pick<Profile, "role" | "full_name">>();
 
   const isManager = me?.role === "manager";
+  const firstName = (me?.full_name || "").split(/\s+/)[0] ?? "";
 
   // Ledere trenger navn på selgerne for "Sist ringt"-lista.
   let agentNames: Record<string, string> = {};
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
       isManager={isManager}
       userId={user.id}
       agentNames={agentNames}
+      firstName={firstName}
     />
   );
 }
