@@ -26,6 +26,7 @@ html {
   /* Hindre at iOS blåser opp tekst i landskap. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -40,6 +41,7 @@ body {
   overflow-x: hidden;
   /* Dempet tap-highlight for et mer app-aktig preg. */
   -webkit-tap-highlight-color: transparent;
+  min-height: 100%;
 }
 
 /* Media/tabeller skal aldri sprenge layouten på små skjermer. */
@@ -162,6 +164,26 @@ video {
   }
   .thin-scroll::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  .card {
+    border-radius: 1.25rem;
   }
 }
 

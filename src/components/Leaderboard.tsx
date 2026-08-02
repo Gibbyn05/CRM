@@ -79,7 +79,33 @@ export default function Leaderboard() {
         ))}
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
+        <div className="divide-y divide-[#d8c9b0]/70 sm:hidden">
+          {rows.map((r, i) => (
+            <article key={r.agent_id} className={`p-4 ${i === 0 ? "bg-gradient-to-r from-amber-50 to-transparent" : ""}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={displayName(r)} url={profiles[r.agent_id]?.avatar_url} size={34} />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-[#2b2118]">{displayName(r)}</p>
+                    <p className="text-xs text-[#8b7357]">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</p>
+                  </div>
+                </div>
+                <p className="text-right text-sm font-bold text-[#008f52]">{formatCurrency(r.sales_amount)}</p>
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                <MobileMetric label="Samt." value={String(r.calls_count)} />
+                <MobileMetric label="Møter" value={String(r.meetings_confirmed)} />
+                <MobileMetric label="Salg" value={String(r.sales_count)} />
+                <MobileMetric label="Avslag" value={String(r.rejections_count)} />
+              </div>
+            </article>
+          ))}
+          {!loading && rows.length === 0 && (
+            <p className="px-4 py-6 text-center text-slate-500">Ingen data for perioden.</p>
+          )}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-left text-sm">
           <thead className="label-eyebrow border-b border-slate-200 bg-slate-50">
             <tr>
@@ -153,7 +179,17 @@ export default function Leaderboard() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MobileMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#d8c9b0] bg-[#fbf7ed] p-2">
+      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#8b7357]">{label}</p>
+      <p className="mt-1 font-bold tabular-nums text-[#2b2118]">{value}</p>
     </div>
   );
 }

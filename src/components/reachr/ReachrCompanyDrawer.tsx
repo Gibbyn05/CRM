@@ -62,14 +62,14 @@ export default function ReachrCompanyDrawer({
       onClick={onClose}
     >
       <aside
-        className="h-full w-full max-w-3xl overflow-y-auto border-l border-[#d8c9b0] bg-[#fffaf0] shadow-2xl"
+        className="h-full w-full overflow-y-auto border-l border-[#d8c9b0] bg-[#fffaf0] shadow-2xl sm:max-w-3xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="sticky top-0 z-10 border-b border-[#d8c9b0] bg-[#fffaf0]/95 p-6 backdrop-blur">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="label-eyebrow">Firmakort</p>
-              <h2 className="mt-2 font-display text-4xl font-black leading-none tracking-[-0.04em] text-[#2b2118]">
+              <h2 className="mt-2 font-display text-3xl font-black leading-none tracking-[-0.04em] text-[#2b2118] sm:text-4xl">
                 {active.name}
               </h2>
               <p className="mt-3 text-sm text-[#6f5a43]">
@@ -129,7 +129,7 @@ export default function ReachrCompanyDrawer({
             </div>
           </section>
 
-          <section className="grid gap-3 md:grid-cols-4">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Ansatte" value={active.employees?.toString() ?? "Ukjent"} />
             <Metric label="Omsetning" value={formatMoney(active.financials?.revenue)} />
             <Metric label="Årsresultat" value={formatMoney(active.financials?.annual_result)} />

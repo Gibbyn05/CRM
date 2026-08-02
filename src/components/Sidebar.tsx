@@ -106,12 +106,12 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   }
 
   const isManager = profile?.role === "manager";
-  const hide = collapsed ? "md:hidden" : "";
+  const hide = collapsed ? "lg:hidden" : "";
 
   return (
     <>
       {/* Mobil topbar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#d8c9b0] bg-[#fffaf0]/92 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#d8c9b0] bg-[#fffaf0]/92 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur lg:hidden">
         <span className="flex items-center gap-2 font-display text-xl font-bold text-[#2b2118]">
           <BrandMark />
           Salgssentral
@@ -139,14 +139,14 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       <aside
         className={`${
           open ? "flex" : "hidden"
-        } w-full shrink-0 flex-col border-r border-[#4d3a2a] bg-[#171717] md:flex md:h-screen ${
-          collapsed ? "md:w-16" : "md:w-64"
+        } w-full shrink-0 flex-col border-r border-[#4d3a2a] bg-[#171717] lg:flex lg:h-screen ${
+          collapsed ? "lg:w-16" : "lg:w-64"
         }`}
       >
         {/* Merkevare + komprimer-knapp (kun desktop) */}
         <div
-          className={`hidden items-center px-3 py-4 md:flex ${
-            collapsed ? "md:justify-center" : "justify-between"
+          className={`hidden items-center px-3 py-4 lg:flex ${
+            collapsed ? "lg:justify-center" : "justify-between"
           }`}
         >
           <span className={`flex items-center gap-2.5 ${hide}`}>
@@ -171,7 +171,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         <nav
           className={`thin-scroll flex-1 space-y-6 py-4 ${
             collapsed
-              ? "overflow-y-auto md:overflow-visible md:px-2"
+              ? "overflow-y-auto lg:overflow-visible lg:px-2"
               : "overflow-y-auto px-3"
           }`}
         >
@@ -200,14 +200,14 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                     onClick={() => setOpen(false)}
                     aria-label="TV-visning"
                     className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-[#fffaf0]/60 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.98] ${
-                      collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+                      collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"
                     }`}
                   >
                     <Icon
                       name="tv"
                       size={18}
                       className={`text-[#d9bd8f]/50 transition-transform duration-150 ${
-                        collapsed ? "md:group-hover:scale-110" : ""
+                        collapsed ? "lg:group-hover:scale-110" : ""
                       }`}
                     />
                     <span className={hide}>TV-visning</span>
@@ -223,7 +223,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         <div className="mt-auto border-t border-white/10 p-3">
           <div
             className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
-              collapsed ? "md:justify-center md:px-0" : ""
+              collapsed ? "lg:justify-center lg:px-0" : ""
             }`}
           >
             <Avatar
@@ -242,14 +242,14 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
             onClick={signOut}
             aria-label="Logg ut"
             className={`group relative mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-[#fffaf0]/50 transition hover:bg-white/10 hover:text-[#ffad0a] active:scale-[0.98] ${
-              collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+              collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"
             }`}
           >
             <Icon
               name="logout"
               size={18}
               className={`transition-transform duration-150 ${
-                collapsed ? "md:group-hover:scale-110" : ""
+                collapsed ? "lg:group-hover:scale-110" : ""
               }`}
             />
             <span className={hide}>Logg ut</span>
@@ -280,7 +280,7 @@ function NavLink({
   onClick: () => void;
   onOpenDagsavis: () => void;
 }) {
-  const hide = collapsed ? "md:hidden" : "";
+  const hide = collapsed ? "lg:hidden" : "";
   if (item.href === "/dagsavis") {
     return (
       <button
@@ -290,14 +290,14 @@ function NavLink({
           onClick();
         }}
         className={`group relative flex w-full items-center gap-3 rounded-xl py-2.5 text-left text-sm font-medium text-[#fffaf0]/60 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.98] ${
-          collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+          collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"
         }`}
       >
         <Icon
           name={item.icon}
           size={18}
           className={`text-[#d9bd8f]/50 transition-transform duration-150 ${
-            collapsed ? "md:group-hover:scale-110" : ""
+            collapsed ? "lg:group-hover:scale-110" : ""
           }`}
         />
         <span className={hide}>{item.label}</span>
@@ -312,7 +312,7 @@ function NavLink({
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
       className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm transition active:scale-[0.98] ${
-        collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+        collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"
       } ${
         active
           ? "bg-white/10 font-semibold text-[#09fe94]"
@@ -323,7 +323,7 @@ function NavLink({
         name={item.icon}
         size={18}
         className={`transition-transform duration-150 ${
-          collapsed ? "md:group-hover:scale-110" : ""
+          collapsed ? "lg:group-hover:scale-110" : ""
         } ${active ? "text-[#09fe94]" : "text-[#d9bd8f]/50"}`}
       />
       <span className={hide}>{item.label}</span>
@@ -337,7 +337,7 @@ function NavLink({
 function RailTooltip({ label }: { label: string }) {
   return (
     <span
-      className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-[#2b2118] px-2.5 py-1 text-xs font-medium text-[#fffaf0] opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 md:block"
+      className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-[#2b2118] px-2.5 py-1 text-xs font-medium text-[#fffaf0] opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 lg:block"
     >
       {label}
     </span>

@@ -248,7 +248,62 @@ export default function LeadSearchView() {
             Bedrifter som finnes i Mine leads eller Kunder er filtrert bort globalt.
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-[#eadcc5] md:hidden">
+          {visibleResults.map((company) => (
+            <article
+              key={company.org_number}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelected(company)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") setSelected(company);
+              }}
+              className="p-4 transition active:bg-[#f7ffe9]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-display text-2xl font-black leading-tight tracking-[-0.04em] text-[#2b2118]">
+                    {company.name}
+                  </h3>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
+                    Org.nr. {company.org_number}
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+                  company.phone
+                    ? "border-[#09fe94]/40 bg-[#09fe94]/15 text-[#24513b]"
+                    : "border-[#d8c9b0] bg-[#fff8ea] text-[#8b7357]"
+                }`}>
+                  {company.phone ? "Ringbar" : "Mangler tlf"}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <Mini label="Sted" value={company.address.city ?? "Norge"} />
+                <Mini label="Ansatte" value={company.employees?.toString() ?? "Ukjent"} />
+                <Mini label="Bransje" value={company.industry_code ?? "Ukjent"} />
+                <Mini label="Kontakt" value={[company.phone && formatPhone(company.phone), company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet"} />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="text-xs text-[#8b7357]">
+                  {company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Åpne for detaljer"}
+                </span>
+                <button
+                  type="button"
+                  disabled={added.has(company.org_number)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    addLead(company);
+                  }}
+                  className="rounded-2xl border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition active:scale-[0.98] disabled:border-[#d8c9b0] disabled:bg-[#efe1c7] disabled:text-[#8b7357]"
+                >
+                  {added.has(company.org_number) ? "Lagt til" : "Legg til"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-[#e4d3b8] text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">
@@ -392,6 +447,15 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     >
       {label}
     </button>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#eadcc5] bg-[#fff8ea] p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>
+      <p className="mt-1 truncate font-semibold text-[#2b2118]">{value}</p>
+    </div>
   );
 }
 

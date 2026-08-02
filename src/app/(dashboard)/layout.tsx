@@ -43,18 +43,19 @@ export default async function DashboardLayout({
   );
 
   return (
-    // App-skall: på desktop er høyden låst til skjermen slik at sidebaren står
-    // fast og KUN <main> scroller. På mobil beholder vi vanlig sidescroll.
-    <div className="flex min-h-screen flex-col bg-[#f4ead8] md:h-screen md:flex-row md:overflow-hidden">
+    // App-skall: først fra lg låses høyden slik at sidebaren står fast og KUN
+    // <main> scroller. Tablet portrait får mobilskall, ellers blir innholdet
+    // for trangt når en fast sidebar tar 16rem.
+    <div className="flex min-h-screen flex-col bg-[#f4ead8] lg:h-screen lg:flex-row lg:overflow-hidden">
       <Sidebar profile={profile} />
 
-      <div className="flex min-w-0 flex-1 flex-col md:h-screen md:overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col lg:h-screen lg:overflow-hidden">
         <Topbar profile={profile} />
         {/* Bunn-padding må klarere det høyeste faste elementet: chat-bobla
             (bottom-[5rem] + h-14 => toppkant på 8.5rem), ikke bare
             statuslinja (~4rem). Pluss iPhone safe-area. */}
-        <main className="thin-scroll flex-1 overflow-x-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(184,138,82,0.14),transparent_34rem),linear-gradient(120deg,#fffaf0_0%,#f4ead8_48%,#efe3ce_100%)] p-4 pb-[calc(9rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:p-8 md:pb-[calc(9rem+env(safe-area-inset-bottom))]">
-          <div className="mx-auto max-w-7xl">{children}</div>
+        <main className="thin-scroll flex-1 overflow-x-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(184,138,82,0.14),transparent_34rem),linear-gradient(120deg,#fffaf0_0%,#f4ead8_48%,#efe3ce_100%)] px-3 py-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-5 lg:overflow-y-auto lg:p-8 lg:pb-[calc(9rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
 

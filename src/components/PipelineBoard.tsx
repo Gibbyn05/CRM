@@ -133,7 +133,7 @@ export default function PipelineBoard({
   return (
     <div className="space-y-5">
       {/* Topp */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Pipeline</h1>
           <p className="text-sm text-slate-500">
@@ -146,7 +146,7 @@ export default function PipelineBoard({
         </div>
         <button
           onClick={() => setCreateStage(DEAL_STAGES[0])}
-          className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 sm:w-auto"
         >
           <Icon name="plus" size={16} />
           Ny avtale
@@ -154,7 +154,7 @@ export default function PipelineBoard({
       </div>
 
       {/* Kanban-brett (horisontal scroll) */}
-      <div className="flex gap-4 overflow-x-auto pb-2 thin-scroll">
+      <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 thin-scroll sm:mx-0 sm:gap-4 sm:px-0">
         {DEAL_STAGES.map((stage) => {
           const stageDeals = deals.filter((d) => d.stage === stage);
           const total = stageDeals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
@@ -171,7 +171,7 @@ export default function PipelineBoard({
               }}
               onDragLeave={() => setOverStage((s) => (s === stage ? null : s))}
               onDrop={() => onDrop(stage)}
-              className={`flex w-[280px] shrink-0 flex-col rounded-2xl ${st.tint} p-3 ring-1 transition ${
+              className={`flex w-[82vw] max-w-[22rem] shrink-0 snap-start flex-col rounded-2xl sm:w-[300px] lg:w-[280px] ${st.tint} p-3 ring-1 transition ${
                 isOver ? `${st.ring} ring-2` : "ring-slate-200/70"
               }`}
             >

@@ -103,7 +103,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 hidden items-center gap-4 border-b border-[#d8c9b0] bg-[#fffaf0]/82 px-6 py-3 shadow-[0_16px_50px_rgba(61,44,24,0.06)] backdrop-blur-xl md:flex">
+    <header className="sticky top-0 z-30 hidden items-center gap-4 border-b border-[#d8c9b0] bg-[#fffaf0]/82 px-6 py-3 shadow-[0_16px_50px_rgba(61,44,24,0.06)] backdrop-blur-xl lg:flex">
       <div className="min-w-0">
         <p className="truncate text-sm text-[#6b6660]">
           {firstName ? (

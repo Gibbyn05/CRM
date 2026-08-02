@@ -57,8 +57,8 @@ export default function CustomerSearch({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative w-full sm:max-w-md">
           <Icon
             name="search"
             size={18}
@@ -75,6 +75,23 @@ export default function CustomerSearch({
       </div>
 
       <div className="card overflow-hidden">
+        <div className="divide-y divide-[#d8c9b0]/70 sm:hidden">
+          {customers.map((c) => (
+            <Link key={c.id} href={`/customers/${c.id}`} className="block p-4 active:bg-[#fbf7ed]">
+              <p className="font-display text-2xl font-bold leading-tight text-[#2b2118]">{c.name}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <MobileFact label="Org.nr" value={formatOrgNumber(c.org_number)} />
+                <MobileFact label="Sted" value={c.city ?? "–"} />
+                <MobileFact label="Kontakt" value={c.contact_name ?? "–"} />
+                <MobileFact label="Telefon" value={c.phone ?? "–"} />
+              </div>
+            </Link>
+          ))}
+          {!loading && customers.length === 0 && (
+            <p className="px-4 py-6 text-center text-slate-500">Ingen kunder funnet.</p>
+          )}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-left text-sm">
           <thead className="label-eyebrow border-b border-slate-200 bg-slate-50">
             <tr>
@@ -115,7 +132,17 @@ export default function CustomerSearch({
             )}
           </tbody>
         </table>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MobileFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#d8c9b0] bg-[#fbf7ed] p-2.5">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>
+      <p className="mt-1 truncate font-semibold text-[#2b2118]">{value}</p>
     </div>
   );
 }

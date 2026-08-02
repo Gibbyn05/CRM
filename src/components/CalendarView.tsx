@@ -236,7 +236,8 @@ export default function CalendarView({
       )}
 
       {/* Månedsrutenett */}
-      <div className="card overflow-hidden p-0">
+      <div className="card overflow-x-auto p-0 thin-scroll">
+        <div className="min-w-[44rem]">
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
           {WEEKDAYS.map((w) => (
             <div
@@ -306,6 +307,7 @@ export default function CalendarView({
               </button>
             );
           })}
+        </div>
         </div>
       </div>
 

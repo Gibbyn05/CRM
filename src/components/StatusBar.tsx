@@ -87,12 +87,12 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur transition-[left] md:left-[var(--sidebar-w,16rem)]">
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur transition-[left] sm:px-3 sm:py-2.5 lg:left-[var(--sidebar-w,16rem)]">
       <div className="mx-auto flex max-w-2xl items-center justify-center gap-2">
         <span className="hidden text-xs font-medium text-slate-400 sm:inline">
           Min status
         </span>
-        <div className="flex flex-1 items-center gap-1.5 rounded-2xl bg-slate-100 p-1 sm:flex-none">
+        <div className="flex min-w-0 flex-1 items-center gap-1 rounded-2xl bg-slate-100 p-1 sm:flex-none sm:gap-1.5">
           {OPTIONS.map((o) => {
             const isActive = status === o.value;
             return (
@@ -100,7 +100,7 @@ export default function StatusBar() {
                 key={o.value}
                 onClick={() => choose(o.value)}
                 aria-pressed={isActive}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
                   isActive
                     ? o.active
                     : "text-slate-500 hover:bg-white hover:text-slate-700"
