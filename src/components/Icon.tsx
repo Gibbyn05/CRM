@@ -5,6 +5,7 @@ export type IconName =
   | "dashboard"
   | "live"
   | "customers"
+  | "reachr"
   | "pipeline"
   | "calendar"
   | "leaderboard"
@@ -48,6 +49,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  reachr: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+      <path d="M8 11h6M11 8v6" />
     </>
   ),
   pipeline: (

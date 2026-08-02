@@ -142,6 +142,11 @@ video {
     @apply text-2xs font-bold uppercase tracking-[0.18em] text-[#7b6a54];
   }
 
+  .reachr-input {
+    @apply w-full rounded-2xl border border-[#d8c9b0] bg-[#fffaf0]/95 px-4 py-3 text-[#2b2118] outline-none transition placeholder:text-[#9b8568] focus:border-[#09fe94] focus:ring-4 focus:ring-[#09fe94]/15;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+
   /* Diskré, avrundet rullefelt som matcher det rene uttrykket. */
   .thin-scroll {
     scrollbar-width: thin;
