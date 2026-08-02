@@ -1,7 +1,21 @@
 import { normalizeUrl, type ReachrCompany } from "@/lib/reachr";
 import type { ReachrProvider, ReachrProviderResult } from "./types";
 
-const CONTACT_PATHS = ["", "/kontakt", "/kontakt-oss", "/om-oss"];
+const CONTACT_PATHS = [
+  "",
+  "/kontakt",
+  "/kontakt/",
+  "/kontakt-oss",
+  "/kontakt-oss/",
+  "/contact",
+  "/contact/",
+  "/about",
+  "/about-us",
+  "/om-oss",
+  "/om-oss/",
+  "/kundeservice",
+  "/support",
+];
 const MAX_BYTES = 180_000;
 
 export const websiteProvider: ReachrProvider = {
@@ -20,9 +34,16 @@ export const websiteProvider: ReachrProvider = {
 
     try {
       const pages = await fetchWebsitePages(website);
-      const combined = pages.map((page) => page.text).join("\n");
-      const emails = extractEmails(combined);
-      const phones = extractPhones(combined, currentCompany?.org_number);
+      const combinedText = pages.map((page) => page.text).join("\n");
+      const combinedHtml = pages.map((page) => page.html).join("\n");
+      const emails = unique([
+        ...extractMailtoEmails(combinedHtml),
+        ...extractEmails(combinedText),
+      ]);
+      const phones = unique([
+        ...extractTelPhones(combinedHtml, currentCompany?.org_number),
+        ...extractPhones(combinedText, currentCompany?.org_number),
+      ]);
       const description = extractDescription(pages[0]?.html ?? "");
       const enrichment: Partial<ReachrCompany> = {
         website,
@@ -61,14 +82,18 @@ export const websiteProvider: ReachrProvider = {
 
 async function fetchWebsitePages(baseUrl: string): Promise<Array<{ html: string; text: string }>> {
   const origin = new URL(baseUrl).origin;
+  const home = await fetchPage(baseUrl);
+  const discoveredLinks = home ? extractContactLinks(home.html, origin) : [];
   const candidates = unique([
-    baseUrl,
+    ...(home ? [] : [baseUrl]),
+    ...discoveredLinks,
     ...CONTACT_PATHS.map((path) => `${origin}${path}`),
   ]);
   const pages: Array<{ html: string; text: string }> = [];
+  if (home) pages.push(home);
 
   for (const url of candidates) {
-    if (pages.length >= 3) break;
+    if (pages.length >= 6) break;
     const page = await fetchPage(url);
     if (page) pages.push(page);
   }
@@ -93,7 +118,7 @@ async function fetchPage(url: string): Promise<{ html: string; text: string } | 
 }
 
 function htmlToText(html: string): string {
-  return html
+  return htmlDecode(html)
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
@@ -101,6 +126,17 @@ function htmlToText(html: string): string {
     .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function extractMailtoEmails(html: string): string[] {
+  const matches = html.match(/mailto:([^"'?\s>]+)/gi) ?? [];
+  return unique(
+    matches
+      .map((match) => match.replace(/^mailto:/i, ""))
+      .map(decodeURIComponentSafe)
+      .map((email) => email.toLowerCase().trim())
+      .filter((email) => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)),
+  );
 }
 
 function extractEmails(text: string): string[] {
@@ -112,15 +148,45 @@ function extractEmails(text: string): string[] {
   );
 }
 
+function extractTelPhones(html: string, orgNumber?: string): string[] {
+  const matches = html.match(/tel:([^"'\s>]+)/gi) ?? [];
+  return normalizePhones(
+    matches.map((match) => decodeURIComponentSafe(match.replace(/^tel:/i, ""))),
+    orgNumber,
+  );
+}
+
 function extractPhones(text: string, orgNumber?: string): string[] {
-  const matches = text.match(/(?:\+47[\s.-]?)?(?:\d[\s.-]?){8}/g) ?? [];
+  const matches = text.match(/(?:\+47|0047)?[\s.-]*(?:\d[\s.-]*){8}/g) ?? [];
+  return normalizePhones(matches, orgNumber);
+}
+
+function normalizePhones(values: string[], orgNumber?: string): string[] {
   return unique(
-    matches
+    values
       .map((phone) => phone.replace(/[^\d+]/g, ""))
+      .map((phone) => (phone.startsWith("0047") ? `+47${phone.slice(4)}` : phone))
       .map((phone) => (phone.startsWith("+47") ? phone : phone.length === 8 ? `+47${phone}` : phone))
       .filter((phone) => /^\+47\d{8}$/.test(phone))
+      .filter((phone) => !/^(\+47)?0{8}$/.test(phone))
       .filter((phone) => phone.replace("+47", "") !== orgNumber),
   );
+}
+
+function extractContactLinks(html: string, origin: string): string[] {
+  const links = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi)]
+    .map((match) => htmlDecode(match[1]))
+    .filter((href) => /kontakt|contact|kundeservice|support|om-oss|about/i.test(href))
+    .map((href) => {
+      try {
+        return new URL(href, origin).toString();
+      } catch {
+        return null;
+      }
+    })
+    .filter((href): href is string => Boolean(href))
+    .filter((href) => href.startsWith(origin));
+  return unique(links).slice(0, 4);
 }
 
 function extractDescription(html: string): string | null {
@@ -139,6 +205,14 @@ function htmlDecode(value: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function source(

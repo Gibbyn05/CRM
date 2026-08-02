@@ -38,6 +38,7 @@ export default function LeadSearchView() {
   const [employees, setEmployees] = useState("all");
   const [orgForm, setOrgForm] = useState("");
   const [mva, setMva] = useState(false);
+  const [hasPhone, setHasPhone] = useState(false);
   const [hasEmail, setHasEmail] = useState(false);
   const [hasWebsite, setHasWebsite] = useState(false);
   const [minRevenue, setMinRevenue] = useState("");
@@ -60,10 +61,18 @@ export default function LeadSearchView() {
 
   const activeFilters = useMemo(
     () =>
-      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasEmail, hasWebsite, minRevenue, maxRevenue, minResult]
+      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasPhone, hasEmail, hasWebsite, minRevenue, maxRevenue, minResult]
         .filter(Boolean).length,
-    [employees, hasEmail, hasWebsite, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
+    [employees, hasEmail, hasPhone, hasWebsite, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
   );
+  const ringableCount = useMemo(
+    () => results.filter((company) => Boolean(company.phone)).length,
+    [results],
+  );
+  const visibleResults = useMemo(() => {
+    const filtered = hasPhone ? results.filter((company) => Boolean(company.phone)) : results;
+    return [...filtered].sort((a, b) => contactScore(b) - contactScore(a));
+  }, [hasPhone, results]);
 
   async function search(nextPage = 0, append = false) {
     if (!query.trim() && !location.trim() && !industry.trim() && !nace) {
@@ -96,11 +105,13 @@ export default function LeadSearchView() {
       setResults((current) => {
         const next = append ? [...current, ...data.results] : data.results;
         const seen = new Set<string>();
-        return next.filter((company) => {
+        const deduped = next.filter((company) => {
           if (seen.has(company.org_number)) return false;
           seen.add(company.org_number);
           return true;
         });
+        hydratePhoneData(deduped);
+        return deduped;
       });
       setTotal(data.total);
       setHasMore(data.has_more);
@@ -109,6 +120,34 @@ export default function LeadSearchView() {
       setError(err instanceof Error ? err.message : "Søket feilet.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function hydratePhoneData(companies: ReachrCompany[]) {
+    const candidates = companies
+      .filter((company) => !company.phone && company.website)
+      .slice(0, 20);
+    if (candidates.length === 0) return;
+
+    for (let index = 0; index < candidates.length; index += 4) {
+      const batch = candidates.slice(index, index + 4);
+      const enriched = await Promise.allSettled(
+        batch.map((company) =>
+          fetch(`/api/reachr/company?orgnr=${company.org_number}`)
+            .then((res) => res.ok ? res.json() : null)
+            .then((data: { company?: ReachrCompany } | null) => data?.company ?? null),
+        ),
+      );
+      const updates = enriched
+        .map((result) => result.status === "fulfilled" ? result.value : null)
+        .filter((company): company is ReachrCompany => Boolean(company));
+      if (updates.length === 0) continue;
+      setResults((current) =>
+        current.map((company) => {
+          const update = updates.find((item) => item.org_number === company.org_number);
+          return update ? mergeContactData(company, update) : company;
+        }),
+      );
     }
   }
 
@@ -169,8 +208,9 @@ export default function LeadSearchView() {
               ))}
             </select>
           </Field>
-          <div className="grid grid-cols-3 gap-2 pt-6">
+          <div className="grid grid-cols-2 gap-2 pt-6 xl:grid-cols-4">
             <Toggle label="MVA" checked={mva} onChange={setMva} />
+            <Toggle label="Telefon" checked={hasPhone} onChange={setHasPhone} />
             <Toggle label="E-post" checked={hasEmail} onChange={setHasEmail} />
             <Toggle label="Nettside" checked={hasWebsite} onChange={setHasWebsite} />
           </div>
@@ -189,8 +229,8 @@ export default function LeadSearchView() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6f5a43]">
-          <span>{activeFilters} aktive filtre · standardlisten viser B2B-bedrifter som ikke er tatt av noen</span>
-          {total > 0 && <span>{results.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
+          <span>{activeFilters} aktive filtre · {ringableCount} ringbare · ringbare leads sorteres først</span>
+          {total > 0 && <span>{visibleResults.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
         </div>
       </section>
 
@@ -223,7 +263,7 @@ export default function LeadSearchView() {
               </tr>
             </thead>
             <tbody>
-              {results.map((company) => (
+              {visibleResults.map((company) => (
                 <tr
                   key={company.org_number}
                   onClick={() => setSelected(company)}
@@ -248,7 +288,24 @@ export default function LeadSearchView() {
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.employees ?? "Ukjent"}</td>
                   <td className="px-5 py-4 text-sm text-[#6f5a43]">
-                    {[company.phone && "Tlf", company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet"}
+                    <div className="space-y-1">
+                      {company.phone ? (
+                        <a
+                          href={`tel:${company.phone}`}
+                          onClick={(event) => event.stopPropagation()}
+                          className="inline-flex rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-3 py-1 text-xs font-black text-[#24513b]"
+                        >
+                          Ringbar: {formatPhone(company.phone)}
+                        </a>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-3 py-1 text-xs font-black text-[#8b7357]">
+                          Mangler telefon
+                        </span>
+                      )}
+                      <p className="text-xs">
+                        {[company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ingen ekstra kontakt"}
+                      </p>
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-sm text-[#6f5a43]">
                     {company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Åpne for detaljer"}
@@ -285,10 +342,14 @@ export default function LeadSearchView() {
         </div>
       </section>
 
-      {!loading && results.length === 0 && (
+      {!loading && visibleResults.length === 0 && (
         <div className="rounded-[2rem] border border-dashed border-[#d8c9b0] bg-[#fffaf0]/70 p-10 text-center">
-          <p className="font-display text-3xl font-black text-[#2b2118]">Ingen ledige bedrifter i dette søket</p>
-          <p className="mt-2 text-[#6f5a43]">Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her.</p>
+          <p className="font-display text-3xl font-black text-[#2b2118]">
+            {hasPhone ? "Ingen ringbare bedrifter i dette søket" : "Ingen ledige bedrifter i dette søket"}
+          </p>
+          <p className="mt-2 text-[#6f5a43]">
+            {hasPhone ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt." : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
+          </p>
         </div>
       )}
 
@@ -332,4 +393,24 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       {label}
     </button>
   );
+}
+
+function contactScore(company: ReachrCompany): number {
+  return (company.phone ? 100 : 0) + (company.email ? 20 : 0) + (company.website ? 10 : 0);
+}
+
+function mergeContactData(base: ReachrCompany, update: ReachrCompany): ReachrCompany {
+  return {
+    ...base,
+    phone: base.phone ?? update.phone,
+    email: base.email ?? update.email,
+    website: base.website ?? update.website,
+    purpose: base.purpose ?? update.purpose,
+    data_sources: update.data_sources?.length ? update.data_sources : base.data_sources,
+  };
+}
+
+function formatPhone(phone: string): string {
+  const normalized = phone.replace(/^\+47/, "");
+  return normalized.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
 }

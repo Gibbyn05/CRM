@@ -210,7 +210,7 @@ export default function ReachrCompanyDrawer({
                   ))}
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-[#8b7357]">
-                  Når Proff, Eniro/Gule Sider eller 1881-nøkler er satt i Vercel, fylles dette direkte inn i kortet.
+                  Gratis søk bruker Brreg og bedriftens egen nettside. Hvis telefon fortsatt mangler, må den normalt finnes manuelt eller via betalt katalog-API.
                 </p>
               </div>
             </div>
