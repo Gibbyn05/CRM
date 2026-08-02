@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
+import DagsavisModal from "./DagsavisModal";
 import Icon, { type IconName } from "./Icon";
 import NotificationBell from "./NotificationBell";
 
@@ -60,6 +61,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [dagsavisOpen, setDagsavisOpen] = useState(false);
 
   // Husk komprimert tilstand, og eksponer bredden som CSS-variabel slik at den
   // faste statuslinja nederst kan justere seg (--sidebar-w).
@@ -73,6 +75,20 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       collapsed ? "4rem" : "16rem",
     );
   }, [collapsed]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    const todayKey = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/Oslo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const storageKey = `dagsavis-auto-open:${profile.id}`;
+    if (localStorage.getItem(storageKey) === todayKey) return;
+    localStorage.setItem(storageKey, todayKey);
+    setDagsavisOpen(true);
+  }, [profile?.id]);
 
   function toggleCollapsed() {
     setCollapsed((c) => {
@@ -94,8 +110,8 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   return (
     <>
       {/* Mobil topbar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
-        <span className="flex items-center gap-2 font-bold text-slate-900">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#d8c9b0] bg-[#fffaf0]/92 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
+        <span className="flex items-center gap-2 font-display text-xl font-bold text-[#2b2118]">
           <BrandMark />
           Salgssentral
         </span>
@@ -122,7 +138,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       <aside
         className={`${
           open ? "flex" : "hidden"
-        } w-full shrink-0 flex-col border-r border-slate-200 bg-white md:flex md:h-screen ${
+        } w-full shrink-0 flex-col border-r border-[#4d3a2a] bg-[#171717] md:flex md:h-screen ${
           collapsed ? "md:w-16" : "md:w-64"
         }`}
       >
@@ -135,8 +151,8 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           <span className={`flex items-center gap-2.5 ${hide}`}>
             <BrandMark />
             <div className="leading-tight">
-              <p className="text-base font-bold text-slate-900">Salgssentral</p>
-              <p className="text-xs text-slate-400">
+              <p className="font-display text-xl font-bold leading-none text-[#fffaf0]">Salgssentral</p>
+              <p className="mt-1 text-xs text-[#d9bd8f]/70">
                 {isManager ? "Salgssjef" : "Selger"}
               </p>
             </div>
@@ -144,7 +160,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           <button
             onClick={toggleCollapsed}
             aria-label={collapsed ? "Utvid meny" : "Komprimer meny"}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-xl p-2 text-[#d9bd8f]/55 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.97]"
           >
             <Icon name={collapsed ? "chevron-right" : "chevron-left"} size={18} />
           </button>
@@ -167,28 +183,29 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                 {group.items
                   .filter((item) => !item.managerOnly || isManager)
                   .map((item) => (
-                    <NavLink
-                      key={item.href}
-                      item={item}
-                      active={pathname.startsWith(item.href)}
-                      collapsed={collapsed}
-                      onClick={() => setOpen(false)}
-                    />
-                  ))}
+                      <NavLink
+                        key={item.href}
+                        item={item}
+                        active={pathname.startsWith(item.href)}
+                        collapsed={collapsed}
+                        onClick={() => setOpen(false)}
+                        onOpenDagsavis={() => setDagsavisOpen(true)}
+                      />
+                    ))}
                 {group.title === "Konto" && isManager && (
                   <Link
                     href="/tv"
                     target="_blank"
                     onClick={() => setOpen(false)}
                     aria-label="TV-visning"
-                    className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                    className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-[#fffaf0]/60 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.98] ${
                       collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
                     }`}
                   >
                     <Icon
                       name="tv"
                       size={18}
-                      className={`text-slate-400 transition-transform duration-150 ${
+                      className={`text-[#d9bd8f]/50 transition-transform duration-150 ${
                         collapsed ? "md:group-hover:scale-110" : ""
                       }`}
                     />
@@ -202,7 +219,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         </nav>
 
         {/* Bruker + logg ut */}
-        <div className="mt-auto border-t border-slate-200 p-3">
+        <div className="mt-auto border-t border-white/10 p-3">
           <div
             className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
               collapsed ? "md:justify-center md:px-0" : ""
@@ -214,16 +231,16 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
               size={38}
             />
             <div className={`min-w-0 flex-1 ${hide}`}>
-              <p className="truncate text-sm font-semibold text-slate-800">
+              <p className="truncate text-sm font-semibold text-[#fffaf0]">
                 {profile?.full_name || "—"}
               </p>
-              <p className="truncate text-xs text-slate-400">{profile?.email}</p>
+              <p className="truncate text-xs text-[#d9bd8f]/55">{profile?.email}</p>
             </div>
           </div>
           <button
             onClick={signOut}
             aria-label="Logg ut"
-            className={`group relative mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600 ${
+            className={`group relative mt-1 flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-[#fffaf0]/50 transition hover:bg-white/10 hover:text-[#ffad0a] active:scale-[0.98] ${
               collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
             }`}
           >
@@ -239,6 +256,12 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           </button>
         </div>
       </aside>
+
+      <DagsavisModal
+        open={dagsavisOpen}
+        onOpenChange={setDagsavisOpen}
+        profile={profile}
+      />
     </>
   );
 }
@@ -248,25 +271,51 @@ function NavLink({
   active,
   collapsed,
   onClick,
+  onOpenDagsavis,
 }: {
   item: NavItem;
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
+  onOpenDagsavis: () => void;
 }) {
   const hide = collapsed ? "md:hidden" : "";
+  if (item.href === "/dagsavis") {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onOpenDagsavis();
+          onClick();
+        }}
+        className={`group relative flex w-full items-center gap-3 rounded-xl py-2.5 text-left text-sm font-medium text-[#fffaf0]/60 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.98] ${
+          collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
+        }`}
+      >
+        <Icon
+          name={item.icon}
+          size={18}
+          className={`text-[#d9bd8f]/50 transition-transform duration-150 ${
+            collapsed ? "md:group-hover:scale-110" : ""
+          }`}
+        />
+        <span className={hide}>{item.label}</span>
+        {collapsed && <RailTooltip label={item.label} />}
+      </button>
+    );
+  }
   return (
     <Link
       href={item.href}
       onClick={onClick}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm transition ${
+      className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm transition active:scale-[0.98] ${
         collapsed ? "md:justify-center md:gap-0 md:px-2" : "px-3"
       } ${
         active
-          ? "bg-brand-50 font-semibold text-brand-700"
-          : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          ? "bg-white/10 font-semibold text-[#09fe94]"
+          : "font-medium text-[#fffaf0]/60 hover:bg-white/10 hover:text-[#fffaf0]"
       }`}
     >
       <Icon
@@ -274,7 +323,7 @@ function NavLink({
         size={18}
         className={`transition-transform duration-150 ${
           collapsed ? "md:group-hover:scale-110" : ""
-        } ${active ? "text-brand-600" : "text-slate-400"}`}
+        } ${active ? "text-[#09fe94]" : "text-[#d9bd8f]/50"}`}
       />
       <span className={hide}>{item.label}</span>
       {collapsed && <RailTooltip label={item.label} />}
@@ -287,7 +336,7 @@ function NavLink({
 function RailTooltip({ label }: { label: string }) {
   return (
     <span
-      className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 md:block"
+      className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-[#2b2118] px-2.5 py-1 text-xs font-medium text-[#fffaf0] opacity-0 shadow-lg transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 md:block"
     >
       {label}
     </span>
@@ -296,7 +345,7 @@ function RailTooltip({ label }: { label: string }) {
 
 function BrandMark() {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#09fe94] text-[#171717] shadow-[0_10px_28px_rgba(9,254,148,0.18)]">
       <Icon name="live" size={20} strokeWidth={2.25} />
     </span>
   );

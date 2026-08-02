@@ -13,6 +13,7 @@ const config: Config = {
         // Inter, self-hosted via next/font (src/app/layout.tsx) and exposed
         // as --font-sans; falls back to the system stack while it loads.
         sans: ["var(--font-sans)", ...defaultTheme.fontFamily.sans],
+        display: ["var(--font-display)", "Georgia", ...defaultTheme.fontFamily.serif],
       },
       fontSize: {
         // Delte mikro-roller: eyebrow/tabellhoder (2xs) og tidsstempler/badges (3xs).
@@ -21,18 +22,33 @@ const config: Config = {
         "3xs": ["0.625rem", { lineHeight: "0.875rem" }],
       },
       colors: {
-        // Merkevare-aksent (indigo/violett) – primærfargen i hele UI-et.
+        // Reachr-stil: beige/brun base med signalgrønn aksent.
         brand: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
-          800: "#3730a3",
-          900: "#312e81",
+          50: "#eafff5",
+          100: "#ccffe7",
+          200: "#9dffd4",
+          300: "#62ffc0",
+          400: "#09fe94",
+          500: "#00e882",
+          600: "#008f52",
+          700: "#087043",
+          800: "#0b5637",
+          900: "#0a432f",
+        },
+        paper: {
+          50: "#fffaf0",
+          100: "#faf8f2",
+          200: "#f4ead8",
+          300: "#efe3ce",
+          400: "#d8c9b0",
+          500: "#b7a991",
+        },
+        ink: {
+          900: "#171717",
+          800: "#2b2118",
+          700: "#3d3a34",
+          600: "#5f5548",
+          500: "#6b6660",
         },
         // Statusfarger for live-dashboardet
         status: {
@@ -43,9 +59,9 @@ const config: Config = {
         },
       },
       boxShadow: {
-        card: "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.05)",
-        soft: "0 8px 30px -12px rgb(15 23 42 / 0.18)",
-        pop: "0 20px 45px -15px rgb(15 23 42 / 0.30)",
+        card: "0 1px 2px 0 rgb(61 44 24 / 0.04), 0 1px 3px 0 rgb(61 44 24 / 0.05)",
+        soft: "0 18px 50px -24px rgb(61 44 24 / 0.26)",
+        pop: "0 24px 70px -24px rgb(61 44 24 / 0.34)",
       },
       borderRadius: {
         "2.5xl": "1.25rem",

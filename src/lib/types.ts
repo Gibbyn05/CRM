@@ -181,6 +181,25 @@ export interface DailyReport {
   meetings_confirmed: number;
   sales_count: number;
   rejections_count: number;
+  revenue_amount: number;
+  new_customers_count: number;
+  booked_meetings_count: number;
+  summary_text: string | null;
+  metrics: Record<string, unknown>;
+  generated_at: string | null;
+  created_at: string;
+}
+
+export interface DailyTeamReport {
+  id: string;
+  report_date: string;
+  calls_count: number;
+  meetings_confirmed: number;
+  sales_count: number;
+  rejections_count: number;
+  revenue_amount: number;
+  new_customers_count: number;
+  booked_meetings_count: number;
   summary_text: string | null;
   metrics: Record<string, unknown>;
   generated_at: string | null;

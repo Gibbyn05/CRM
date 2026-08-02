@@ -63,6 +63,111 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 }
 
+export function dagsavisEmailHtml(opts: {
+  title: string;
+  intro: string;
+  cards: Array<{ label: string; value: string }>;
+  summaryText: string;
+  sellerRows?: Array<{
+    name: string;
+    calls: number;
+    sales: number;
+    revenue: string;
+    meetings: number;
+  }>;
+  appUrl?: string;
+}): string {
+  const appUrl = opts.appUrl?.replace(/\/$/, "") || "";
+  const rows = opts.sellerRows?.length
+    ? `
+      <table style="width:100%;border-collapse:collapse;margin-top:18px;font-size:14px;">
+        <thead>
+          <tr>
+            ${["Selger", "Samtaler", "Salg", "Omsetning", "Møter"]
+              .map(
+                (heading) =>
+                  `<th style="padding:10px 8px;border-bottom:1px solid #d8c9b0;text-align:left;color:#7b6a54;font-size:11px;text-transform:uppercase;letter-spacing:.14em;">${heading}</th>`,
+              )
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${opts.sellerRows
+            .map(
+              (row) => `
+                <tr>
+                  <td style="padding:10px 8px;border-bottom:1px solid #efe3ce;color:#2b2118;font-weight:700;">${escapeHtml(row.name)}</td>
+                  <td style="padding:10px 8px;border-bottom:1px solid #efe3ce;color:#3d3a34;">${row.calls}</td>
+                  <td style="padding:10px 8px;border-bottom:1px solid #efe3ce;color:#3d3a34;">${row.sales}</td>
+                  <td style="padding:10px 8px;border-bottom:1px solid #efe3ce;color:#3d3a34;">${escapeHtml(row.revenue)}</td>
+                  <td style="padding:10px 8px;border-bottom:1px solid #efe3ce;color:#3d3a34;">${row.meetings}</td>
+                </tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>`
+    : "";
+
+  return `
+  <div style="margin:0;padding:32px 16px;background:#f4ead8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2b2118;">
+    <div style="max-width:720px;margin:0 auto;border:1px solid #d8c9b0;border-radius:28px;overflow:hidden;background:#fffaf0;box-shadow:0 24px 70px rgba(61,44,24,.12);">
+      <div style="padding:28px 32px;border-bottom:1px solid #d8c9b0;background:#efe3ce;">
+        <p style="margin:0 0 10px;color:#7b6a54;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.2em;">Dagsavisen kl. 20:00</p>
+        <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:44px;line-height:.95;letter-spacing:-.03em;color:#2b2118;">${escapeHtml(opts.title)}</h1>
+        <p style="margin:14px 0 0;color:#6b6660;font-size:15px;line-height:1.65;">${escapeHtml(opts.intro)}</p>
+      </div>
+      <div style="padding:28px 32px;">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:24px;">
+          ${opts.cards
+            .map(
+              (card) => `
+                <div style="border:1px solid #d8c9b0;border-radius:18px;background:#fbf7ed;padding:16px;">
+                  <p style="margin:0;color:#7b6a54;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;">${escapeHtml(card.label)}</p>
+                  <p style="margin:8px 0 0;font-family:Georgia,'Times New Roman',serif;color:#2b2118;font-size:30px;font-weight:700;line-height:1;">${escapeHtml(card.value)}</p>
+                </div>`,
+            )
+            .join("")}
+        </div>
+        <div style="border-top:2px solid #2b2118;border-bottom:1px solid #d8c9b0;padding:18px 0;">
+          <p style="margin:0;color:#7b6a54;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;">Oppsummering</p>
+          <p style="margin:10px 0 0;color:#3d3a34;font-size:16px;line-height:1.75;">${escapeHtml(opts.summaryText)}</p>
+        </div>
+        ${rows}
+        ${
+          appUrl
+            ? `<p style="margin:26px 0 0;text-align:center;"><a href="${escapeAttr(appUrl + "/dashboard")}" style="display:inline-block;background:#09fe94;color:#171717;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:800;">Åpne CRM</a></p>`
+            : ""
+        }
+      </div>
+    </div>
+  </div>`;
+}
+
+export function dagsavisEmailText(opts: {
+  title: string;
+  cards: Array<{ label: string; value: string }>;
+  summaryText: string;
+  sellerRows?: Array<{
+    name: string;
+    calls: number;
+    sales: number;
+    revenue: string;
+    meetings: number;
+  }>;
+}): string {
+  const cards = opts.cards.map((card) => `${card.label}: ${card.value}`).join("\n");
+  const sellers = opts.sellerRows?.length
+    ? "\n\nSelgere:\n" +
+      opts.sellerRows
+        .map(
+          (row) =>
+            `${row.name}: ${row.calls} samtaler, ${row.sales} salg, ${row.revenue}, ${row.meetings} møter`,
+        )
+        .join("\n")
+    : "";
+  return `${opts.title}\n\n${cards}\n\nOppsummering:\n${opts.summaryText}${sellers}`;
+}
+
 // Enkel, ren HTML-mal for en kontrakt-/tilbudsutsendelse. `bodyText` lar
 // selgeren (eller AI-forslaget) sette en egen brødtekst; ellers brukes en
 // standard setning.

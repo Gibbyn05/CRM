@@ -103,13 +103,13 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 hidden items-center gap-4 border-b border-slate-200 bg-white/80 px-6 py-3 backdrop-blur md:flex">
+    <header className="sticky top-0 z-30 hidden items-center gap-4 border-b border-[#d8c9b0] bg-[#fffaf0]/82 px-6 py-3 shadow-[0_16px_50px_rgba(61,44,24,0.06)] backdrop-blur-xl md:flex">
       <div className="min-w-0">
-        <p className="truncate text-sm text-slate-500">
+        <p className="truncate text-sm text-[#6b6660]">
           {firstName ? (
             <>
               Velkommen tilbake,{" "}
-              <span className="font-semibold text-slate-800">{firstName}</span>
+              <span className="font-semibold text-[#2b2118]">{firstName}</span>
             </>
           ) : (
             "Velkommen tilbake"
@@ -121,7 +121,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
         <Icon
           name="search"
           size={18}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8d806e]"
         />
         <input
           value={q}
@@ -135,11 +135,11 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
           aria-expanded={open}
           aria-autocomplete="list"
           placeholder="Søk etter kunde …"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-2xl border border-[#d8c9b0] bg-[#fbf7ed] py-2.5 pl-10 pr-4 text-sm text-[#2b2118] placeholder:text-[#8d806e] transition focus:border-[#09fe94]/70 focus:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-[#09fe94]/15"
         />
 
         {open && q.trim() && (
-          <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-[#d8c9b0] bg-[#fffaf0] shadow-pop">
             {loading && hits.length === 0 && (
               <p className="px-4 py-3 text-sm text-slate-400">Søker …</p>
             )}
@@ -154,10 +154,10 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
                 onClick={() => goToCustomer(h.id)}
                 onMouseEnter={() => setActive(i)}
                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
-                  i === active ? "bg-brand-50" : "hover:bg-slate-50"
+                  i === active ? "bg-[#eafff5]" : "hover:bg-[#fbf7ed]"
                 }`}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-xs font-bold text-white">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#09fe94] text-xs font-bold text-[#171717]">
                   {h.name.trim().charAt(0).toUpperCase() || "?"}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -174,7 +174,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
             <Link
               href={`/customers?q=${encodeURIComponent(q.trim())}`}
               onClick={() => setOpen(false)}
-              className="block border-t border-slate-100 px-4 py-2.5 text-sm font-medium text-brand-600 hover:bg-slate-50"
+              className="block border-t border-[#d8c9b0] px-4 py-2.5 text-sm font-bold text-[#008f52] hover:bg-[#fbf7ed]"
             >
               Se alle treff for «{q.trim()}» →
             </Link>
@@ -184,17 +184,17 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
 
       {profile?.id && <NotificationBell userId={profile.id} />}
 
-      <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
+      <div className="flex items-center gap-3 border-l border-[#d8c9b0] pl-4">
         <Avatar
           name={profile?.full_name || profile?.email || "?"}
           url={profile?.avatar_url}
           size={36}
         />
         <div className="hidden leading-tight lg:block">
-          <p className="text-sm font-semibold text-slate-800">
+          <p className="text-sm font-semibold text-[#2b2118]">
             {profile?.full_name || "—"}
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#6b6660]">
             {profile?.role === "manager" ? "Salgssjef" : "Selger"}
           </p>
         </div>

@@ -1,7 +1,7 @@
 # Salgssentral – internt sales-dashboard for callcenter
 
 Et internt CRM/sales-dashboard for et norsk B2B-callcenter. Bygget med
-**Next.js (App Router) + Supabase + Tailwind**, med **Claude API** for den
+**Next.js (App Router) + Supabase + Tailwind**, med **OpenAI API** for den
 AI-genererte dagsavisen.
 
 ## Hvorfor denne stacken
@@ -24,7 +24,7 @@ Vercel). Alt UI er på norsk og mobilvennlig; storskjerm-visningen er egen rute.
 | 5 | **Kalender** (booking, avtaletyper) | `/calendar` |
 | 6 | **Ledertavler** (dag/uke/måned/kvartal/år) | `/leaderboard` |
 | 7 | **Salgsstatus / pipeline** (Kanban) | `/pipeline`, kundekortet |
-| 8 | **AI-generert dagsavis** (Claude) | `/dagsavis`, `/api/dagsavis` |
+| 8 | **AI-generert dagsavis** (OpenAI) | `/dagsavis`, `/api/dagsavis` |
 
 ### 1. Live agent-status (kjernefunksjonen)
 Viser alle selgere i sanntid med navn, status (**i samtale / ledig / ikke i
@@ -78,7 +78,7 @@ telefoni-kobling. Valgfritt: kjør `supabase/seed.sql` for eksempelkunder.
 ### 3. Miljøvariabler
 Kopier `.env.example` til `.env.local` og fyll inn. Viktigst:
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY`, `TELEPHONY_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`.
+`SUPABASE_SERVICE_ROLE_KEY`, `TELEPHONY_WEBHOOK_SECRET`, `OPENAI_API_KEY`.
 
 > **Deploy-merknad:** `NEXT_PUBLIC_*`-variablene bakes inn ved **build**. Sett
 > dem i deploy-plattformen (f.eks. Vercel → Project Settings → Environment
@@ -129,16 +129,20 @@ på Resend/Postmark (e-post) og Twilio/Sveve (SMS) i `sendEmail`/`sendSms`.
 Status-sporing (åpnet/signert) er forberedt i datamodellen og oppdateres senere
 via en leverandør-webhook.
 
-## Dagsavis (Claude)
+## Dagsavis (OpenAI)
 
-`/api/dagsavis` beregner gårsdagens nøkkeltall (telefoner, møter, salg, avslag)
-og genererer en kort, lesbar oppsummering med Claude — inkludert et forsøk på å
-peke ut hvor i salgsprosessen selgeren mister flest kunder, basert på
-loggnotater og avslagsårsaker. Rapporten caches per (selger, dato). Modell
-styres av `ANTHROPIC_MODEL` (standard `claude-opus-4-8`).
+`/api/dagsavis` beregner dagsavis-data for selger eller team, inkludert
+samtaler, salg, omsetning, nye kunder og bookede møter, og genererer en kort,
+lesbar oppsummering med OpenAI. Dagsavisen åpnes som en modal fra sidebar-knappen
+og har også en ledervisning med selgeroversikt og tidsserie-graf.
 
-For automatisk generering hver morgen kan man legge til en Supabase-cron eller
-en ekstern scheduler som POSTer til `/api/dagsavis` per aktiv selger.
+Automatisk generering og utsending styres av cron-endepunktet på samme route.
+Vercel treffer jobben kl. 18:00 og 19:00 UTC, mens route-koden sjekker at lokal
+tid faktisk er 20:00 i `Europe/Oslo`. Dette håndterer sommer- og vintertid uten
+å sende to ganger. Jobben genererer dagens team- og selgerrapporter, sender
+e-post til aktive selgere og sender teamavis til aktive ledere. SMS er stubbet
+bak `DAGSAVIS_SMS_ENABLED=false` til SMS-leverandør/abonnement er klart. Sett
+`CRON_SECRET`, `RESEND_API_KEY` og `EMAIL_FROM` i miljøet.
 
 ## Prosjektstruktur
 
@@ -158,7 +162,7 @@ src/
   lib/
     supabase/           client/server/admin/middleware
     types.ts, constants.ts, format.ts, periods.ts
-    anthropic.ts, dagsavis.ts
+    openai.ts, anthropic.ts, dagsavis.ts
 ```
 
 ## Videre arbeid

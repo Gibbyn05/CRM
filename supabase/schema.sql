@@ -307,6 +307,9 @@ create table public.daily_reports (
   meetings_confirmed  integer not null default 0,
   sales_count         integer not null default 0,
   rejections_count    integer not null default 0,
+  revenue_amount      numeric(12, 2) not null default 0,
+  new_customers_count integer not null default 0,
+  booked_meetings_count integer not null default 0,
   -- AI-generert tekst-oppsummering (Claude).
   summary_text        text,
   -- Ekstra nøkkeltall / utvidbare felter (f.eks. "hvor i samtalen mistet
@@ -321,6 +324,29 @@ create table public.daily_reports (
 comment on table public.daily_reports is 'Daglig performance-rapport (dagsavis) per selger, med AI-oppsummering.';
 
 create index daily_reports_agent_date_idx on public.daily_reports (agent_id, report_date desc);
+
+-- ---------------------------------------------------------------------------
+--  DAILY_TEAM_REPORTS  (AI-generert team-oppsummering)
+-- ---------------------------------------------------------------------------
+create table public.daily_team_reports (
+  id                  uuid primary key default gen_random_uuid(),
+  report_date         date not null unique,
+  calls_count         integer not null default 0,
+  meetings_confirmed   integer not null default 0,
+  sales_count         integer not null default 0,
+  revenue_amount      numeric(12, 2) not null default 0,
+  new_customers_count integer not null default 0,
+  booked_meetings_count integer not null default 0,
+  rejections_count    integer not null default 0,
+  summary_text        text,
+  metrics             jsonb not null default '{}'::jsonb,
+  generated_at        timestamptz,
+  created_at          timestamptz not null default now()
+);
+
+comment on table public.daily_team_reports is 'Daglig team-oppsummering for ledervisning i Dagsavis.';
+
+create index daily_team_reports_date_idx on public.daily_team_reports (report_date desc);
 
 -- >>>>>>>>>>>>>>>>  supabase/migrations/0002_functions_triggers.sql  >>>>>>>>>>>>>>>>
 
@@ -654,6 +680,7 @@ alter table public.appointments   enable row level security;
 alter table public.contracts      enable row level security;
 alter table public.messages       enable row level security;
 alter table public.daily_reports  enable row level security;
+alter table public.daily_team_reports enable row level security;
 
 -- ---------------------------------------------------------------------------
 --  PROFILES
@@ -835,6 +862,10 @@ create policy messages_delete on public.messages
 create policy daily_reports_select on public.daily_reports
   for select to authenticated
   using (public.is_manager() or agent_id = auth.uid());
+
+create policy daily_team_reports_select on public.daily_team_reports
+  for select to authenticated
+  using (public.is_manager());
 
 -- >>>>>>>>>>>>>>>>  supabase/migrations/0004_realtime.sql  >>>>>>>>>>>>>>>>
 

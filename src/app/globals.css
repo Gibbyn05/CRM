@@ -4,6 +4,19 @@
 
 :root {
   color-scheme: light;
+  --reachr-kull: #171717;
+  --reachr-night: #2b2118;
+  --reachr-ink: #3d3a34;
+  --reachr-stein: #6b6660;
+  --reachr-stone: #d8c9b0;
+  --reachr-stone-dark: #b7a991;
+  --reachr-linen: #fffaf0;
+  --reachr-birch: #f4ead8;
+  --reachr-sand: #efe3ce;
+  --reachr-green: #09fe94;
+  --reachr-green-hover: #00e882;
+  --reachr-green-readable: #008f52;
+  --font-display: Georgia, "Times New Roman", serif;
   /* Bredden på sidebaren – oppdateres av Sidebar ved komprimering, brukes av
      den faste statuslinja nederst. */
   --sidebar-w: 16rem;
@@ -16,8 +29,11 @@ html {
 }
 
 body {
-  @apply text-slate-800 antialiased;
-  background-color: #f5f6f8;
+  @apply antialiased;
+  color: var(--reachr-ink);
+  background:
+    radial-gradient(circle at 16% 8%, rgba(184, 138, 82, 0.16), transparent 32rem),
+    linear-gradient(120deg, #fffaf0 0%, #f4ead8 48%, #efe3ce 100%);
   /* Inter-spesifikke character variants (åpen 4/6/9, enkeltetasjes a). */
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   /* Ingen utilsiktet horisontal scroll på mobil. */
@@ -118,30 +134,73 @@ video {
      dybden fungerer (hover-tilstander, modaler); hvilende kort skal ikke
      være den eneste flaten som ikke bruker den. */
   .card {
-    @apply rounded-2xl bg-white shadow-soft ring-1 ring-slate-200/70;
+    @apply rounded-[1.5rem] bg-[#fffaf0] shadow-soft ring-1 ring-[#d8c9b0];
   }
 
   /* Eyebrow/meta-label: tabellhoder, navigasjonsgrupper og skjema-underoverskrifter. */
   .label-eyebrow {
-    @apply text-2xs font-semibold uppercase tracking-wider text-slate-400;
+    @apply text-2xs font-bold uppercase tracking-[0.18em] text-[#7b6a54];
   }
 
   /* Diskré, avrundet rullefelt som matcher det rene uttrykket. */
   .thin-scroll {
     scrollbar-width: thin;
-    scrollbar-color: rgb(203 213 225) transparent;
+    scrollbar-color: var(--reachr-stone) transparent;
   }
   .thin-scroll::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   .thin-scroll::-webkit-scrollbar-thumb {
-    background-color: rgb(203 213 225);
+    background-color: var(--reachr-stone);
     border-radius: 9999px;
   }
   .thin-scroll::-webkit-scrollbar-track {
     background: transparent;
   }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+  }
+
+  /* Reachr-overstyring av den gamle blå/grå CRM-paletten. Dette gir eksisterende
+     appflater samme materialitet uten å måtte omskrive hver tabellcelle. */
+  .bg-white { background-color: var(--reachr-linen) !important; }
+  .bg-slate-50 { background-color: #fbf7ed !important; }
+  .bg-slate-100 { background-color: var(--reachr-sand) !important; }
+  .bg-slate-900 { background-color: var(--reachr-night) !important; }
+  .bg-brand-50 { background-color: #eafff5 !important; }
+  .bg-brand-100 { background-color: #ccffe7 !important; }
+  .bg-brand-400,
+  .bg-brand-500,
+  .bg-brand-600,
+  .bg-brand-700 { background-color: var(--reachr-green) !important; }
+
+  .text-slate-900,
+  .text-slate-800,
+  .text-slate-700 { color: var(--reachr-night) !important; }
+  .text-slate-600,
+  .text-slate-500 { color: var(--reachr-stein) !important; }
+  .text-slate-400 { color: #8d806e !important; }
+  .text-brand-600,
+  .text-brand-700 { color: var(--reachr-green-readable) !important; }
+  .text-white { color: #fffaf0 !important; }
+
+  .border-slate-50,
+  .border-slate-100,
+  .border-slate-200,
+  .ring-slate-200\/70 { border-color: var(--reachr-stone) !important; }
+  .ring-slate-200\/70 { --tw-ring-color: var(--reachr-stone) !important; }
+
+  .hover\:bg-slate-50:hover,
+  .hover\:bg-slate-100:hover { background-color: var(--reachr-sand) !important; }
+  .hover\:text-brand-700:hover,
+  .hover\:text-brand-600:hover { color: var(--reachr-green-readable) !important; }
+
+  .focus\:border-brand-400:focus { border-color: rgba(9, 254, 148, 0.65) !important; }
+  .focus\:ring-brand-100:focus { --tw-ring-color: rgba(9, 254, 148, 0.18) !important; }
 }
 
 /* Sørg for at Tailwind ikke purger de dynamiske statusfargene. */

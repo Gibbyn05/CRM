@@ -51,10 +51,10 @@ export const CALL_STATUS_LABELS: Record<CallStatus, string> = {
 };
 
 export const CALL_STATUS_STYLES: Record<CallStatus, string> = {
-  ringing: "bg-amber-50 text-amber-700",
-  answered: "bg-sky-50 text-sky-700",
-  ended: "bg-emerald-50 text-emerald-700",
-  missed: "bg-red-50 text-red-600",
+  ringing: "bg-[#fff2cf] text-[#7a4f00]",
+  answered: "bg-[#eafff5] text-[#008f52]",
+  ended: "bg-[#171717] text-[#09fe94]",
+  missed: "bg-[#fff0ea] text-[#b83208]",
 };
 
 export const CALL_DIRECTION_LABELS: Record<CallDirection, string> = {
