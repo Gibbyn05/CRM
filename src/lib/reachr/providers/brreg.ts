@@ -35,20 +35,31 @@ export const brregProvider: ReachrProvider = {
     }
 
     const company = normalizeBrregEntity((await entityRes.json()) as BrregEntity);
+    const roles = rolesRes.ok ? normalizeRoles(await rolesRes.json()) : [];
+    const financials = financialsRes.ok ? normalizeFinancials(await financialsRes.json()) : null;
+    const fields = [
+      "register",
+      roles.length > 0 ? "roller" : null,
+      financials ? "regnskap" : null,
+      company.industry_code ? "bransjekode" : null,
+      company.employees != null ? "ansatte" : null,
+      company.address.city ? "adresse" : null,
+      company.phone ? "telefon" : null,
+      company.email ? "e-post" : null,
+      company.website ? "nettside" : null,
+    ].filter((field): field is string => Boolean(field));
+
     return {
       company: {
         ...company,
-        roles: rolesRes.ok ? normalizeRoles(await rolesRes.json()) : [],
-        financials: financialsRes.ok ? normalizeFinancials(await financialsRes.json()) : null,
+        roles,
+        financials,
       },
-      source: source("active", [
-        "register",
-        "roller",
-        "regnskap",
-        "bransjekode",
-        "ansatte",
-        "adresse",
-      ]),
+      source: source(
+        "active",
+        fields,
+        financials ? undefined : "Regnskap finnes ikke i Brreg ennå. Det skjer ofte for nye selskaper eller selskaper uten innlevert regnskap.",
+      ),
     };
   },
   async search(_input: ReachrSearchInput): Promise<ReachrProviderResult> {
