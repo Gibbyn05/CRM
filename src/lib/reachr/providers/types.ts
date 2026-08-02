@@ -1,6 +1,6 @@
 import type { ReachrCompany, ReachrDataSource } from "@/lib/reachr";
 
-export type ReachrProviderName = "brreg" | "proff" | "eniro" | "api1881";
+export type ReachrProviderName = "brreg" | "website" | "proff" | "eniro" | "api1881";
 
 export interface ReachrSearchInput {
   query: string;
@@ -21,6 +21,6 @@ export interface ReachrProvider {
   name: ReachrProviderName;
   label: string;
   isConfigured(): boolean;
-  enrichByOrgNumber(orgNumber: string): Promise<ReachrProviderResult>;
+  enrichByOrgNumber(orgNumber: string, currentCompany?: ReachrCompany | null): Promise<ReachrProviderResult>;
   search?(input: ReachrSearchInput): Promise<ReachrProviderResult>;
 }

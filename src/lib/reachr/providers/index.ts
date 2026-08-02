@@ -3,10 +3,12 @@ import { api1881Provider } from "./api1881";
 import { brregProvider } from "./brreg";
 import { eniroProvider } from "./eniro";
 import { proffProvider } from "./proff";
+import { websiteProvider } from "./website";
 import type { ReachrProvider, ReachrSearchInput } from "./types";
 
 export const reachrProviders: ReachrProvider[] = [
   brregProvider,
+  websiteProvider,
   proffProvider,
   eniroProvider,
   api1881Provider,
@@ -17,7 +19,7 @@ export async function enrichCompanyFromProviders(orgNumber: string): Promise<Rea
   const sources: ReachrDataSource[] = [];
 
   for (const provider of reachrProviders) {
-    const result = await provider.enrichByOrgNumber(orgNumber);
+    const result = await provider.enrichByOrgNumber(orgNumber, company);
     sources.push(result.source);
     if (isUsableCompany(result.company)) {
       company = company
