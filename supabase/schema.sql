@@ -625,7 +625,7 @@ as $$
     coalesce(c.calls_count, 0)        as calls_count,
     coalesce(a.meetings_confirmed, 0) as meetings_confirmed,
     coalesce(d.sales_count, 0)        as sales_count,
-    coalesce(d.rejections_count, 0)   as rejections_count,
+    coalesce(l.rejections_count, 0)   as rejections_count,
     coalesce(d.sales_amount, 0)       as sales_amount
   from public.profiles p
   left join (
@@ -643,13 +643,22 @@ as $$
   left join (
     select
       agent_id,
-      count(*) filter (where stage = 'akseptert') as sales_count,
-      count(*) filter (where stage = 'tapt')      as rejections_count,
-      sum(amount) filter (where stage = 'akseptert') as sales_amount
+      count(*) as sales_count,
+      coalesce(sum(amount), 0) as sales_amount
     from public.deals
-    where updated_at >= p_start and updated_at < p_end
+    where stage = 'akseptert'
+      and offer_accepted_at >= p_start
+      and offer_accepted_at < p_end
     group by agent_id
   ) d on d.agent_id = p.id
+  left join (
+    select agent_id, count(*) as rejections_count
+    from public.deals
+    where stage = 'tapt'
+      and updated_at >= p_start
+      and updated_at < p_end
+    group by agent_id
+  ) l on l.agent_id = p.id
   where p.role = 'agent' and p.is_active
   order by sales_count desc, meetings_confirmed desc, calls_count desc;
 $$;
@@ -967,7 +976,7 @@ begin
          and a.status = 'bekreftet'
          and (v_agent is null or a.agent_id = v_agent))::bigint,
     (select count(*) from public.deals d
-       where d.updated_at >= p_start and d.updated_at < p_end
+       where d.offer_accepted_at >= p_start and d.offer_accepted_at < p_end
          and d.stage = 'akseptert'
          and (v_agent is null or d.agent_id = v_agent))::bigint,
     (select count(*) from public.deals d
@@ -975,7 +984,7 @@ begin
          and d.stage = 'tapt'
          and (v_agent is null or d.agent_id = v_agent))::bigint,
     coalesce((select sum(d.amount) from public.deals d
-       where d.updated_at >= p_start and d.updated_at < p_end
+       where d.offer_accepted_at >= p_start and d.offer_accepted_at < p_end
          and d.stage = 'akseptert'
          and (v_agent is null or d.agent_id = v_agent)), 0)::numeric;
 end;

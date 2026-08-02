@@ -184,8 +184,8 @@ export default function DashboardView({
           .from("deals")
           .select("amount", { count: "exact" })
           .eq("stage", "akseptert")
-          .gte("updated_at", start.toISOString())
-          .lt("updated_at", end.toISOString()),
+          .gte("offer_accepted_at", start.toISOString())
+          .lt("offer_accepted_at", end.toISOString()),
         supabase
           .from("deals")
           .select("id", { count: "exact", head: true })

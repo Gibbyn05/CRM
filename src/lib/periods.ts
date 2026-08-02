@@ -1,14 +1,13 @@
 import {
+  addDays,
+  addMonths,
+  addQuarters,
+  addYears,
   startOfDay,
-  endOfDay,
   startOfWeek,
-  endOfWeek,
   startOfMonth,
-  endOfMonth,
   startOfQuarter,
-  endOfQuarter,
   startOfYear,
-  endOfYear,
 } from "date-fns";
 
 export type Period = "dag" | "uke" | "maned" | "kvartal" | "ar";
@@ -26,18 +25,25 @@ export const PERIODS: Period[] = ["dag", "uke", "maned", "kvartal", "ar"];
 // Returnerer [start, slutt) for valgt periode. Uke starter mandag (nb-locale).
 export function periodRange(period: Period, ref = new Date()): [Date, Date] {
   switch (period) {
-    case "dag":
-      return [startOfDay(ref), endOfDay(ref)];
-    case "uke":
-      return [
-        startOfWeek(ref, { weekStartsOn: 1 }),
-        endOfWeek(ref, { weekStartsOn: 1 }),
-      ];
-    case "maned":
-      return [startOfMonth(ref), endOfMonth(ref)];
-    case "kvartal":
-      return [startOfQuarter(ref), endOfQuarter(ref)];
-    case "ar":
-      return [startOfYear(ref), endOfYear(ref)];
+    case "dag": {
+      const start = startOfDay(ref);
+      return [start, addDays(start, 1)];
+    }
+    case "uke": {
+      const start = startOfWeek(ref, { weekStartsOn: 1 });
+      return [start, addDays(start, 7)];
+    }
+    case "maned": {
+      const start = startOfMonth(ref);
+      return [start, addMonths(start, 1)];
+    }
+    case "kvartal": {
+      const start = startOfQuarter(ref);
+      return [start, addQuarters(start, 1)];
+    }
+    case "ar": {
+      const start = startOfYear(ref);
+      return [start, addYears(start, 1)];
+    }
   }
 }
