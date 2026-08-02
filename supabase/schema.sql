@@ -1481,6 +1481,7 @@ $$;
 create table if not exists public.reachr_leads (
   id                             uuid primary key default gen_random_uuid(),
   owner_id                       uuid not null references public.profiles (id) on delete cascade,
+  customer_id                    uuid references public.customers (id) on delete set null,
   org_number                     char(9) not null,
   name                           text not null,
   organization_form_code          text,
@@ -1527,6 +1528,7 @@ comment on table public.reachr_leads is
   'Prospekter lagret fra Reachr leadssøk. Selger ser egne leads, leder ser alle.';
 
 create index if not exists reachr_leads_owner_idx on public.reachr_leads (owner_id, updated_at desc);
+create index if not exists reachr_leads_customer_idx on public.reachr_leads (customer_id);
 create index if not exists reachr_leads_org_number_idx on public.reachr_leads (org_number);
 create index if not exists reachr_leads_status_idx on public.reachr_leads (status);
 create index if not exists reachr_leads_industry_code_idx on public.reachr_leads (industry_code);

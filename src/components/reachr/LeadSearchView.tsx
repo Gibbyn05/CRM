@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReachrCompany } from "@/lib/reachr";
 import { INDUSTRY_FILTERS, formatMoney } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
@@ -52,6 +52,12 @@ export default function LeadSearchView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    search(0, false);
+    // Last standardlisten én gang når fanen åpnes. Standardfilteret er B2B.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activeFilters = useMemo(
     () =>
       [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasEmail, hasWebsite, minRevenue, maxRevenue, minResult]
@@ -87,7 +93,15 @@ export default function LeadSearchView() {
       const res = await fetch(`/api/reachr/search?${params}`);
       const data = (await res.json()) as SearchResponse;
       if (!res.ok) throw new Error(data.error ?? "Søket feilet.");
-      setResults((current) => (append ? [...current, ...data.results] : data.results));
+      setResults((current) => {
+        const next = append ? [...current, ...data.results] : data.results;
+        const seen = new Set<string>();
+        return next.filter((company) => {
+          if (seen.has(company.org_number)) return false;
+          seen.add(company.org_number);
+          return true;
+        });
+      });
       setTotal(data.total);
       setHasMore(data.has_more);
       setPage(data.page);
@@ -112,6 +126,7 @@ export default function LeadSearchView() {
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) throw new Error(data.error ?? "Kunne ikke lagre lead.");
     setAdded((current) => new Set([...current, company.org_number]));
+    setResults((current) => current.filter((item) => item.org_number !== company.org_number));
   }
 
   return (
@@ -174,51 +189,93 @@ export default function LeadSearchView() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6f5a43]">
-          <span>{activeFilters} aktive filtre · søker i hele Norge når sted står tomt</span>
+          <span>{activeFilters} aktive filtre · standardlisten viser B2B-bedrifter som ikke er tatt av noen</span>
           {total > 0 && <span>{results.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
         </div>
       </section>
 
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        {results.map((company) => (
-          <article key={company.org_number} className="group rounded-[1.75rem] border border-[#d8c9b0] bg-[#fffaf0] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(43,33,24,0.10)]">
-            <div className="flex items-start justify-between gap-4">
-              <button type="button" onClick={() => setSelected(company)} className="min-w-0 text-left">
-                <p className="font-display text-2xl font-black leading-tight tracking-[-0.03em] text-[#2b2118] group-hover:underline group-hover:decoration-[#09fe94] group-hover:decoration-4 group-hover:underline-offset-4">
-                  {company.name}
-                </p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
-                  {company.org_number} · {company.address.city ?? "Norge"}
-                </p>
-              </button>
-              <button
-                type="button"
-                disabled={added.has(company.org_number)}
-                onClick={() => addLead(company)}
-                className="shrink-0 rounded-2xl border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:border-[#d8c9b0] disabled:bg-[#efe1c7] disabled:text-[#8b7357]"
-              >
-                {added.has(company.org_number) ? "Lagt til" : "Legg til"}
-              </button>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-4">
-              <Mini label="Ansatte" value={company.employees?.toString() ?? "Ukjent"} />
-              <Mini label="Bransje" value={company.industry_code ?? "Ukjent"} />
-              <Mini label="Omsetning" value={company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Filterdata"} />
-              <Mini label="Kontakt" value={[company.phone && "Tlf", company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet"} />
-            </div>
-            <p className="mt-4 line-clamp-2 text-sm leading-relaxed text-[#6f5a43]">
-              {company.industry ?? "Bransje ikke oppgitt"} {company.purpose ? `· ${company.purpose}` : ""}
-            </p>
-          </article>
-        ))}
+      <section className="overflow-hidden rounded-[2rem] border border-[#d8c9b0] bg-[#fffaf0] shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-[#d8c9b0] bg-[#f6ecd9] px-5 py-4">
+          <div>
+            <p className="label-eyebrow">Bedrifter tilgjengelig</p>
+            <h2 className="font-display text-3xl font-black tracking-[-0.04em] text-[#2b2118]">
+              {loading && results.length === 0 ? "Laster bedrifter ..." : `${results.length} bedrifter`}
+            </h2>
+          </div>
+          <p className="hidden max-w-md text-right text-sm text-[#6f5a43] md:block">
+            Bedrifter som finnes i Mine leads eller Kunder er filtrert bort globalt.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-[#e4d3b8] text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">
+                <th className="px-5 py-3">Bedrift</th>
+                <th className="px-5 py-3">Sted</th>
+                <th className="px-5 py-3">Bransje</th>
+                <th className="px-5 py-3">Ansatte</th>
+                <th className="px-5 py-3">Kontakt</th>
+                <th className="px-5 py-3">Økonomi</th>
+                <th className="px-5 py-3 text-right">Handling</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((company) => (
+                <tr
+                  key={company.org_number}
+                  onClick={() => setSelected(company)}
+                  className="cursor-pointer border-b border-[#eadcc5] transition hover:bg-[#f7ffe9]"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") setSelected(company);
+                  }}
+                >
+                  <td className="px-5 py-4">
+                    <p className="font-display text-xl font-black leading-tight tracking-[-0.03em] text-[#2b2118]">
+                      {company.name}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
+                      Org.nr. {company.org_number}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.address.city ?? "Norge"}</td>
+                  <td className="max-w-xs px-5 py-4 text-sm text-[#6f5a43]">
+                    <span className="font-semibold text-[#2b2118]">{company.industry_code ?? "—"}</span>
+                    {company.industry ? ` · ${company.industry}` : ""}
+                  </td>
+                  <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.employees ?? "Ukjent"}</td>
+                  <td className="px-5 py-4 text-sm text-[#6f5a43]">
+                    {[company.phone && "Tlf", company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet"}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-[#6f5a43]">
+                    {company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Åpne for detaljer"}
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      type="button"
+                      disabled={added.has(company.org_number)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        addLead(company);
+                      }}
+                      className="rounded-2xl border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:border-[#d8c9b0] disabled:bg-[#efe1c7] disabled:text-[#8b7357]"
+                    >
+                      {added.has(company.org_number) ? "Lagt til" : "Legg til"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {!loading && results.length === 0 && (
         <div className="rounded-[2rem] border border-dashed border-[#d8c9b0] bg-[#fffaf0]/70 p-10 text-center">
-          <p className="font-display text-3xl font-black text-[#2b2118]">Start et leadssøk</p>
-          <p className="mt-2 text-[#6f5a43]">Velg B2B, sted eller bransje og hent bedrifter fra offentlige registre.</p>
+          <p className="font-display text-3xl font-black text-[#2b2118]">Ingen ledige bedrifter i dette søket</p>
+          <p className="mt-2 text-[#6f5a43]">Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her.</p>
         </div>
       )}
 
@@ -261,14 +318,5 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     >
       {label}
     </button>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[#e4d3b8] bg-[#f6ecd9] p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>
-      <p className="mt-1 truncate text-sm font-bold text-[#2b2118]">{value}</p>
-    </div>
   );
 }

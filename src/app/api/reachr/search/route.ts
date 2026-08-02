@@ -9,6 +9,7 @@ import {
   normalizeFinancials,
   ReachrCompany,
 } from "@/lib/reachr";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -45,10 +46,6 @@ export async function GET(req: NextRequest) {
   const hasWebsite = sp.get("hasWebsite") === "true";
   const page = Math.max(0, parseInt(sp.get("page") ?? "0", 10) || 0);
   const size = Math.min(100, Math.max(10, parseInt(sp.get("size") ?? "50", 10) || 50));
-
-  if (!query && !location && !industry && !nace) {
-    return NextResponse.json({ results: [], total: 0, page, has_more: false });
-  }
 
   const params = new URLSearchParams();
   params.set("page", String(page));
@@ -91,9 +88,11 @@ export async function GET(req: NextRequest) {
       _embedded?: { enheter?: BrregEntity[] };
       page?: { totalElements?: number };
     };
+    const takenOrgNumbers = await getTakenOrgNumbers(supabase);
     let results = (data._embedded?.enheter ?? [])
       .filter(isRelevantBusiness)
       .map(normalizeBrregEntity)
+      .filter((company) => !takenOrgNumbers.has(company.org_number))
       .filter((company) => (hasEmail ? Boolean(company.email) : true))
       .filter((company) => (hasWebsite ? Boolean(company.website) : true));
 
@@ -114,6 +113,30 @@ export async function GET(req: NextRequest) {
       { status: 502 },
     );
   }
+}
+
+async function getTakenOrgNumbers(
+  supabase: ReturnType<typeof createClient>,
+): Promise<Set<string>> {
+  const client = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : supabase;
+
+  const [leadRows, customerRows] = await Promise.all([
+    client.from("reachr_leads").select("org_number"),
+    client.from("customers").select("org_number").not("org_number", "is", null),
+  ]);
+
+  const values = [
+    ...((leadRows.data as { org_number: string | null }[] | null) ?? []),
+    ...((customerRows.data as { org_number: string | null }[] | null) ?? []),
+  ];
+
+  return new Set(
+    values
+      .map((row) => row.org_number?.replace(/\s/g, ""))
+      .filter((org): org is string => Boolean(org)),
+  );
 }
 
 function parseNumber(value: string | null): number | null {

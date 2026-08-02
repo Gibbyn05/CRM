@@ -42,6 +42,39 @@ export async function POST(req: NextRequest) {
     ? body.status
     : "Ikke kontaktet";
 
+  const existingCustomer = await supabase
+    .from("customers")
+    .select("id")
+    .eq("org_number", company.org_number)
+    .maybeSingle<{ id: string }>();
+
+  let customerId = existingCustomer.data?.id ?? null;
+  if (!customerId) {
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .insert({
+        name: company.name,
+        org_number: company.org_number,
+        contact_name:
+          company.roles?.find((role) => ["DAGL", "LEDE"].includes(role.role_code))?.name ??
+          null,
+        email: company.email,
+        phone: company.phone,
+        address: company.address.address,
+        postal_code: company.address.postal_code,
+        city: company.address.city,
+        owner_id: user.id,
+        created_by: user.id,
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (customerError) {
+      return NextResponse.json({ error: customerError.message }, { status: 500 });
+    }
+    customerId = customer.id;
+  }
+
   const { data, error } = await supabase
     .from("reachr_leads")
     .upsert(
@@ -75,6 +108,7 @@ export async function POST(req: NextRequest) {
         assets: company.financials?.assets ?? null,
         debt: company.financials?.debt ?? null,
         roles: company.roles ?? [],
+        customer_id: customerId,
         status,
         source: "Brreg",
       },

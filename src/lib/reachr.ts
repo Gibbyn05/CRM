@@ -54,6 +54,7 @@ export interface ReachrCompany {
 export interface ReachrLead extends ReachrCompany {
   id: string;
   owner_id: string;
+  customer_id: string | null;
   status: ReachrLeadStatus;
   source: string;
   notes: string | null;
@@ -368,6 +369,7 @@ export function leadRowToReachrLead(row: Record<string, unknown>): ReachrLead {
   return {
     id: String(row.id),
     owner_id: String(row.owner_id),
+    customer_id: stringOrNull(row.customer_id),
     status: (row.status as ReachrLeadStatus) ?? "Ikke kontaktet",
     source: String(row.source ?? "Brreg"),
     notes: stringOrNull(row.notes),
