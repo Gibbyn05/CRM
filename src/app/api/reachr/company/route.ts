@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import {
-  BrregEntity,
-  normalizeBrregEntity,
-  normalizeFinancials,
-  normalizeRoles,
-} from "@/lib/reachr";
+import { enrichCompanyFromProviders } from "@/lib/reachr/providers";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -31,33 +26,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [entityRes, rolesRes, financialsRes] = await Promise.all([
-      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`, {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 3600 },
-      }),
-      fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}/roller`, {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 3600 },
-      }),
-      fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${orgnr}`, {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 86400 },
-      }),
-    ]);
-
-    if (entityRes.status === 404) {
+    const company = await enrichCompanyFromProviders(orgnr);
+    if (!company) {
       return NextResponse.json({ error: "Fant ikke bedriften." }, { status: 404 });
     }
-    if (!entityRes.ok) {
-      return NextResponse.json({ error: "Brønnøysund svarte ikke akkurat nå." }, { status: 502 });
-    }
-
-    const company = normalizeBrregEntity((await entityRes.json()) as BrregEntity);
-    const roles = rolesRes.ok ? normalizeRoles(await rolesRes.json()) : [];
-    const financials = financialsRes.ok ? normalizeFinancials(await financialsRes.json()) : null;
-
-    return NextResponse.json({ company: { ...company, roles, financials } });
+    return NextResponse.json({ company });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ukjent feil";
     return NextResponse.json({ error: `Kunne ikke hente firmadetaljer: ${message}` }, { status: 502 });

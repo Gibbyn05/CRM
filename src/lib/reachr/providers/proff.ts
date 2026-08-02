@@ -1,0 +1,218 @@
+import {
+  ReachrCompany,
+  ReachrFinancials,
+  ReachrRole,
+  capitalizeWords,
+  normalizeUrl,
+} from "@/lib/reachr";
+import type { ReachrProvider, ReachrProviderResult, ReachrSearchInput } from "./types";
+
+const BASE_URL = "https://api.proff.no";
+
+export const proffProvider: ReachrProvider = {
+  name: "proff",
+  label: "Proff API",
+  isConfigured() {
+    return Boolean(process.env.PROFF_API_TOKEN);
+  },
+  async enrichByOrgNumber(orgNumber: string): Promise<ReachrProviderResult> {
+    if (!this.isConfigured()) {
+      return {
+        source: source("not_configured", [], "Mangler PROFF_API_TOKEN."),
+      };
+    }
+
+    try {
+      const [registerRes, ownerRes, eniroRes] = await Promise.all([
+        proffFetch(`/companies/register/NO/${orgNumber}`),
+        proffFetch(`/companies/owner/NO/${orgNumber}`),
+        proffFetch(`/companies/eniropro/NO?industry=${encodeURIComponent(orgNumber)}&pageSize=5&expand=true`),
+      ]);
+
+      const register = registerRes.ok ? await registerRes.json() : null;
+      const owners = ownerRes.ok ? await ownerRes.json() : null;
+      const eniro = eniroRes.ok ? await eniroRes.json() : null;
+
+      return {
+        company: normalizeProff(register, owners, eniro),
+        source: source("active", [
+          "proff-register",
+          "telefon",
+          "nettside",
+          "regnskap",
+          "roller/eiere",
+          "eniropro",
+        ]),
+      };
+    } catch (error) {
+      return {
+        source: source(
+          "error",
+          [],
+          error instanceof Error ? error.message : "Proff-oppslag feilet.",
+        ),
+      };
+    }
+  },
+  async search(input: ReachrSearchInput): Promise<ReachrProviderResult> {
+    if (!this.isConfigured()) {
+      return { companies: [], source: source("not_configured", [], "Mangler PROFF_API_TOKEN.") };
+    }
+    const params = new URLSearchParams({
+      pageSize: String(Math.min(input.size, 100)),
+      pageNumber: String(input.page + 1),
+      filter: "status:AKTIVT",
+    });
+    if (input.query) params.set("query", input.query);
+    if (input.nace && input.nace !== "B2B") params.set("industryCode", input.nace);
+    if (input.industry && !input.nace) params.set("query", input.industry);
+
+    try {
+      const res = await proffFetch(`/companies/register/NO?${params}`);
+      if (!res.ok) return { companies: [], source: source("error", [], `Proff svarte ${res.status}.`) };
+      const data = await res.json();
+      const rows = findArray(data, ["companies", "items", "results", "data"]);
+      return {
+        companies: rows
+          .map((row) => normalizeProff(row, null, null))
+          .filter(isUsableCompany),
+        source: source("active", ["registersøk", "regnskap", "telefon"]),
+      };
+    } catch (error) {
+      return {
+        companies: [],
+        source: source("error", [], error instanceof Error ? error.message : "Proff-søk feilet."),
+      };
+    }
+  },
+};
+
+async function proffFetch(path: string): Promise<Response> {
+  return fetch(`${BASE_URL}${path}`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Token ${process.env.PROFF_API_TOKEN}`,
+    },
+    next: { revalidate: 86400 },
+  });
+}
+
+function normalizeProff(register: unknown, owners: unknown, eniro: unknown): Partial<ReachrCompany> {
+  const row = asRecord(register);
+  const eniroRow = findArray(eniro, ["companies", "items", "results", "data"])[0] ?? asRecord(eniro);
+  const orgNumber = firstString(row, ["organisationNumber", "organizationNumber", "orgNumber", "businessId", "companyNumber"]);
+  const name = firstString(row, ["name", "companyName", "officialName"]) ?? firstString(eniroRow, ["name", "companyName"]);
+  const address = asRecord(firstValue(row, ["businessAddress", "postalAddress", "visitingAddress", "address"]));
+  const accounts = asRecord(firstValue(row, ["companyAccounts", "annualAccounts", "accounts", "financials"]));
+
+  return {
+    org_number: orgNumber?.replace(/\D/g, "") ?? "",
+    name: capitalizeWords(name),
+    organization_form_code: firstString(row, ["companyType", "organisationFormCode", "organizationFormCode"]) ?? null,
+    organization_form: firstString(row, ["companyTypeName", "organisationForm", "organizationForm"]) ?? null,
+    industry_code: firstString(row, ["naceCode", "industryCode", "primaryIndustryCode"]) ?? null,
+    industry: firstString(row, ["naceText", "industry", "primaryIndustry"]) ?? null,
+    employees: firstNumber(row, ["numberOfEmployees", "numEmployees", "employees"]),
+    website: normalizeUrl(firstString(row, ["homepage", "website", "webAddress"]) ?? firstString(eniroRow, ["homepage", "website", "url"])),
+    email: firstString(row, ["email", "emailAddress"]) ?? firstString(eniroRow, ["email", "emailAddress"]) ?? null,
+    phone: firstString(row, ["phone", "phoneNumber", "telephone"]) ?? firstString(eniroRow, ["phone", "phoneNumber", "telephone"]) ?? null,
+    founded_at: firstString(row, ["establishedDate", "foundationDate", "foundedDate"]) ?? null,
+    address: {
+      address: firstString(address, ["addressLine", "streetAddress", "street"]) ?? null,
+      postal_code: firstString(address, ["postCode", "postalCode", "zipCode"]) ?? null,
+      city: capitalizeWords(firstString(address, ["postPlace", "city", "postalArea"])),
+      municipality: capitalizeWords(firstString(row, ["municipality", "municipalityName"])),
+    },
+    financials: normalizeProffFinancials(accounts),
+    roles: normalizeProffRoles(row, owners),
+    data_sources: [],
+  };
+}
+
+function isUsableCompany(company: Partial<ReachrCompany>): company is ReachrCompany {
+  return Boolean(company.org_number && company.name && company.address);
+}
+
+function normalizeProffFinancials(row: Record<string, unknown> | null): ReachrFinancials | null {
+  if (!row) return null;
+  return {
+    year: firstString(row, ["year", "accountingYear", "fiscalYear"]) ?? null,
+    revenue: firstNumber(row, ["operatingRevenue", "revenue", "turnover"]),
+    operating_result: firstNumber(row, ["operatingResult", "operatingProfit"]),
+    annual_result: firstNumber(row, ["annualResult", "profit", "result"]),
+    equity: firstNumber(row, ["equity"]),
+    assets: firstNumber(row, ["totalAssets", "assets"]),
+    debt: firstNumber(row, ["debt", "totalDebt"]),
+  };
+}
+
+function normalizeProffRoles(register: Record<string, unknown> | null, owners: unknown): ReachrRole[] {
+  const rows = [
+    ...findArray(register, ["roles", "boardMembers", "management"]),
+    ...findArray(owners, ["owners", "realOwners", "persons", "items"]),
+  ];
+  return rows
+    .map((row) => ({
+      role_code: firstString(row, ["roleCode", "type", "role"]) ?? "PROFF",
+      role_name: firstString(row, ["roleDescription", "roleName", "type"]) ?? "Proff rolle",
+      name: capitalizeWords(firstString(row, ["name", "fullName", "personName"])),
+    }))
+    .filter((role) => role.name);
+}
+
+function source(
+  status: "active" | "not_configured" | "error",
+  fields: string[],
+  message?: string,
+) {
+  return {
+    provider: "proff",
+    label: "Proff API",
+    enabled: status === "active",
+    fields,
+    status,
+    message,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function firstValue(row: Record<string, unknown> | null, keys: string[]): unknown {
+  if (!row) return null;
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null) return value;
+  }
+  return null;
+}
+
+function firstString(row: Record<string, unknown> | null, keys: string[]): string | null {
+  const value = firstValue(row, keys);
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function firstNumber(row: Record<string, unknown> | null, keys: string[]): number | null {
+  const value = firstValue(row, keys);
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+function findArray(source: unknown, keys: string[]): Record<string, unknown>[] {
+  const direct = asRecord(source);
+  if (!direct) return [];
+  for (const key of keys) {
+    const value = direct[key];
+    if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
+  }
+  for (const value of Object.values(direct)) {
+    if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
+    const nested = findArray(value, keys);
+    if (nested.length) return nested;
+  }
+  return [];
+}

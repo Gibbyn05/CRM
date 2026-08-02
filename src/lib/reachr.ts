@@ -29,6 +29,15 @@ export interface ReachrRole {
   name: string;
 }
 
+export interface ReachrDataSource {
+  provider: string;
+  label: string;
+  enabled: boolean;
+  fields: string[];
+  status: "active" | "not_configured" | "error";
+  message?: string;
+}
+
 export interface ReachrCompany {
   org_number: string;
   name: string;
@@ -49,6 +58,7 @@ export interface ReachrCompany {
   address: ReachrAddress;
   financials?: ReachrFinancials | null;
   roles?: ReachrRole[];
+  data_sources?: ReachrDataSource[];
 }
 
 export interface ReachrLead extends ReachrCompany {
@@ -408,7 +418,53 @@ export function leadRowToReachrLead(row: Record<string, unknown>): ReachrLead {
       debt: numberOrNull(row.debt),
     },
     roles: Array.isArray(row.roles) ? (row.roles as ReachrRole[]) : [],
+    data_sources: [],
   };
+}
+
+export function mergeReachrCompany(
+  base: ReachrCompany,
+  enrichment: Partial<ReachrCompany>,
+): ReachrCompany {
+  return {
+    ...base,
+    name: enrichment.name || base.name,
+    organization_form_code: enrichment.organization_form_code ?? base.organization_form_code,
+    organization_form: enrichment.organization_form ?? base.organization_form,
+    industry_code: enrichment.industry_code ?? base.industry_code,
+    industry: enrichment.industry ?? base.industry,
+    employees: enrichment.employees ?? base.employees,
+    website: enrichment.website ?? base.website,
+    email: enrichment.email ?? base.email,
+    phone: enrichment.phone ?? base.phone,
+    founded_at: enrichment.founded_at ?? base.founded_at,
+    vat_registered: enrichment.vat_registered ?? base.vat_registered,
+    business_register_registered:
+      enrichment.business_register_registered ?? base.business_register_registered,
+    bankrupt: enrichment.bankrupt ?? base.bankrupt,
+    under_liquidation: enrichment.under_liquidation ?? base.under_liquidation,
+    purpose: enrichment.purpose ?? base.purpose,
+    address: {
+      address: enrichment.address?.address ?? base.address.address,
+      postal_code: enrichment.address?.postal_code ?? base.address.postal_code,
+      city: enrichment.address?.city ?? base.address.city,
+      municipality: enrichment.address?.municipality ?? base.address.municipality,
+    },
+    financials: enrichment.financials ?? base.financials,
+    roles: mergeRoles(base.roles ?? [], enrichment.roles ?? []),
+    data_sources: [
+      ...(base.data_sources ?? []),
+      ...(enrichment.data_sources ?? []),
+    ],
+  };
+}
+
+function mergeRoles(base: ReachrRole[], extra: ReachrRole[]): ReachrRole[] {
+  const map = new Map<string, ReachrRole>();
+  for (const role of [...base, ...extra]) {
+    map.set(`${role.role_code}:${role.name}`.toLowerCase(), role);
+  }
+  return [...map.values()];
 }
 
 export function normalizeUrl(url: string | null | undefined): string | null {

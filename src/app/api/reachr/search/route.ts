@@ -5,10 +5,12 @@ import {
   BrregEntity,
   guessNaceCode,
   isRelevantBusiness,
+  mergeReachrCompany,
   normalizeBrregEntity,
   normalizeFinancials,
   ReachrCompany,
 } from "@/lib/reachr";
+import { searchAdditionalProviders } from "@/lib/reachr/providers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -92,6 +94,17 @@ export async function GET(req: NextRequest) {
     let results = (data._embedded?.enheter ?? [])
       .filter(isRelevantBusiness)
       .map(normalizeBrregEntity)
+      .filter((company) => !takenOrgNumbers.has(company.org_number));
+
+    const external = await searchAdditionalProviders({
+      query,
+      location,
+      industry,
+      nace: selectedNace ?? nace,
+      page,
+      size,
+    });
+    results = mergeCompanies(results, external.companies)
       .filter((company) => !takenOrgNumbers.has(company.org_number))
       .filter((company) => (hasEmail ? Boolean(company.email) : true))
       .filter((company) => (hasWebsite ? Boolean(company.website) : true));
@@ -105,6 +118,7 @@ export async function GET(req: NextRequest) {
       total: data.page?.totalElements ?? results.length,
       page,
       has_more: results.length > size,
+      sources: external.sources,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ukjent feil";
@@ -113,6 +127,19 @@ export async function GET(req: NextRequest) {
       { status: 502 },
     );
   }
+}
+
+function mergeCompanies(primary: ReachrCompany[], extra: ReachrCompany[]): ReachrCompany[] {
+  const map = new Map<string, ReachrCompany>();
+  for (const company of [...primary, ...extra]) {
+    if (!company.org_number) continue;
+    const existing = map.get(company.org_number);
+    map.set(
+      company.org_number,
+      existing ? mergeReachrCompany(existing, company) : company,
+    );
+  }
+  return [...map.values()];
 }
 
 async function getTakenOrgNumbers(

@@ -218,6 +218,7 @@ export default function LeadSearchView() {
                 <th className="px-5 py-3">Ansatte</th>
                 <th className="px-5 py-3">Kontakt</th>
                 <th className="px-5 py-3">Økonomi</th>
+                <th className="px-5 py-3">Kilder</th>
                 <th className="px-5 py-3 text-right">Handling</th>
               </tr>
             </thead>
@@ -251,6 +252,18 @@ export default function LeadSearchView() {
                   </td>
                   <td className="px-5 py-4 text-sm text-[#6f5a43]">
                     {company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Åpne for detaljer"}
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(company.data_sources?.length ? company.data_sources : [{ label: "Brreg", status: "active" as const }]).slice(0, 3).map((source) => (
+                        <span
+                          key={`${company.org_number}-${source.label}`}
+                          className="rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#8b7357]"
+                        >
+                          {source.label}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button

@@ -115,6 +115,37 @@ export default function ReachrCompanyDrawer({
             <Metric label="Egenkapital" value={formatMoney(active.financials?.equity)} />
           </section>
 
+          <section className="rounded-3xl border border-[#d8c9b0] bg-[#fff8ea] p-5">
+            <p className="label-eyebrow">Datakilder</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(active.data_sources?.length ? active.data_sources : [{
+                provider: "brreg",
+                label: "Brreg",
+                enabled: true,
+                fields: ["register"],
+                status: "active" as const,
+              }]).map((source) => (
+                <span
+                  key={`${source.provider}-${source.status}`}
+                  title={source.message}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-black ${
+                    source.status === "active"
+                      ? "border-[#09fe94]/40 bg-[#09fe94]/15 text-[#24513b]"
+                      : source.status === "not_configured"
+                        ? "border-[#d8c9b0] bg-[#fffaf0] text-[#8b7357]"
+                        : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {source.label}
+                  {source.status !== "active" ? " ikke aktiv" : ""}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-[#8b7357]">
+              Kontakt- og persondata hentes kun via tilgjengelige API-avtaler. Proff, Eniro/Gule Sider og 1881 krever egne nøkler før de blir aktive.
+            </p>
+          </section>
+
           <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-3xl border border-[#d8c9b0] bg-[#f6ecd9] p-5">
               <p className="label-eyebrow">Salgsviktig informasjon</p>
