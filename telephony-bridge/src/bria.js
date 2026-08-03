@@ -3,35 +3,43 @@ const WebSocket = require("ws");
 const { log, sleep } = require("./util.js");
 
 // ============================================================================
-//  Bria Desktop API-klient.
+//  Bria Desktop API-klient (protokoll bekreftet mot CounterPaths offisielle
+//  JavaScript-eksempel: github.com/CounterPath/DesktopAPI_1.2_Javascript_Sample).
 //
-//  Kobler til Bria sin lokale WebSocket, holder forbindelsen i live (auto-
-//  reconnect), tolker samtalehendelser og sender ut normaliserte events:
+//  • Endepunkt (fast):
+//      wss://cpclientapi.softphone.com:9002/counterpath/socketapi/v1/
+//    Vertsnavnet peker på loopback (127.0.0.1) og har et gyldig TLS-sertifikat,
+//    slik at wss valideres selv om Bria kjører lokalt. Krever Bria 5.0+ (5.3+
+//    anbefalt) med API-tilgang aktivert (Preferences → Application → Security →
+//    «Allow access always»).
 //
-//     emit("call", { id, state, remote })
-//        state: "started" | "answered" | "ended"
-//        id:     Bria sin unike samtale-ID (idempotens-nøkkel mot CRM-en)
-//        remote: motpartens nummer (Caller ID), hvis tilgjengelig
+//  • Forespørsler er HTTP-lignende tekst-rammer over WebSocket:
+//      GET /status\r\nUser-Agent: …\r\nTransaction-ID: N\r\n
+//      Content-Type: application/xml\r\nContent-Length: L\r\n\r\n<xml>
 //
-//  ⚠️  VIKTIG: Bria Desktop API sender XML-hendelser (statusChange) over
-//  WebSocket. De NØYAKTIGE tag-/attributtnavnene og WS-URL/porten må
-//  bekreftes mot «Bria Desktop API Developer Guide»
-//  (https://www.counterpath.com/bria-desktop-api/ og
-//  https://github.com/CounterPathAPI). Tolkningen under er bevisst tolerant
-//  og samlet i parseBriaMessage() slik at det er ett sted å justere.
+//  • Flyt: ved tilkobling ber vi om samtalestatus (GET /status). Bria sender
+//    «statusChange»-hendelser når noe endrer seg; da ber vi om status på nytt
+//    og leser <call>-blokkene.
+//
+//  Sender ut normaliserte events:  emit("call", { id, state, remote })
+//     state: "started" | "answered" | "ended"
 // ============================================================================
+
+const DEFAULT_URL =
+  "wss://cpclientapi.softphone.com:9002/counterpath/socketapi/v1/";
 
 class BriaClient extends EventEmitter {
   constructor({ url, user, password }) {
     super();
-    this.url = url;
+    this.url = url || DEFAULT_URL;
     this.user = user;
     this.password = password;
     this.ws = null;
     this.stopped = false;
     this.backoff = 1000;
-    // Sist kjente tilstand per samtale-ID, for å unngå doble events.
-    this.callState = new Map();
+    this.txId = 1;
+    // Kjente aktive samtaler: id -> normalisert state ("started"/"answered")
+    this.calls = new Map();
   }
 
   start() {
@@ -46,29 +54,28 @@ class BriaClient extends EventEmitter {
 
   _connect() {
     log.info(`Kobler til Bria på ${this.url} …`);
-    // rejectUnauthorized: false – Bria bruker ofte et selvsignert lokalt sertifikat.
     const headers = {};
     if (this.user) {
       const basic = Buffer.from(`${this.user}:${this.password ?? ""}`).toString("base64");
       headers.Authorization = `Basic ${basic}`;
     }
+    // rejectUnauthorized: false som sikkerhetsnett dersom et eldre Bria bruker
+    // et selvsignert lokalt sertifikat.
     this.ws = new WebSocket(this.url, { rejectUnauthorized: false, headers });
 
     this.ws.on("open", () => {
       log.info("Tilkoblet Bria.");
       this.backoff = 1000;
+      this.calls.clear();
       this.emit("connected");
-      // Noen oppsett krever en eksplisitt «start events»-forespørsel. Legg den
-      // ev. til her iht. Developer Guide, f.eks.:
-      // this.ws.send('<request><statusChange enable="true"/></request>');
+      this._requestCallStatus(); // hent nåværende samtalestatus
     });
 
     this.ws.on("message", (data) => {
       const text = data.toString("utf8");
-      log.debug("Bria →", text);
+      log.debug("Bria →", text.replace(/\s+/g, " ").slice(0, 300));
       try {
-        const evt = parseBriaMessage(text);
-        if (evt) this._handle(evt);
+        this._onFrame(text);
       } catch (e) {
         log.error("Kunne ikke tolke Bria-melding:", e.message);
       }
@@ -81,10 +88,7 @@ class BriaClient extends EventEmitter {
       this._reconnect();
     });
 
-    this.ws.on("error", (e) => {
-      log.error("Bria WebSocket-feil:", e.message);
-      // 'close' følger normalt etter 'error' og trigger reconnect.
-    });
+    this.ws.on("error", (e) => log.error("Bria WebSocket-feil:", e.message));
   }
 
   async _reconnect() {
@@ -93,63 +97,99 @@ class BriaClient extends EventEmitter {
     if (!this.stopped) this._connect();
   }
 
-  _handle(evt) {
-    const prev = this.callState.get(evt.id);
-    if (prev === evt.state) return; // dedupliser gjentatte statusmeldinger
-    this.callState.set(evt.id, evt.state);
-    this.emit("call", evt);
-    if (evt.state === "ended") {
-      // Rydd opp etter en liten stund.
-      setTimeout(() => this.callState.delete(evt.id), 60000);
+  // Bygg og send en HTTP-lignende forespørsel over WebSocket.
+  _send(method, endpoint, body = "") {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const len = Buffer.byteLength(body, "utf8");
+    const frame =
+      `${method} /${endpoint}\r\n` +
+      `User-Agent: SalgssentralBridge/1.0\r\n` +
+      `Transaction-ID: ${this.txId++}\r\n` +
+      `Content-Type: application/xml\r\n` +
+      `Content-Length: ${len}\r\n\r\n` +
+      body;
+    this.ws.send(frame);
+  }
+
+  // Be om samtalestatus. (Body-formatet kan variere mellom API-versjoner –
+  // juster ved behov mot Developer Guide/eksempelet.)
+  _requestCallStatus() {
+    this._send("GET", "status", "<status><type>call</type></status>");
+  }
+
+  _onFrame(text) {
+    const nl = text.indexOf("\r\n\r\n");
+    const firstLine = text.slice(0, text.indexOf("\r\n") + 1);
+    const body = nl >= 0 ? text.slice(nl + 4) : text;
+
+    // 1) «statusChange»-hendelse -> be om oppdatert status.
+    const isStatusChange =
+      /statusChange/i.test(firstLine) ||
+      /type\s*=\s*["']statusChange["']/i.test(text);
+    if (isStatusChange && !/<call\b/i.test(body)) {
+      this._requestCallStatus();
+      return;
     }
+
+    // 2) Statussvar med <call>-blokker -> avstem mot kjente samtaler.
+    if (/<call\b/i.test(body) || /<status/i.test(body) || firstLine.startsWith("HTTP")) {
+      this._reconcile(parseCalls(body));
+    }
+  }
+
+  // Sammenlign nåværende samtaler mot forrige status og send ut endringer.
+  _reconcile(calls) {
+    const next = new Map();
+    for (const c of calls) {
+      const state = normalizeState(c.state);
+      if (state === "ended") continue; // avsluttet -> tas via «forsvunnet» under
+      if (!state) continue;
+      next.set(c.id, { state, remote: c.number });
+      const prev = this.calls.get(c.id);
+      if (prev !== state) {
+        this.emit("call", { id: c.id, state, remote: c.number });
+      }
+    }
+    // Samtaler som var aktive, men ikke lenger finnes -> avsluttet.
+    for (const [id] of this.calls) {
+      if (!next.has(id)) {
+        this.emit("call", { id, state: "ended", remote: null });
+      }
+    }
+    this.calls = new Map([...next].map(([id, v]) => [id, v.state]));
   }
 }
 
-// ── XML-tolkning ────────────────────────────────────────────────────────────
-// Trekker ut samtale-ID, tilstand og motpartsnummer fra en Bria statusChange-
-// melding. JUSTER tag-/attributtnavn her mot Developer Guide ved behov.
-function parseBriaMessage(xml) {
-  // Bare interessert i «call»-status-endringer.
-  if (!/statusChange|<call/i.test(xml)) return null;
-
-  const id = attr(xml, "callId") || attr(xml, "id") || tag(xml, "callId");
-  if (!id) return null;
-
-  const rawStatus = (
-    attr(xml, "status") ||
-    attr(xml, "state") ||
-    tag(xml, "status") ||
-    ""
-  ).toLowerCase();
-
-  const remote =
-    attr(xml, "remoteNumber") ||
-    attr(xml, "number") ||
-    tag(xml, "remoteNumber") ||
-    tag(xml, "number") ||
-    null;
-
-  const state = normalizeState(rawStatus);
-  if (!state) return null;
-  return { id, state, remote };
+// ── XML-hjelpere ─────────────────────────────────────────────────────────────
+// Trekk ut <call>-blokker med id, første deltakers state og nummer.
+function parseCalls(xml) {
+  const out = [];
+  const callRe = /<call\b[^>]*>([\s\S]*?)<\/call>/gi;
+  let m;
+  while ((m = callRe.exec(xml))) {
+    const block = m[1];
+    const id =
+      (block.match(/<id>([^<]*)<\/id>/i) || [])[1] ||
+      (m[0].match(/\bid=["']([^"']+)["']/i) || [])[1];
+    if (!id) continue;
+    const state = (block.match(/<state>([^<]*)<\/state>/i) || [])[1] || "";
+    const number = (block.match(/<number>([^<]*)<\/number>/i) || [])[1] || null;
+    out.push({
+      id: id.trim(),
+      state: state.trim(),
+      number: number ? number.trim() : null,
+    });
+  }
+  return out;
 }
 
-// Kartlegg Bria sine statusord til vårt enkle sett. Utvid ved behov.
+// Bria-tilstander -> vårt enkle sett.
 function normalizeState(s) {
-  if (/(dialing|ringing|incoming|start|early)/.test(s)) return "started";
-  if (/(connected|answered|established|confirmed)/.test(s)) return "answered";
-  if (/(ended|terminated|disconnected|released|hungup|failed|missed)/.test(s))
-    return "ended";
+  const v = (s || "").toLowerCase();
+  if (/ring|incoming|connecting|trying|early|dialing|initiat/.test(v)) return "started";
+  if (/connected|established|confirmed|answered/.test(v)) return "answered";
+  if (/disconnect|ended|released|terminat|failed|missed|hangup/.test(v)) return "ended";
   return null;
 }
 
-function attr(xml, name) {
-  const m = xml.match(new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, "i"));
-  return m ? m[1] : null;
-}
-function tag(xml, name) {
-  const m = xml.match(new RegExp(`<${name}>([^<]+)</${name}>`, "i"));
-  return m ? m[1] : null;
-}
-
-module.exports = { BriaClient, parseBriaMessage };
+module.exports = { BriaClient, parseCalls, normalizeState, DEFAULT_URL };
