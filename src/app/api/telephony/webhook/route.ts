@@ -93,12 +93,32 @@ export async function POST(req: NextRequest) {
   // 3) Prosesser hendelsen atomisk via RPC (oppdaterer call_logs + agent_states,
   //    som igjen kringkastes til live-tavla via Realtime).
   const supabase = createAdminClient();
+
+  // Koble samtalen til en kunde ut fra telefonnummer (sammenlign siste 8 sifre,
+  // så formatforskjeller som mellomrom/+47 ikke spiller inn). Da havner logg +
+  // transkript på riktig kundekort. Hoppes over hvis customer_id er oppgitt.
+  let customerId = body.customer_id ?? null;
+  if (!customerId && body.phone_number) {
+    const tail = body.phone_number.replace(/\D/g, "").slice(-8);
+    if (tail.length >= 6) {
+      const { data: cands } = await supabase
+        .from("customers")
+        .select("id, phone")
+        .not("phone", "is", null)
+        .limit(2000);
+      const match = (cands as { id: string; phone: string }[] | null)?.find((c) =>
+        c.phone.replace(/\D/g, "").endsWith(tail),
+      );
+      if (match) customerId = match.id;
+    }
+  }
+
   const { data, error } = await supabase.rpc("process_call_event", {
     p_event_type: body.event_type,
     p_external_call_id: body.external_call_id,
     p_agent_id: body.agent_id ?? null,
     p_extension: body.extension ?? null,
-    p_customer_id: body.customer_id ?? null,
+    p_customer_id: customerId,
     p_phone_number: body.phone_number ?? null,
     p_direction: body.direction ?? "outbound",
     p_occurred_at: body.occurred_at ?? new Date().toISOString(),
