@@ -49,6 +49,7 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
   const [to, setTo] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [invoicingId, setInvoicingId] = useState<string | null>(null);
 
   // Selgere som forekommer i dataene (til filteret).
   const sellers = useMemo(() => {
@@ -89,6 +90,31 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
   }, [filtered]);
 
   const provisjonSum = filtered.reduce((s, r) => s + r.commission_amount, 0);
+
+  async function createInvoice(id: string) {
+    setInvoicingId(id);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/regnskap/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commission_id: id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSyncMsg(json.error ?? "Kunne ikke opprette fakturautkast.");
+      } else {
+        setSyncMsg(
+          "Fakturautkast opprettet i Fiken. Godkjenn og send det i Fiken.",
+        );
+        router.refresh();
+      }
+    } catch {
+      setSyncMsg("Kunne ikke opprette fakturautkast.");
+    } finally {
+      setInvoicingId(null);
+    }
+  }
 
   async function sync() {
     setSyncing(true);
@@ -225,13 +251,14 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
               <Th>Status</Th>
               <Th>Fakturert</Th>
               <Th>Betalt</Th>
+              <Th />
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-4 py-10 text-center text-sm text-slate-400"
                 >
                   Ingen salg å vise ennå. Vunne salg fra pipelinen dukker opp
@@ -283,6 +310,19 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
                   <td className="px-4 py-2.5 text-slate-500">
                     {formatDate(r.paid_at)}
                   </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {r.status === "ikke_fakturert" && (
+                      <button
+                        onClick={() => createInvoice(r.id)}
+                        disabled={invoicingId === r.id}
+                        className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        {invoicingId === r.id
+                          ? "Oppretter …"
+                          : "Opprett faktura i Fiken"}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}
@@ -299,7 +339,7 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
                 <td className="px-4 py-2.5 text-right">
                   {formatCurrency(provisjonSum)}
                 </td>
-                <td colSpan={3} />
+                <td colSpan={4} />
               </tr>
             </tfoot>
           )}
@@ -335,7 +375,7 @@ function Th({
   children,
   className = "",
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }) {
   return (

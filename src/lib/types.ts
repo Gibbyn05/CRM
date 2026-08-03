@@ -283,6 +283,7 @@ export interface Commission {
   status: CommissionStatus;
   fiken_invoice_id: number | null;
   fiken_contact_id: number | null;
+  fiken_draft_uuid: string | null;
   invoiced_at: string | null;
   paid_at: string | null;
   created_at: string;

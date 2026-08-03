@@ -24,7 +24,7 @@ export interface SyncResult {
 
 interface CommissionRow {
   id: string;
-  fiken_invoice_id: number;
+  fiken_invoice_id: number | null;
   status: string;
   paid_at: string | null;
 }
@@ -36,11 +36,11 @@ export async function syncCommissionsWithFiken(
     return { skipped: true, checked: 0, updated: 0 };
   }
 
-  // Kun rader som faktisk er fakturert (har en Fiken-faktura) og ikke avskrevet.
+  // Alle rader som er fakturert (utkast eller ferdig) og ikke avskrevet.
   const { data } = await admin
     .from("commissions")
     .select("id, fiken_invoice_id, status, paid_at")
-    .not("fiken_invoice_id", "is", null)
+    .in("status", ["fakturert", "forfalt", "betalt"])
     .neq("status", "avskrevet");
 
   const commissions = (data ?? []) as CommissionRow[];
@@ -53,31 +53,50 @@ export async function syncCommissionsWithFiken(
     listInvoices({ settled: true }),
     listInvoices({ settled: false }),
   ]);
+  const all = [...settled, ...unpaid];
   const settledIds = new Set(settled.map((i) => i.invoiceId));
   const dueById = new Map<number, string | undefined>();
-  for (const inv of [...settled, ...unpaid]) {
+  // Kobler utkast-fakturaer til ferdig faktura via orderReference (= commission-id).
+  const invoiceByOrderRef = new Map<string, number>();
+  for (const inv of all) {
     dueById.set(inv.invoiceId, inv.dueDate);
+    if (inv.orderReference) invoiceByOrderRef.set(inv.orderReference, inv.invoiceId);
   }
 
   const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
   let updated = 0;
 
   for (const c of commissions) {
+    // Mangler vi faktura-id (kun utkast så langt)? Prøv å matche på
+    // orderReference – lederen kan ha gjort utkastet til en faktura i Fiken.
+    let invoiceId = c.fiken_invoice_id;
+    if (!invoiceId) {
+      const matched = invoiceByOrderRef.get(c.id);
+      if (matched) invoiceId = matched;
+    }
+
+    // Ingen ferdig faktura ennå – behold status som den er.
+    if (!invoiceId) continue;
+
     let status = c.status;
     let paidAt = c.paid_at;
 
-    if (settledIds.has(c.fiken_invoice_id)) {
+    if (settledIds.has(invoiceId)) {
       status = "betalt";
       paidAt = paidAt ?? new Date().toISOString();
     } else {
-      const due = dueById.get(c.fiken_invoice_id);
+      const due = dueById.get(invoiceId);
       status = due && due < today ? "forfalt" : "fakturert";
     }
 
-    if (status !== c.status || paidAt !== c.paid_at) {
+    if (
+      status !== c.status ||
+      paidAt !== c.paid_at ||
+      invoiceId !== c.fiken_invoice_id
+    ) {
       await admin
         .from("commissions")
-        .update({ status, paid_at: paidAt })
+        .update({ status, paid_at: paidAt, fiken_invoice_id: invoiceId })
         .eq("id", c.id);
       updated++;
     }

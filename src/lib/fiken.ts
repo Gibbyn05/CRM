@@ -39,6 +39,7 @@ export interface FikenInvoice {
   gross?: number; // øre
   currency?: string;
   kid?: string;
+  orderReference?: string;
   customer?: FikenContact;
   [key: string]: unknown;
 }
@@ -175,4 +176,129 @@ export async function listContacts(): Promise<FikenContact[]> {
     {},
     cfg.token,
   );
+}
+
+// Fiken svarer på POST med en Location-header til den nye ressursen; siste
+// sti-ledd er id-en (contactId / draft-uuid).
+function idFromLocation(res: Response): string | null {
+  const loc = res.headers.get("location");
+  if (!loc) return null;
+  const parts = loc.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? null;
+}
+
+/** Finn en Fiken-kontakt på organisasjonsnummer (9 sifre). */
+export async function findContactByOrgNumber(
+  orgNumber: string,
+): Promise<FikenContact | null> {
+  const digits = orgNumber.replace(/\D/g, "");
+  if (digits.length !== 9) return null;
+  const contacts = await listContacts();
+  return (
+    contacts.find(
+      (c) => (c.organizationNumber ?? "").replace(/\D/g, "") === digits,
+    ) ?? null
+  );
+}
+
+/** Opprett en ny kunde-kontakt i Fiken. Returnerer contactId. */
+export async function createContact(input: {
+  name: string;
+  organizationNumber?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+}): Promise<number | null> {
+  const cfg = requireConfig();
+  if (!cfg) return null;
+  const body: Record<string, unknown> = { name: input.name, customer: true };
+  if (input.organizationNumber) {
+    const d = input.organizationNumber.replace(/\D/g, "");
+    if (d.length === 9) body.organizationNumber = d;
+  }
+  if (input.email) body.email = input.email;
+  if (input.phoneNumber) body.phoneNumber = input.phoneNumber;
+
+  const res = await fikenFetch2(
+    `/companies/${cfg.slug}/contacts`,
+    "POST",
+    body,
+    cfg.token,
+  );
+  const id = idFromLocation(res);
+  return id ? Number(id) : null;
+}
+
+export interface DraftLine {
+  productName: string;
+  unitPriceOre: number; // nettopris pr. enhet i øre
+  quantity: number;
+  vatType: string; // f.eks. "HIGH" (25 %)
+  incomeAccount: string; // f.eks. "3000"
+}
+
+/**
+ * Oppretter et faktura-UTKAST (ikke en ferdig faktura). Lederen godkjenner og
+ * sender selv i Fiken. Returnerer draft-uuid (fra Location-headeren).
+ */
+export async function createInvoiceDraft(input: {
+  customerId: number;
+  daysUntilDueDate: number;
+  orderReference?: string;
+  lines: DraftLine[];
+}): Promise<string | null> {
+  const cfg = requireConfig();
+  if (!cfg) return null;
+  const body = {
+    type: "invoice",
+    customerId: input.customerId,
+    daysUntilDueDate: input.daysUntilDueDate,
+    ...(input.orderReference ? { orderReference: input.orderReference } : {}),
+    lines: input.lines.map((l) => {
+      const net = Math.round(l.unitPriceOre * l.quantity);
+      const vat = l.vatType === "HIGH" ? Math.round(net * 0.25) : 0;
+      return {
+        productName: l.productName,
+        unitPrice: l.unitPriceOre,
+        quantity: l.quantity,
+        vatType: l.vatType,
+        incomeAccount: l.incomeAccount,
+        net,
+        vat,
+        gross: net + vat,
+      };
+    }),
+  };
+  const res = await fikenFetch2(
+    `/companies/${cfg.slug}/invoices/drafts`,
+    "POST",
+    body,
+    cfg.token,
+  );
+  return idFromLocation(res);
+}
+
+// Skrive-variant av fikenFetch (POST med JSON-body).
+async function fikenFetch2(
+  path: string,
+  method: "POST" | "PUT",
+  body: unknown,
+  token: string,
+): Promise<Response> {
+  const res = await fetch(BASE_URL + path, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Fiken ${res.status} ${res.statusText} for ${path}: ${detail.slice(0, 300)}`,
+    );
+  }
+  return res;
 }
