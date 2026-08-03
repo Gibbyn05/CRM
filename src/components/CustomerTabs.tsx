@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Contract, Customer, Deal, Note } from "@/lib/types";
+import type { Contract, Customer, Deal, Note, Product } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
 import NotesLog from "./NotesLog";
@@ -22,12 +22,14 @@ export default function CustomerTabs({
   notes,
   deals,
   contracts,
+  products,
   nameMap,
 }: {
   customer: Customer;
   notes: Note[];
   deals: Deal[];
   contracts: Contract[];
+  products: Product[];
   nameMap: Record<string, string>;
 }) {
   const [tab, setTab] = useState<TabKey>("aktivitet");
@@ -74,7 +76,11 @@ export default function CustomerTabs({
 
       {tab === "salg" && (
         <div className="space-y-4">
-          <DealsPanel customerId={customer.id} initialDeals={deals} />
+          <DealsPanel
+            customerId={customer.id}
+            initialDeals={deals}
+            products={products}
+          />
           <ContractsPanel customer={customer} initialContracts={contracts} />
         </div>
       )}
