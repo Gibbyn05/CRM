@@ -89,6 +89,40 @@ export interface CustomerStatus {
   created_at: string;
 }
 
+export type BillingType = "engang" | "lopende";
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  unit_label: string;
+  tier: string;
+  billing_type: BillingType;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DealItem {
+  id: string;
+  deal_id: string;
+  product_id: string | null;
+  name: string;
+  description: string | null;
+  unit_price: number;
+  quantity: number;
+  billing_type: BillingType;
+  agreement_start: string | null;
+  agreement_end: string | null;
+  line_total: number;
+  created_at: string;
+}
+
 export interface CallLog {
   id: string;
   external_call_id: string | null;
