@@ -32,7 +32,8 @@ export type IconName =
   | "mic"
   | "building"
   | "receipt"
-  | "wallet";
+  | "wallet"
+  | "flag";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -182,6 +183,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
       <path d="M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3" />
       <path d="M21 12v-2a1 1 0 0 0-1-1h-4a2 2 0 0 0 0 4h4a1 1 0 0 0 1-1Z" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M4 22V4" />
+      <path d="M4 4h13l-2.5 4L17 12H4" />
     </>
   ),
 };

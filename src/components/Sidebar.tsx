@@ -40,6 +40,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         icon: "chat",
         managerOnly: true,
       },
+      {
+        href: "/backlog",
+        label: "Backlog",
+        icon: "flag",
+        managerOnly: true,
+      },
     ],
   },
   {
