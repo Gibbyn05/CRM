@@ -1,15 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const tabs = [
   { href: "/reachr/leadssok", label: "Leadssøk" },
   { href: "/reachr/mine-leads", label: "Mine leads" },
 ];
 
+const managerTab = { href: "/reachr/eksport", label: "Eksport til CRM" };
+
 export default function ReachrTabs() {
   const pathname = usePathname();
+  const [isManager, setIsManager] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      const userId = data.user?.id;
+      if (!userId) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single<{ role: string }>();
+      setIsManager(profile?.role === "manager");
+    });
+  }, []);
+
+  const visibleTabs = isManager ? [...tabs, managerTab] : tabs;
+
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#d8c9b0] pb-4">
       <div>
@@ -19,7 +41,7 @@ export default function ReachrTabs() {
         </h1>
       </div>
       <div className="rounded-2xl border border-[#d8c9b0] bg-[#fffaf0]/75 p-1 shadow-sm">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
           return (
             <Link

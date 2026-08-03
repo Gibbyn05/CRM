@@ -41,6 +41,24 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       },
       { href: "/calendar", label: "Kalender", icon: "calendar" },
       { href: "/reminders", label: "Påminnelser", icon: "clock" },
+      {
+        href: "/discussion",
+        label: "Diskusjon",
+        icon: "chat",
+        managerOnly: true,
+      },
+      {
+        href: "/backlog",
+        label: "Backlog",
+        icon: "flag",
+        managerOnly: true,
+      },
+      {
+        href: "/signering",
+        label: "Signering",
+        icon: "check",
+        managerOnly: true,
+      },
     ],
   },
   {
