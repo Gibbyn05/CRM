@@ -194,7 +194,7 @@ begin
 
   elsif p_event_type in ('call_ended', 'call_missed') then
     update public.call_logs
-    set status = case when p_event_type = 'call_missed' then 'missed' else 'ended' end,
+    set status = (case when p_event_type = 'call_missed' then 'missed' else 'ended' end)::call_status,
         ended_at = coalesce(ended_at, p_occurred_at),
         duration_seconds = coalesce(
           duration_seconds,
