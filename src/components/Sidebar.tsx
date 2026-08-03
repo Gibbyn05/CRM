@@ -31,7 +31,14 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/customers", label: "Kunder", icon: "customers" },
       { href: "/reachr", label: "Reachr", icon: "reachr" },
+      { href: "/salg", label: "Salg", icon: "receipt" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
+      {
+        href: "/produkter",
+        label: "Produkter",
+        icon: "box",
+        managerOnly: true,
+      },
       { href: "/calendar", label: "Kalender", icon: "calendar" },
       { href: "/reminders", label: "Påminnelser", icon: "clock" },
       {

@@ -1,5 +1,5 @@
 -- ============================================================================
---  0021_leadership_discussion.sql
+--  0022_leadership_discussion.sql
 --  Ny meldingskanal 'leadership' (Diskusjon-fanen under Salg) forbeholdt
 --  ledere. Gjenbruker messages-tabellen på samme måte som 'team'/'direct'.
 --
@@ -7,7 +7,7 @@
 --  som allerede har gjort 'customer'-kanalen leder-only. Policyene under
 --  bygger videre på DEN tilstanden (customer -> is_manager(), ikke lenger
 --  can_access_customer) i stedet for å tilbakestille den – begge migrasjonene
---  gjør drop+create på samme policy, så rekkefølgen (0019 før 0021) betyr noe.
+--  gjør drop+create på samme policy, så rekkefølgen (0019 før 0022) betyr noe.
 --
 --  MERK: `alter type ... add value` kan ikke kjøre inne i samme transaksjon som
 --  bruker den nye verdien. I Supabase SQL Editor kjører hver setning med
