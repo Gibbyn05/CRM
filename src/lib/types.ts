@@ -27,7 +27,7 @@ export type ContractChannel = "email" | "sms";
 export type ContractStatus = "draft" | "sent" | "opened" | "signed" | "declined";
 
 export type NoteType = "call" | "general" | "system" | "meeting";
-export type MessageChannel = "team" | "customer" | "direct";
+export type MessageChannel = "team" | "customer" | "direct" | "leadership";
 
 export type NotificationType =
   | "message"

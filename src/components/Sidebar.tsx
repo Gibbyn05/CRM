@@ -34,6 +34,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       { href: "/calendar", label: "Kalender", icon: "calendar" },
       { href: "/reminders", label: "Påminnelser", icon: "clock" },
+      {
+        href: "/discussion",
+        label: "Diskusjon",
+        icon: "chat",
+        managerOnly: true,
+      },
     ],
   },
   {

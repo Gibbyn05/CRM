@@ -2,22 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Message } from "@/lib/types";
+import type { Message, MessageChannel } from "@/lib/types";
 import type { AuthorMap } from "@/lib/chat-types";
 import { formatTime } from "@/lib/format";
 import Avatar from "./Avatar";
 
-// Intern team-chat (channel = 'team'). Sanntid via Supabase Realtime.
-// Viser profilbilde + navn på hver melding.
+// Delt chat-komponent for kanaler uten mottaker (i dag: 'team' og
+// 'leadership'). Sanntid via Supabase Realtime. Viser profilbilde + navn på
+// hver melding.
 export default function TeamChat({
   authors,
+  channel: messageChannel = "team",
   heightClass = "h-[70vh]",
   embedded = false,
+  emptyText = "Ingen meldinger ennå. Start samtalen!",
 }: {
   authors: AuthorMap;
+  // Hvilken messages.channel som leses/skrives til.
+  channel?: Extract<MessageChannel, "team" | "leadership">;
   // Lar chatten gjenbrukes både som full side og inne i chat-bobla.
   heightClass?: string;
   embedded?: boolean;
+  emptyText?: string;
 }) {
   const supabase = createClient();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -31,20 +37,20 @@ export default function TeamChat({
     supabase
       .from("messages")
       .select("*")
-      .eq("channel", "team")
+      .eq("channel", messageChannel)
       .order("created_at", { ascending: true })
       .limit(200)
       .then(({ data }) => setMessages((data as Message[]) ?? []));
 
     const channel = supabase
-      .channel("team_chat")
+      .channel(`${messageChannel}_chat`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: "channel=eq.team",
+          filter: `channel=eq.${messageChannel}`,
         },
         (payload) => {
           const m = payload.new as Message;
@@ -58,7 +64,7 @@ export default function TeamChat({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, messageChannel]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,7 +76,7 @@ export default function TeamChat({
     setBody("");
     await supabase.from("messages").insert({
       author_id: userId,
-      channel: "team",
+      channel: messageChannel,
       body: text,
     });
   }
@@ -123,9 +129,7 @@ export default function TeamChat({
           );
         })}
         {messages.length === 0 && (
-          <p className="text-center text-sm text-slate-400">
-            Ingen meldinger ennå. Start samtalen!
-          </p>
+          <p className="text-center text-sm text-slate-400">{emptyText}</p>
         )}
         <div ref={bottomRef} />
       </div>
