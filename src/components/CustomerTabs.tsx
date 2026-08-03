@@ -1,41 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import type { Contract, Customer, Deal, Note } from "@/lib/types";
+import type { Contract, Customer, Deal, Note, Product } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
 import NotesLog from "./NotesLog";
-import CaseChat from "./CaseChat";
 import DealsPanel from "./DealsPanel";
 import ContractsPanel from "./ContractsPanel";
 
-type TabKey = "aktivitet" | "salg" | "diskusjon";
+type TabKey = "aktivitet" | "salg";
 
-const ALL_TABS: { key: TabKey; label: string; icon: IconName; managerOnly?: boolean }[] = [
+const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "aktivitet", label: "Aktivitet", icon: "dagsavis" },
   { key: "salg", label: "Salg", icon: "pipeline" },
-  { key: "diskusjon", label: "Diskusjon", icon: "chat", managerOnly: true },
 ];
 
 // Fanebasert høyrekolonne på kundekortet. Sekundært innhold (aktivitetslogg,
-// salg, intern diskusjon) fordeles på faner slik at kortet blir ryddig.
-// «Diskusjon» er kun for ledere – selgere ser verken fanen eller innholdet.
+// salg) fordeles på faner slik at kortet blir ryddig.
 export default function CustomerTabs({
   customer,
   notes,
   deals,
   contracts,
+  products,
   nameMap,
-  isManager,
 }: {
   customer: Customer;
   notes: Note[];
   deals: Deal[];
   contracts: Contract[];
+  products: Product[];
   nameMap: Record<string, string>;
-  isManager: boolean;
 }) {
-  const TABS = ALL_TABS.filter((t) => !t.managerOnly || isManager);
   const [tab, setTab] = useState<TabKey>("aktivitet");
 
   return (
@@ -80,13 +76,13 @@ export default function CustomerTabs({
 
       {tab === "salg" && (
         <div className="space-y-4">
-          <DealsPanel customerId={customer.id} initialDeals={deals} />
+          <DealsPanel
+            customerId={customer.id}
+            initialDeals={deals}
+            products={products}
+          />
           <ContractsPanel customer={customer} initialContracts={contracts} />
         </div>
-      )}
-
-      {tab === "diskusjon" && isManager && (
-        <CaseChat customerId={customer.id} nameMap={nameMap} />
       )}
     </div>
   );

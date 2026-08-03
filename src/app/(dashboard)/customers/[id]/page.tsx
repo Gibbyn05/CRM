@@ -7,6 +7,7 @@ import type {
   CustomerStatus,
   Deal,
   Note,
+  Product,
   Profile,
 } from "@/lib/types";
 import { formatDate, formatOrgNumber } from "@/lib/format";
@@ -66,6 +67,13 @@ export default async function CustomerDetailPage({
     .from("customer_statuses")
     .select("*")
     .order("sort_order", { ascending: true });
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   const nameMap = new Map(
     ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
@@ -170,8 +178,8 @@ export default async function CustomerDetailPage({
             notes={(notes as Note[]) ?? []}
             deals={(deals as Deal[]) ?? []}
             contracts={(contracts as Contract[]) ?? []}
+            products={(products as Product[]) ?? []}
             nameMap={Object.fromEntries(nameMap)}
-            isManager={isManager}
           />
         </div>
       </div>
