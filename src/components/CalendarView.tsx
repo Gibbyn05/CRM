@@ -24,6 +24,40 @@ const PALETTE = [
 ];
 const FALLBACK_COLOR = "#94a3b8";
 
+// Ukevisning: tidsrutenett fra 07 til 20.
+const START_HOUR = 7;
+const END_HOUR = 20;
+const HOUR_PX = 48;
+const MINI_WEEKDAYS = ["M", "T", "O", "T", "F", "L", "S"];
+
+type CalView = "uke" | "maaned" | "aar";
+
+// Mandag i uken som d tilhører.
+function startOfWeek(d: Date): Date {
+  const day = (d.getDay() + 6) % 7; // mandag = 0
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+}
+
+function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+// ISO-ukenummer.
+function isoWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return (
+    1 +
+    Math.round(
+      (date.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000),
+    )
+  );
+}
+
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   planlagt: "Planlagt",
   bekreftet: "Bekreftet",
@@ -63,15 +97,17 @@ export default function CalendarView({
   const [eventTypes, setEventTypes] = useState<EventType[]>(initialEventTypes);
 
   const today = new Date();
-  const [cursor, setCursor] = useState({
-    year: today.getFullYear(),
-    month: today.getMonth(),
-  });
+  const [view, setView] = useState<CalView>("maaned");
+  // Ankerdato: en dag inne i perioden som vises (styrer uke/måned/år).
+  const [anchor, setAnchor] = useState<Date>(new Date());
   const [scope, setScope] = useState<"mine" | "alle">("alle");
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
 
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<Appointment | null>(null);
+
+  const anchorYear = anchor.getFullYear();
+  const anchorMonth = anchor.getMonth();
 
   const typeById = useMemo(
     () => new Map(eventTypes.map((t) => [t.id, t])),
@@ -120,25 +156,41 @@ export default function CalendarView({
     return map;
   }, [appointments, scope, hiddenTypes, currentUserId]);
 
-  // Bygg 6x7-rutenett fra mandag.
+  // Bygg 6x7-rutenett fra mandag (månedsvisning).
   const cells = useMemo(() => {
-    const first = new Date(cursor.year, cursor.month, 1);
+    const first = new Date(anchorYear, anchorMonth, 1);
     const offset = (first.getDay() + 6) % 7; // mandag = 0
-    const start = new Date(cursor.year, cursor.month, 1 - offset);
+    const start = new Date(anchorYear, anchorMonth, 1 - offset);
     return Array.from({ length: 42 }, (_, i) => {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       return d;
     });
-  }, [cursor]);
+  }, [anchorYear, anchorMonth]);
+
+  // De syv dagene i uken (ukevisning).
+  const weekDays = useMemo(() => {
+    const s = startOfWeek(anchor);
+    return Array.from({ length: 7 }, (_, i) => addDays(s, i));
+  }, [anchor]);
 
   const todayKey = dayKey(today);
 
   function move(delta: number) {
-    setCursor((c) => {
-      const d = new Date(c.year, c.month + delta, 1);
-      return { year: d.getFullYear(), month: d.getMonth() };
+    setAnchor((a) => {
+      if (view === "uke") return addDays(a, delta * 7);
+      if (view === "aar")
+        return new Date(a.getFullYear() + delta, a.getMonth(), 1);
+      return new Date(a.getFullYear(), a.getMonth() + delta, 1);
     });
   }
+
+  // Overskrift avhengig av visning.
+  const periodLabel =
+    view === "uke"
+      ? `Uke ${isoWeek(anchor)} · ${weekDays[0].getDate()}.–${weekDays[6].getDate()}. ${MONTHS[weekDays[6].getMonth()].slice(0, 3)} ${weekDays[6].getFullYear()}`
+      : view === "aar"
+        ? `${anchorYear}`
+        : `${MONTHS[anchorMonth]} ${anchorYear}`;
 
   function toggleType(id: string) {
     setHiddenTypes((prev) => {
@@ -156,25 +208,23 @@ export default function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={() => move(-1)}
-            aria-label="Forrige måned"
+            aria-label="Forrige"
             className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-100"
           >
             <Icon name="chevron-left" size={18} />
           </button>
-          <h2 className="min-w-[9.5rem] text-center text-lg font-bold capitalize text-slate-900">
-            {MONTHS[cursor.month]} {cursor.year}
+          <h2 className="min-w-[11rem] text-center text-lg font-bold capitalize text-slate-900">
+            {periodLabel}
           </h2>
           <button
             onClick={() => move(1)}
-            aria-label="Neste måned"
+            aria-label="Neste"
             className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-100"
           >
             <Icon name="chevron-right" size={18} />
           </button>
           <button
-            onClick={() =>
-              setCursor({ year: today.getFullYear(), month: today.getMonth() })
-            }
+            onClick={() => setAnchor(new Date())}
             className="ml-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             I dag
@@ -182,6 +232,30 @@ export default function CalendarView({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Visningsvelger */}
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+            {(
+              [
+                ["uke", "Uke"],
+                ["maaned", "Måned"],
+                ["aar", "År"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-pressed={view === v}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  view === v
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Mine / Alle */}
           <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
             {(["mine", "alle"] as const).map((s) => (
@@ -235,81 +309,216 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Månedsrutenett */}
-      <div className="card overflow-x-auto p-0 thin-scroll">
-        <div className="min-w-[44rem]">
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-          {WEEKDAYS.map((w) => (
-            <div
-              key={w}
-              className="label-eyebrow py-2 text-center"
-            >
-              {w}
+      {/* ───── Månedsvisning ───── */}
+      {view === "maaned" && (
+        <div className="card overflow-x-auto p-0 thin-scroll">
+          <div className="min-w-[44rem]">
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+              {WEEKDAYS.map((w) => (
+                <div key={w} className="label-eyebrow py-2 text-center">
+                  {w}
+                </div>
+              ))}
             </div>
+            <div className="grid grid-cols-7">
+              {cells.map((d, i) => {
+                const key = dayKey(d);
+                const inMonth = d.getMonth() === anchorMonth;
+                const isToday = key === todayKey;
+                const dayEvents = eventsByDay.get(key) ?? [];
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setCreateDate(key)}
+                    className={`group flex min-h-[92px] flex-col gap-1 border-b border-r border-slate-100 p-1.5 text-left transition hover:bg-brand-50/40 ${
+                      inMonth ? "bg-white" : "bg-slate-50/60"
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-6 w-6 items-center justify-center self-start rounded-full text-xs font-semibold ${
+                        isToday
+                          ? "bg-brand-600 text-white"
+                          : inMonth
+                            ? "text-slate-600"
+                            : "text-slate-300"
+                      }`}
+                    >
+                      {d.getDate()}
+                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      {dayEvents.slice(0, 3).map((a) => {
+                        const t = a.event_type_id
+                          ? typeById.get(a.event_type_id)
+                          : undefined;
+                        const color = t?.color ?? FALLBACK_COLOR;
+                        return (
+                          <span
+                            key={a.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(a);
+                            }}
+                            className={`flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-2xs font-medium ${
+                              a.status === "avlyst"
+                                ? "line-through opacity-60"
+                                : ""
+                            }`}
+                            style={{ backgroundColor: `${color}22`, color }}
+                          >
+                            <span className="shrink-0 text-3xs opacity-80">
+                              {formatTime(a.starts_at)}
+                            </span>
+                            <span className="truncate">{a.title}</span>
+                          </span>
+                        );
+                      })}
+                      {dayEvents.length > 3 && (
+                        <span className="px-1 text-3xs font-medium text-slate-400">
+                          +{dayEvents.length - 3} flere
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── Ukevisning ───── */}
+      {view === "uke" && (
+        <div className="card overflow-x-auto p-0 thin-scroll">
+          <div className="min-w-[52rem]">
+            {/* Dag-overskrifter */}
+            <div className="grid grid-cols-[3.25rem_repeat(7,1fr)] border-b border-slate-200 bg-slate-50">
+              <div />
+              {weekDays.map((d, i) => {
+                const isToday = dayKey(d) === todayKey;
+                return (
+                  <div key={i} className="py-2 text-center">
+                    <div className="label-eyebrow">{WEEKDAYS[i]}</div>
+                    <div
+                      className={`mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
+                        isToday
+                          ? "bg-brand-600 text-white"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {d.getDate()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Tidsrutenett */}
+            <div className="grid grid-cols-[3.25rem_repeat(7,1fr)]">
+              {/* Klokkeslett-kolonne */}
+              <div
+                className="relative"
+                style={{ height: (END_HOUR - START_HOUR) * HOUR_PX }}
+              >
+                {Array.from({ length: END_HOUR - START_HOUR }, (_, h) => (
+                  <div
+                    key={h}
+                    className="absolute right-1.5 text-3xs text-slate-400"
+                    style={{ top: h * HOUR_PX - 6 }}
+                  >
+                    {String(START_HOUR + h).padStart(2, "0")}:00
+                  </div>
+                ))}
+              </div>
+              {/* Dag-kolonner */}
+              {weekDays.map((d, i) => {
+                const key = dayKey(d);
+                const dayEvents = eventsByDay.get(key) ?? [];
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setCreateDate(key)}
+                    className="relative border-l border-slate-100 hover:bg-brand-50/30"
+                    style={{
+                      height: (END_HOUR - START_HOUR) * HOUR_PX,
+                      backgroundImage: `repeating-linear-gradient(to bottom, #f1f5f9 0, #f1f5f9 1px, transparent 1px, transparent ${HOUR_PX}px)`,
+                    }}
+                  >
+                    {dayEvents.map((a) => {
+                      const t = a.event_type_id
+                        ? typeById.get(a.event_type_id)
+                        : undefined;
+                      const color = t?.color ?? FALLBACK_COLOR;
+                      const s = new Date(a.starts_at);
+                      const e = a.ends_at
+                        ? new Date(a.ends_at)
+                        : new Date(s.getTime() + 60 * 60000);
+                      const startMin =
+                        s.getHours() * 60 + s.getMinutes() - START_HOUR * 60;
+                      const durMin = Math.max(
+                        30,
+                        (e.getTime() - s.getTime()) / 60000,
+                      );
+                      const maxPx = (END_HOUR - START_HOUR) * HOUR_PX;
+                      let top = (startMin / 60) * HOUR_PX;
+                      let height = (durMin / 60) * HOUR_PX;
+                      if (top < 0) {
+                        height += top;
+                        top = 0;
+                      }
+                      height = Math.max(18, Math.min(height, maxPx - top));
+                      if (top >= maxPx) return null;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setEditing(a);
+                          }}
+                          className={`absolute left-0.5 right-0.5 overflow-hidden rounded-md border-l-2 px-1.5 py-0.5 text-left text-2xs font-medium ${
+                            a.status === "avlyst"
+                              ? "line-through opacity-60"
+                              : ""
+                          }`}
+                          style={{
+                            top,
+                            height,
+                            backgroundColor: `${color}22`,
+                            borderColor: color,
+                            color,
+                          }}
+                        >
+                          <span className="block truncate">
+                            {formatTime(a.starts_at)} {a.title}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───── Årsvisning ───── */}
+      {view === "aar" && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 12 }, (_, m) => (
+            <MiniMonth
+              key={m}
+              year={anchorYear}
+              month={m}
+              eventsByDay={eventsByDay}
+              typeById={typeById}
+              todayKey={todayKey}
+              onPick={() => {
+                setAnchor(new Date(anchorYear, m, 1));
+                setView("maaned");
+              }}
+            />
           ))}
         </div>
-        <div className="grid grid-cols-7">
-          {cells.map((d, i) => {
-            const key = dayKey(d);
-            const inMonth = d.getMonth() === cursor.month;
-            const isToday = key === todayKey;
-            const dayEvents = eventsByDay.get(key) ?? [];
-            return (
-              <button
-                key={i}
-                onClick={() => setCreateDate(key)}
-                className={`group flex min-h-[92px] flex-col gap-1 border-b border-r border-slate-100 p-1.5 text-left transition hover:bg-brand-50/40 ${
-                  inMonth ? "bg-white" : "bg-slate-50/60"
-                }`}
-              >
-                <span
-                  className={`inline-flex h-6 w-6 items-center justify-center self-start rounded-full text-xs font-semibold ${
-                    isToday
-                      ? "bg-brand-600 text-white"
-                      : inMonth
-                        ? "text-slate-600"
-                        : "text-slate-300"
-                  }`}
-                >
-                  {d.getDate()}
-                </span>
-                <div className="flex flex-col gap-0.5">
-                  {dayEvents.slice(0, 3).map((a) => {
-                    const t = a.event_type_id
-                      ? typeById.get(a.event_type_id)
-                      : undefined;
-                    const color = t?.color ?? FALLBACK_COLOR;
-                    return (
-                      <span
-                        key={a.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditing(a);
-                        }}
-                        className={`flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-2xs font-medium ${
-                          a.status === "avlyst" ? "line-through opacity-60" : ""
-                        }`}
-                        style={{ backgroundColor: `${color}22`, color }}
-                      >
-                        <span className="shrink-0 text-3xs opacity-80">
-                          {formatTime(a.starts_at)}
-                        </span>
-                        <span className="truncate">{a.title}</span>
-                      </span>
-                    );
-                  })}
-                  {dayEvents.length > 3 && (
-                    <span className="px-1 text-3xs font-medium text-slate-400">
-                      +{dayEvents.length - 3} flere
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        </div>
-      </div>
+      )}
 
       {createDate && (
         <CreateModal
@@ -715,6 +924,82 @@ function DetailModal({
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ───────────────────────── Mini-måned (årsvisning) ─────────────────────────
+function MiniMonth({
+  year,
+  month,
+  eventsByDay,
+  typeById,
+  todayKey,
+  onPick,
+}: {
+  year: number;
+  month: number;
+  eventsByDay: Map<string, Appointment[]>;
+  typeById: Map<string, EventType>;
+  todayKey: string;
+  onPick: () => void;
+}) {
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // mandag = 0
+  const start = new Date(year, month, 1 - offset);
+  const cells = Array.from({ length: 42 }, (_, i) =>
+    new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+  );
+  return (
+    <button
+      onClick={onPick}
+      className="card p-3 text-left transition hover:border-brand-300 hover:shadow-sm"
+    >
+      <div className="mb-1.5 text-sm font-semibold capitalize text-slate-700">
+        {MONTHS[month]}
+      </div>
+      <div className="grid grid-cols-7 gap-y-0.5 text-center">
+        {MINI_WEEKDAYS.map((w, i) => (
+          <div key={i} className="text-3xs font-medium text-slate-400">
+            {w}
+          </div>
+        ))}
+        {cells.map((d, i) => {
+          const inMonth = d.getMonth() === month;
+          const key = dayKey(d);
+          const events = inMonth ? eventsByDay.get(key) ?? [] : [];
+          const isToday = key === todayKey;
+          const first = events[0];
+          const dotColor =
+            (first?.event_type_id
+              ? typeById.get(first.event_type_id)?.color
+              : undefined) ?? FALLBACK_COLOR;
+          return (
+            <div
+              key={i}
+              className="relative flex h-5 items-center justify-center"
+            >
+              <span
+                className={`text-3xs ${
+                  isToday
+                    ? "flex h-4 w-4 items-center justify-center rounded-full bg-brand-600 font-semibold text-white"
+                    : inMonth
+                      ? "text-slate-600"
+                      : "text-slate-300"
+                }`}
+              >
+                {d.getDate()}
+              </span>
+              {events.length > 0 && !isToday && (
+                <span
+                  className="absolute bottom-0 h-1 w-1 rounded-full"
+                  style={{ backgroundColor: dotColor }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </button>
   );
 }
 
