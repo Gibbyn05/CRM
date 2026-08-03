@@ -75,8 +75,18 @@ export interface Customer {
   owner_id: string | null;
   created_by: string | null;
   fiken_contact_id: number | null;
+  status_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CustomerStatus {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface CallLog {

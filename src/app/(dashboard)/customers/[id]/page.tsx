@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Contract, Customer, Deal, Note, Profile } from "@/lib/types";
+import type {
+  Contract,
+  Customer,
+  CustomerStatus,
+  Deal,
+  Note,
+  Profile,
+} from "@/lib/types";
 import { formatDate, formatOrgNumber } from "@/lib/format";
 import DeleteCustomerButton from "@/components/DeleteCustomerButton";
 import CustomerTabs from "@/components/CustomerTabs";
+import CustomerStatusControl from "@/components/CustomerStatusControl";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +62,11 @@ export default async function CustomerDetailPage({
       supabase.from("profiles").select("id, full_name"),
     ]);
 
+  const { data: customerStatuses } = await supabase
+    .from("customer_statuses")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
   const nameMap = new Map(
     ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
       p.id,
@@ -93,6 +106,23 @@ export default async function CustomerDetailPage({
               <p className="text-sm text-slate-500">
                 Org.nr {formatOrgNumber(customer.org_number)}
               </p>
+              {(() => {
+                const st = ((customerStatuses as CustomerStatus[]) ?? []).find(
+                  (s) => s.id === customer.status_id,
+                );
+                return st ? (
+                  <span
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    style={{ backgroundColor: `${st.color}22`, color: st.color }}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: st.color }}
+                    />
+                    {st.name}
+                  </span>
+                ) : null;
+              })()}
             </div>
           </div>
           {isManager && (
@@ -109,6 +139,14 @@ export default async function CustomerDetailPage({
         {/* Venstre: Om kunden */}
         <aside className="card h-fit p-5 lg:sticky lg:top-4">
           <h2 className="label-eyebrow mb-4">Om kunden</h2>
+          <div className="mb-4">
+            <CustomerStatusControl
+              customerId={customer.id}
+              initialStatusId={customer.status_id}
+              statuses={(customerStatuses as CustomerStatus[]) ?? []}
+              isManager={isManager}
+            />
+          </div>
           <dl className="space-y-4">
             <Fact label="Kontaktperson" value={customer.contact_name} />
             <Fact label="E-post" value={customer.email} breakAll />
