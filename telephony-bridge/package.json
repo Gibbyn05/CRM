@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "simulate": "node test/simulate-call.js",
+    "mock-bria": "node test/mock-bria.js",
     "build:exe": "pkg . --targets node18-win-x64,node18-macos-x64 --out-path dist"
   },
   "pkg": {
