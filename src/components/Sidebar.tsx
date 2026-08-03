@@ -40,6 +40,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: "Konto",
     items: [
       { href: "/profile", label: "Min profil", icon: "profile" },
+      { href: "/min-inntekt", label: "Min inntekt", icon: "wallet" },
       {
         href: "/regnskap",
         label: "Regnskap",

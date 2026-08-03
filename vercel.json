@@ -3,6 +3,10 @@
     {
       "path": "/api/dagsavis",
       "schedule": "0 18,19 * * *"
+    },
+    {
+      "path": "/api/regnskap/sync",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

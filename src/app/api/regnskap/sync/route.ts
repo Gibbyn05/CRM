@@ -57,3 +57,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: m }, { status: 502 });
   }
 }
+
+// Vercel Cron kaller ruten med GET og legger ved «Authorization: Bearer
+// <CRON_SECRET>» når miljøvariabelen CRON_SECRET er satt. Kjøres hvert 30. min
+// (se vercel.json). Uten CRON_SECRET er endepunktet stengt for GET.
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (
+    !process.env.CRON_SECRET ||
+    auth !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+  }
+  try {
+    const admin = createAdminClient();
+    const result = await syncCommissionsWithFiken(admin);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "Ukjent feil";
+    console.error("Fiken-sync (cron) feilet:", m);
+    return NextResponse.json({ error: m }, { status: 502 });
+  }
+}
