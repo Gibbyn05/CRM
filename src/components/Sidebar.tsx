@@ -31,6 +31,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/customers", label: "Kunder", icon: "customers" },
       { href: "/reachr", label: "Reachr", icon: "reachr" },
+      { href: "/salg", label: "Salg", icon: "receipt" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       {
         href: "/produkter",
