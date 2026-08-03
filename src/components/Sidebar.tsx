@@ -46,6 +46,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         icon: "flag",
         managerOnly: true,
       },
+      {
+        href: "/signering",
+        label: "Signering",
+        icon: "check",
+        managerOnly: true,
+      },
     ],
   },
   {
