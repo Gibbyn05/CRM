@@ -74,6 +74,7 @@ export interface Customer {
   city: string | null;
   owner_id: string | null;
   created_by: string | null;
+  fiken_contact_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -258,7 +259,32 @@ export interface Organization {
   logo_url: string | null;
   email_signature: string | null;
   contract_footer: string | null;
+  commission_rate: number;
   updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CommissionStatus =
+  | "ikke_fakturert"
+  | "fakturert"
+  | "betalt"
+  | "forfalt"
+  | "avskrevet";
+
+export interface Commission {
+  id: string;
+  deal_id: string;
+  agent_id: string | null;
+  customer_id: string | null;
+  sale_amount: number;
+  commission_rate: number;
+  commission_amount: number;
+  status: CommissionStatus;
+  fiken_invoice_id: number | null;
+  fiken_contact_id: number | null;
+  invoiced_at: string | null;
+  paid_at: string | null;
   created_at: string;
   updated_at: string;
 }
