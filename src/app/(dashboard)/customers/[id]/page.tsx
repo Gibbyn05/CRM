@@ -171,7 +171,6 @@ export default async function CustomerDetailPage({
             deals={(deals as Deal[]) ?? []}
             contracts={(contracts as Contract[]) ?? []}
             nameMap={Object.fromEntries(nameMap)}
-            isManager={isManager}
           />
         </div>
       </div>
