@@ -11,27 +11,31 @@ import ContractsPanel from "./ContractsPanel";
 
 type TabKey = "aktivitet" | "salg" | "diskusjon";
 
-const TABS: { key: TabKey; label: string; icon: IconName }[] = [
+const ALL_TABS: { key: TabKey; label: string; icon: IconName; managerOnly?: boolean }[] = [
   { key: "aktivitet", label: "Aktivitet", icon: "dagsavis" },
   { key: "salg", label: "Salg", icon: "pipeline" },
-  { key: "diskusjon", label: "Diskusjon", icon: "chat" },
+  { key: "diskusjon", label: "Diskusjon", icon: "chat", managerOnly: true },
 ];
 
 // Fanebasert høyrekolonne på kundekortet. Sekundært innhold (aktivitetslogg,
 // salg, intern diskusjon) fordeles på faner slik at kortet blir ryddig.
+// «Diskusjon» er kun for ledere – selgere ser verken fanen eller innholdet.
 export default function CustomerTabs({
   customer,
   notes,
   deals,
   contracts,
   nameMap,
+  isManager,
 }: {
   customer: Customer;
   notes: Note[];
   deals: Deal[];
   contracts: Contract[];
   nameMap: Record<string, string>;
+  isManager: boolean;
 }) {
+  const TABS = ALL_TABS.filter((t) => !t.managerOnly || isManager);
   const [tab, setTab] = useState<TabKey>("aktivitet");
 
   return (
@@ -65,12 +69,12 @@ export default function CustomerTabs({
       {/* Faneinnhold */}
       {tab === "aktivitet" && (
         <div className="space-y-4">
-          <LiveTranscript customerId={customer.id} />
           <NotesLog
             customerId={customer.id}
             initialNotes={notes}
             nameMap={nameMap}
           />
+          <LiveTranscript customerId={customer.id} />
         </div>
       )}
 
@@ -81,7 +85,7 @@ export default function CustomerTabs({
         </div>
       )}
 
-      {tab === "diskusjon" && (
+      {tab === "diskusjon" && isManager && (
         <CaseChat customerId={customer.id} nameMap={nameMap} />
       )}
     </div>
