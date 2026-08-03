@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { DealStage } from "@/lib/types";
 import Icon from "@/components/Icon";
+import OffersList, { type OfferRow } from "@/components/OffersList";
 
 export const dynamic = "force-dynamic";
 
-// Salg-landing: start et nytt salg, og (kommer i neste steg) se tidligere tilbud.
+// Salg-landing: start et nytt salg + oversikt over tidligere sendte tilbud.
 export default async function SalgPage() {
   const supabase = createClient();
   const {
@@ -13,13 +15,50 @@ export default async function SalgPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Alle tidligere sendte tilbud (opprettet via veiviseren = offer_sent_at satt).
+  const { data } = await supabase
+    .from("deals")
+    .select(
+      "id, title, amount, stage, offer_sent_at, created_at, customer_id, customer:customers(name), agent:profiles(full_name), deal_items(count)",
+    )
+    .not("offer_sent_at", "is", null)
+    .order("offer_sent_at", { ascending: false });
+
+  type Joined = {
+    id: string;
+    title: string;
+    amount: number | null;
+    stage: DealStage;
+    offer_sent_at: string | null;
+    created_at: string;
+    customer_id: string;
+    customer: { name: string | null } | { name: string | null }[] | null;
+    agent: { full_name: string | null } | { full_name: string | null }[] | null;
+    deal_items: { count: number }[] | null;
+  };
+
+  const one = <T,>(v: T | T[] | null): T | null =>
+    Array.isArray(v) ? v[0] ?? null : v;
+
+  const rows: OfferRow[] = ((data ?? []) as Joined[]).map((d) => ({
+    id: d.id,
+    title: d.title,
+    amount: d.amount != null ? Number(d.amount) : null,
+    stage: d.stage,
+    offer_sent_at: d.offer_sent_at,
+    customer_id: d.customer_id,
+    customer_name: one(d.customer)?.name ?? null,
+    agent_name: one(d.agent)?.full_name ?? null,
+    item_count: d.deal_items?.[0]?.count ?? 0,
+  }));
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Salg</h1>
           <p className="text-sm text-slate-500">
-            Lag et nytt tilbud med produkter fra katalogen.
+            Tidligere sendte tilbud. Lag et nytt tilbud fra katalogen.
           </p>
         </div>
         <Link
@@ -31,9 +70,7 @@ export default async function SalgPage() {
         </Link>
       </div>
 
-      <div className="card p-10 text-center text-sm text-slate-400">
-        Oversikt over tidligere sendte tilbud kommer her.
-      </div>
+      <OffersList rows={rows} />
     </div>
   );
 }
