@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const tabs = [
+const baseTabs = [
   { href: "/reachr/leadssok", label: "Leadssøk" },
   { href: "/reachr/mine-leads", label: "Mine leads" },
 ];
 
-export default function ReachrTabs() {
+export default function ReachrTabs({ isManager = false }: { isManager?: boolean }) {
   const pathname = usePathname();
+  const tabs = isManager
+    ? [...baseTabs, { href: "/reachr/eksport", label: "Eksport per selger" }]
+    : baseTabs;
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#d8c9b0] pb-4">
       <div>
