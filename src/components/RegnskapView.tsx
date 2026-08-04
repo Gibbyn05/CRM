@@ -71,6 +71,25 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
     });
   }, [rows, statusFilter, sellerFilter, from, to]);
 
+  // Aktiv hurtigperiode utledes av from/to (så knappene markeres riktig).
+  const activePeriod: "uke" | "maaned" | "alle" = !from && !to
+    ? "alle"
+    : from === isoWeekStart() && !to
+      ? "uke"
+      : from === isoMonthStart() && !to
+        ? "maaned"
+        : "alle";
+
+  function setPeriod(p: "uke" | "maaned" | "alle") {
+    if (p === "alle") {
+      setFrom("");
+      setTo("");
+    } else {
+      setFrom(p === "uke" ? isoWeekStart() : isoMonthStart());
+      setTo("");
+    }
+  }
+
   // KPI-er beregnet fra det filtrerte utvalget.
   const kpis = useMemo(() => {
     const bucket = (pred: (r: CommissionRow) => boolean) => {
@@ -204,6 +223,30 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
               ))}
             </select>
           </label>
+          <div className="text-xs font-medium text-slate-500">
+            Periode
+            <div className="mt-1 flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+              {(
+                [
+                  ["uke", "Uke"],
+                  ["maaned", "Måned"],
+                  ["alle", "Totalt"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setPeriod(value)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    activePeriod === value
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="text-xs font-medium text-slate-500">
             Fra
             <input
@@ -387,3 +430,16 @@ function Th({
 
 const selectCls =
   "mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+// Startdato (YYYY-MM-DD) for inneværende uke (mandag) / måned.
+function isoWeekStart(): string {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // mandag = 0
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day)
+    .toISOString()
+    .slice(0, 10);
+}
+function isoMonthStart(): string {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
