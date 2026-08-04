@@ -16,9 +16,83 @@ const STATUS_ORDER: Record<string, number> = {
 
 // TV-tavle med automatisk oppdatering (polling hvert 5. sekund). Designet for
 // storskjerm: store kort, høy kontrast. Ingen innlogging.
+interface SaleEvent {
+  id: string;
+  agent_name: string;
+  song_url: string | null;
+}
+
 export default function TvBoard() {
   const [agents, setAgents] = useState<LiveAgentRow[]>([]);
   const [now, setNow] = useState(new Date());
+
+  // Salgsfeiring + lyd (kun på TV-en). Autoplay krever at noen aktiverer lyden
+  // én gang (kiosk-mus/-fjernkontroll), ellers blokkerer nettleseren lyd.
+  const [soundOn, setSoundOn] = useState(false);
+  const [celebrate, setCelebrate] = useState<SaleEvent | null>(null);
+  const soundOnRef = useRef(false);
+  const seenSales = useRef<Set<string>>(new Set());
+  const seededSales = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+
+  function enableSound() {
+    // Bruk et gjenbrukbart <audio> som «låses opp» av dette klikket.
+    const a = new Audio();
+    audioRef.current = a;
+    a.play().catch(() => {});
+    setSoundOn(true);
+  }
+
+  // Poll nylige salg og feir nye.
+  useEffect(() => {
+    let active = true;
+    async function loadSales() {
+      try {
+        const res = await fetch("/api/tv/sales", { cache: "no-store" });
+        const json = await res.json();
+        const sales: SaleEvent[] = json.sales ?? [];
+        if (!active) return;
+        // Første runde: marker alt som sett (ingen feiring på oppstart).
+        if (!seededSales.current) {
+          for (const s of sales) seenSales.current.add(s.id);
+          seededSales.current = true;
+          return;
+        }
+        const fresh = sales
+          .filter((s) => !seenSales.current.has(s.id))
+          .reverse(); // eldst først
+        for (const s of fresh) seenSales.current.add(s.id);
+        if (fresh.length > 0) {
+          const latest = fresh[fresh.length - 1];
+          setCelebrate(latest);
+          setTimeout(() => setCelebrate(null), 8000);
+          if (soundOnRef.current && latest.song_url) {
+            try {
+              const a = audioRef.current ?? new Audio();
+              audioRef.current = a;
+              a.src = latest.song_url;
+              a.currentTime = 0;
+              a.play().catch(() => {});
+            } catch {
+              // ignorer lydfeil
+            }
+          }
+        }
+      } catch {
+        // ignorer transiente feil
+      }
+    }
+    loadSales();
+    const t = setInterval(loadSales, 5_000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -131,6 +205,29 @@ export default function TvBoard() {
           />
         ))}
       </div>
+
+      {/* Aktiver lyd (én gang) – nødvendig for at nettleseren tillater avspilling */}
+      {!soundOn && (
+        <button
+          onClick={enableSound}
+          className="fixed bottom-6 right-6 z-40 rounded-full bg-brand-600 px-5 py-3 text-lg font-semibold text-white shadow-lg hover:bg-brand-700"
+        >
+          🔊 Aktiver salgslyd
+        </button>
+      )}
+
+      {/* Salgsfeiring */}
+      {celebrate && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="animate-panel-in rounded-3xl bg-gradient-to-br from-emerald-500 to-brand-600 px-16 py-12 text-center shadow-2xl">
+            <p className="text-7xl">🎉</p>
+            <p className="mt-4 text-3xl font-medium text-white/90">Nytt salg!</p>
+            <p className="mt-1 text-6xl font-black text-white">
+              {celebrate.agent_name}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

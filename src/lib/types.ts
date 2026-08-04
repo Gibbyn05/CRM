@@ -48,6 +48,7 @@ export interface Profile {
   extension: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  sale_song_url: string | null;
   created_at: string;
   updated_at: string;
 }

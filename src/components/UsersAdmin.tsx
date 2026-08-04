@@ -25,6 +25,7 @@ export default function UsersAdmin({
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [songProfile, setSongProfile] = useState<Profile | null>(null);
 
   async function setRole(p: Profile, role: UserRole) {
     setBusyId(p.id);
@@ -120,6 +121,19 @@ export default function UsersAdmin({
                     <option value="manager">Leder</option>
                   </select>
 
+                  {/* Salgssang (spilles på TV ved salg) */}
+                  <button
+                    onClick={() => setSongProfile(p)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                      p.sale_song_url
+                        ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                    title="Salgssang som spilles på TV-visningen"
+                  >
+                    🎵 {p.sale_song_url ? "Endre sang" : "Sang"}
+                  </button>
+
                   {/* Aktiv/deaktiver */}
                   {p.is_active ? (
                     <button
@@ -159,6 +173,158 @@ export default function UsersAdmin({
           }}
         />
       )}
+
+      {songProfile && (
+        <SongModal
+          profile={songProfile}
+          onClose={() => setSongProfile(null)}
+          onSaved={(url) => {
+            setProfiles((list) =>
+              list.map((x) =>
+                x.id === songProfile.id ? { ...x, sale_song_url: url } : x,
+              ),
+            );
+            setSongProfile(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Velg salgssang for en selger: last opp lydfil eller lim inn en URL.
+function SongModal({
+  profile,
+  onClose,
+  onSaved,
+}: {
+  profile: Profile;
+  onClose: () => void;
+  onSaved: (url: string | null) => void;
+}) {
+  const supabase = createClient();
+  const [url, setUrl] = useState(profile.sale_song_url ?? "");
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const ext = file.name.split(".").pop() ?? "mp3";
+    const path = `${profile.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("sale-songs")
+      .upload(path, file, { upsert: true });
+    if (upErr) {
+      setUploading(false);
+      setError(
+        "Kunne ikke laste opp lyd. Er «sale-songs»-bucketen opprettet? (Kjør migrasjon 0023.) Du kan også lime inn en URL.",
+      );
+      return;
+    }
+    const { data } = supabase.storage.from("sale-songs").getPublicUrl(path);
+    setUrl(data.publicUrl);
+    setUploading(false);
+  }
+
+  async function save(value: string | null) {
+    setSaving(true);
+    setError(null);
+    const { error: err } = await supabase
+      .from("profiles")
+      .update({ sale_song_url: value })
+      .eq("id", profile.id);
+    setSaving(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    onSaved(value);
+  }
+
+  return (
+    <div
+      className="animate-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900">
+            Salgssang – {profile.full_name || profile.email}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Lukk"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
+        <p className="mb-3 text-sm text-slate-500">
+          Spilles av på TV-visningen når selgeren får et salg.
+        </p>
+
+        <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100">
+          <Icon name="upload" size={16} />
+          {uploading ? "Laster opp …" : "Last opp lydfil (mp3)"}
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleUpload}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+
+        <div className="my-3 text-center text-xs text-slate-400">eller</div>
+
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="Lim inn lyd-URL (https://…mp3)"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+
+        {url && (
+          <audio controls src={url} className="mt-3 w-full">
+            Nettleseren støtter ikke lydavspilling.
+          </audio>
+        )}
+
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+        <div className="mt-5 flex items-center justify-between">
+          <button
+            onClick={() => save(null)}
+            disabled={saving || !profile.sale_song_url}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
+          >
+            Fjern sang
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Avbryt
+            </button>
+            <button
+              onClick={() => save(url.trim() || null)}
+              disabled={saving}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              {saving ? "Lagrer …" : "Lagre"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
