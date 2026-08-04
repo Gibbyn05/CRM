@@ -20,6 +20,8 @@ interface SaleEvent {
   id: string;
   agent_name: string;
   song_url: string | null;
+  song_start?: number;
+  song_duration?: number | null;
 }
 
 export default function TvBoard() {
@@ -40,11 +42,51 @@ export default function TvBoard() {
   }, [soundOn]);
 
   function enableSound() {
-    // Bruk et gjenbrukbart <audio> som «låses opp» av dette klikket.
-    const a = new Audio();
-    audioRef.current = a;
-    a.play().catch(() => {});
     setSoundOn(true);
+  }
+
+  // Lås opp lyd ved første interaksjon hvor som helst på TV-en (mus/tastatur),
+  // i tillegg til knappen – da er det vanskeligere å glemme.
+  useEffect(() => {
+    if (soundOn) return;
+    const unlock = () => setSoundOn(true);
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [soundOn]);
+
+  // Spill et klipp av sangen: start ved start-sekund, stopp etter varighet.
+  function playSong(url: string, start: number, duration: number | null) {
+    try {
+      audioRef.current?.pause();
+      const a = new Audio(url);
+      audioRef.current = a;
+
+      const begin = () => {
+        try {
+          if (start > 0) a.currentTime = start;
+        } catch {
+          // seeking ikke klart ennå – timeupdate under fanger det opp
+        }
+        a.play().catch(() => {});
+      };
+
+      if (a.readyState >= 1) begin();
+      else a.addEventListener("loadedmetadata", begin, { once: true });
+
+      // Stopp etter ønsket varighet (relativt til startpunktet).
+      if (duration && duration > 0) {
+        const stopAt = start + duration;
+        a.addEventListener("timeupdate", () => {
+          if (a.currentTime >= stopAt) a.pause();
+        });
+      }
+    } catch {
+      // ignorer lydfeil
+    }
   }
 
   // Poll nylige salg og feir nye.
@@ -71,15 +113,11 @@ export default function TvBoard() {
           setCelebrate(latest);
           setTimeout(() => setCelebrate(null), 8000);
           if (soundOnRef.current && latest.song_url) {
-            try {
-              const a = audioRef.current ?? new Audio();
-              audioRef.current = a;
-              a.src = latest.song_url;
-              a.currentTime = 0;
-              a.play().catch(() => {});
-            } catch {
-              // ignorer lydfeil
-            }
+            playSong(
+              latest.song_url,
+              latest.song_start ?? 0,
+              latest.song_duration ?? null,
+            );
           }
         }
       } catch {

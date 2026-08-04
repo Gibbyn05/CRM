@@ -49,6 +49,8 @@ export interface Profile {
   avatar_url: string | null;
   is_active: boolean;
   sale_song_url: string | null;
+  sale_song_start_seconds: number;
+  sale_song_duration_seconds: number | null;
   created_at: string;
   updated_at: string;
 }

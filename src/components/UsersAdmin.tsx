@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, RolePermission, UserRole } from "@/lib/types";
@@ -178,10 +178,10 @@ export default function UsersAdmin({
         <SongModal
           profile={songProfile}
           onClose={() => setSongProfile(null)}
-          onSaved={(url) => {
+          onSaved={(patch) => {
             setProfiles((list) =>
               list.map((x) =>
-                x.id === songProfile.id ? { ...x, sale_song_url: url } : x,
+                x.id === songProfile.id ? { ...x, ...patch } : x,
               ),
             );
             setSongProfile(null);
@@ -192,7 +192,14 @@ export default function UsersAdmin({
   );
 }
 
-// Velg salgssang for en selger: last opp lydfil eller lim inn en URL.
+type SongPatch = {
+  sale_song_url: string | null;
+  sale_song_start_seconds: number;
+  sale_song_duration_seconds: number | null;
+};
+
+// Velg salgssang for en selger: last opp / lim inn URL, og velg hvor i sangen
+// den starter (start) og hvor lenge den spiller (varighet).
 function SongModal({
   profile,
   onClose,
@@ -200,13 +207,20 @@ function SongModal({
 }: {
   profile: Profile;
   onClose: () => void;
-  onSaved: (url: string | null) => void;
+  onSaved: (patch: SongPatch) => void;
 }) {
   const supabase = createClient();
   const [url, setUrl] = useState(profile.sale_song_url ?? "");
+  const [start, setStart] = useState(String(profile.sale_song_start_seconds ?? 0));
+  const [duration, setDuration] = useState(
+    profile.sale_song_duration_seconds != null
+      ? String(profile.sale_song_duration_seconds)
+      : "",
+  );
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -230,19 +244,50 @@ function SongModal({
     setUploading(false);
   }
 
+  function useCurrentAsStart() {
+    const a = audioRef.current;
+    if (a) setStart(String(Math.floor(a.currentTime)));
+  }
+
+  // Forhåndslytt klippet: spill fra start i «varighet» sekunder.
+  function previewClip() {
+    const a = audioRef.current;
+    if (!a) return;
+    const s = Number(start) || 0;
+    const d = duration ? Number(duration) : null;
+    a.currentTime = s;
+    a.play().catch(() => {});
+    if (d && d > 0) {
+      const stopAt = s + d;
+      const onTime = () => {
+        if (a.currentTime >= stopAt) {
+          a.pause();
+          a.removeEventListener("timeupdate", onTime);
+        }
+      };
+      a.addEventListener("timeupdate", onTime);
+    }
+  }
+
   async function save(value: string | null) {
     setSaving(true);
     setError(null);
+    const patch: SongPatch = {
+      sale_song_url: value,
+      sale_song_start_seconds: Math.max(0, Number(start) || 0),
+      sale_song_duration_seconds:
+        value && duration ? Math.max(1, Number(duration)) : null,
+    };
     const { error: err } = await supabase
       .from("profiles")
-      .update({ sale_song_url: value })
+      .update(patch)
       .eq("id", profile.id);
     setSaving(false);
     if (err) {
       setError(err.message);
       return;
     }
-    onSaved(value);
+    onSaved(patch);
   }
 
   return (
@@ -293,9 +338,56 @@ function SongModal({
         />
 
         {url && (
-          <audio controls src={url} className="mt-3 w-full">
+          <audio ref={audioRef} controls src={url} className="mt-3 w-full">
             Nettleseren støtter ikke lydavspilling.
           </audio>
+        )}
+
+        {/* Start + varighet */}
+        {url && (
+          <div className="mt-4 space-y-2">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs font-medium text-slate-500">
+                Start (sekunder)
+                <input
+                  type="number"
+                  min={0}
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+              <label className="text-xs font-medium text-slate-500">
+                Varighet (sekunder)
+                <input
+                  type="number"
+                  min={1}
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="hele sangen"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={useCurrentAsStart}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Sett start = spillerens tid
+              </button>
+              <button
+                onClick={previewClip}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50"
+              >
+                ▶ Forhåndslytt klipp
+              </button>
+            </div>
+            <p className="text-2xs text-slate-400">
+              La «Varighet» stå tom for å spille ut sangen. Bruk avspilleren over
+              til å finne startpunktet, og trykk «Sett start = spillerens tid».
+            </p>
+          </div>
         )}
 
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
