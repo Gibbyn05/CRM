@@ -34,6 +34,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: "/salg", label: "Salg", icon: "receipt" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       {
+        href: "/backlog",
+        label: "Backlog",
+        icon: "flag",
+        managerOnly: true,
+      },
+      {
         href: "/produkter",
         label: "Produkter",
         icon: "box",
