@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -5,9 +6,32 @@ import ReachrTabs from "@/components/reachr/ReachrTabs";
 
 export const dynamic = "force-dynamic";
 
+type Period = "uke" | "maaned" | "alle";
+
+// Startdato for valgt periode (server-tid). null = alt.
+function periodStart(period: Period): string | null {
+  const now = new Date();
+  if (period === "maaned") {
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  }
+  if (period === "uke") {
+    const day = (now.getDay() + 6) % 7; // mandag = 0
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - day,
+    ).toISOString();
+  }
+  return null;
+}
+
 // Leder-oversikt: hvor mange leads hver selger har eksportert fra Reachr til
 // CRM (hver lagret Reachr-lead oppretter/kobler en kunde). Kun ledere.
-export default async function ReachrExportPage() {
+export default async function ReachrExportPage({
+  searchParams,
+}: {
+  searchParams: { periode?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
@@ -21,14 +45,29 @@ export default async function ReachrExportPage() {
     .single<Pick<Profile, "role">>();
   if (me?.role !== "manager") redirect("/reachr/leadssok");
 
+  const period: Period =
+    searchParams.periode === "uke" || searchParams.periode === "maaned"
+      ? searchParams.periode
+      : "alle";
+  const start = periodStart(period);
+
+  let leadsQuery = supabase
+    .from("reachr_leads")
+    .select("owner_id, customer_id, status");
+  let callsQuery = supabase
+    .from("call_logs")
+    .select("customer_id, agent_id")
+    .not("customer_id", "is", null);
+  if (start) {
+    leadsQuery = leadsQuery.gte("created_at", start);
+    callsQuery = callsQuery.gte("started_at", start);
+  }
+
   const [{ data: leads }, { data: profiles }, { data: calls }] =
     await Promise.all([
-      supabase.from("reachr_leads").select("owner_id, customer_id, status"),
+      leadsQuery,
       supabase.from("profiles").select("id, full_name").eq("role", "agent"),
-      supabase
-        .from("call_logs")
-        .select("customer_id, agent_id")
-        .not("customer_id", "is", null),
+      callsQuery,
     ]);
 
   type LeadRow = {
@@ -88,13 +127,38 @@ export default async function ReachrExportPage() {
     <div className="space-y-6">
       <ReachrTabs isManager />
 
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Eksport per selger</h2>
-        <p className="text-sm text-slate-500">
-          Hvor mange leads hver selger har lagt til i CRM fra Reachr – og hvor
-          mange de faktisk har ringt. «Ringt» måles på reelle samtaler i
-          samtaleloggen, ikke selgerens egen status.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">
+            Eksport per selger
+          </h2>
+          <p className="text-sm text-slate-500">
+            Hvor mange leads hver selger har lagt til i CRM fra Reachr – og hvor
+            mange de faktisk har ringt. «Ringt» måles på reelle samtaler i
+            samtaleloggen, ikke selgerens egen status.
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+          {(
+            [
+              ["uke", "Denne uken"],
+              ["maaned", "Denne måneden"],
+              ["alle", "Totalt"],
+            ] as const
+          ).map(([value, label]) => (
+            <Link
+              key={value}
+              href={`/reachr/eksport?periode=${value}`}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                period === value
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="card overflow-x-auto p-0 thin-scroll">
