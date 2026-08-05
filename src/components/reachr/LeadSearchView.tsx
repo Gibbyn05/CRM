@@ -89,7 +89,7 @@ export default function LeadSearchView() {
       employees,
       orgForm,
       page: String(nextPage),
-      size: "50",
+      size: "100",
     });
     if (mva) params.set("mva", "true");
     if (hasEmail) params.set("hasEmail", "true");
