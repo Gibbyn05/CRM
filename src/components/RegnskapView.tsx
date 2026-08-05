@@ -143,11 +143,17 @@ export default function RegnskapView({ rows }: { rows: CommissionRow[] }) {
       const json = await res.json();
       if (!res.ok) {
         setSyncMsg(json.error ?? "Synkronisering feilet.");
+      } else if (json.connection && json.connection.ok === false) {
+        // Tydelig grunn hvis selve Fiken-tilkoblingen svikter (token e.l.).
+        setSyncMsg(`Fiken-tilkobling feilet: ${json.connection.error}`);
       } else if (json.skipped) {
         setSyncMsg("Fiken er ikke koblet til ennå (mangler API-nøkkel).");
       } else {
+        const company = json.connection?.company
+          ? ` (tilkoblet ${json.connection.company})`
+          : "";
         setSyncMsg(
-          `Synkronisert: ${json.updated} oppdatert av ${json.checked} fakturerte.`,
+          `Synkronisert${company}: ${json.updated} oppdatert av ${json.checked} fakturerte.`,
         );
         router.refresh();
       }

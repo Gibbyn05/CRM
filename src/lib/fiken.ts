@@ -109,6 +109,45 @@ async function resolveConfig(): Promise<{ token: string; slug: string } | null> 
   }
 }
 
+// Tester Fiken-tilkoblingen og gir en tydelig grunn hvis noe er galt
+// (brukes av «Synkroniser med Fiken» som en ekte tilkoblingstest).
+export interface FikenStatus {
+  ok: boolean;
+  company?: string;
+  slug?: string;
+  error?: string;
+}
+
+export async function checkFikenConnection(): Promise<FikenStatus> {
+  const token = process.env.FIKEN_API_TOKEN;
+  if (!token) {
+    return { ok: false, error: "Mangler FIKEN_API_TOKEN i Vercel." };
+  }
+  try {
+    const res = await fetch(`${BASE_URL}/companies`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const hint =
+        res.status === 401
+          ? "Tokenet er ugyldig eller utløpt – sjekk at du la inn et ekte API-token (ikke client secret)."
+          : body.slice(0, 200);
+      return { ok: false, error: `Fiken svarte ${res.status}. ${hint}` };
+    }
+    const companies = (await res.json()) as { slug?: string; name?: string }[];
+    const c = companies?.[0];
+    if (!c?.slug) {
+      return { ok: false, error: "Ingen foretak funnet på dette tokenet." };
+    }
+    cachedSlug = c.slug;
+    return { ok: true, company: c.name ?? c.slug, slug: c.slug };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Ukjent feil" };
+  }
+}
+
 type QueryValue = string | number | boolean | undefined;
 
 async function fikenFetch(

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { syncCommissionsWithFiken } from "@/lib/fiken-sync";
+import { checkFikenConnection } from "@/lib/fiken";
 
 // ============================================================================
 //  POST /api/regnskap/sync
@@ -48,9 +49,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Ekte tilkoblingstest først – gir tydelig grunn hvis tokenet er feil.
+    const connection = await checkFikenConnection();
     const admin = createAdminClient();
     const result = await syncCommissionsWithFiken(admin);
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, connection, ...result });
   } catch (e) {
     const m = e instanceof Error ? e.message : "Ukjent feil";
     console.error("Fiken-sync feilet:", m);
