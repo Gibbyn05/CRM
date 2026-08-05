@@ -257,7 +257,13 @@ export async function createContact(input: {
     cfg.token,
   );
   const id = idFromLocation(res);
-  return id ? Number(id) : null;
+  const num = id ? Number(id) : NaN;
+  if (!Number.isFinite(num)) {
+    throw new Error(
+      `Fiken opprettet kontakt men ga ingen gyldig id (Location: ${res.headers.get("location") ?? "mangler"}).`,
+    );
+  }
+  return num;
 }
 
 export interface DraftLine {
