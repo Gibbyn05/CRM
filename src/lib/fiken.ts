@@ -56,8 +56,10 @@ export interface FikenSale {
 }
 
 // ─────────────────────────── Hjelpere ───────────────────────────
+// Fiken er «konfigurert» så snart vi har et token – selskaps-slug'en henter vi
+// automatisk fra /companies hvis den ikke er satt eksplisitt.
 export function isFikenConfigured(): boolean {
-  return Boolean(process.env.FIKEN_API_TOKEN && process.env.FIKEN_COMPANY_SLUG);
+  return Boolean(process.env.FIKEN_API_TOKEN);
 }
 
 /** Øre (heltall fra Fiken) → kroner (number). */
@@ -65,16 +67,46 @@ export function oreToNok(ore: number | undefined | null): number {
   return typeof ore === "number" ? ore / 100 : 0;
 }
 
-function requireConfig(): { token: string; slug: string } | null {
+// Cache slug'en så vi ikke slår opp /companies for hvert kall.
+let cachedSlug: string | null = null;
+
+/**
+ * Løser opp token + selskaps-slug. Slug hentes fra FIKEN_COMPANY_SLUG hvis satt,
+ * ellers automatisk fra Fikens /companies (første foretak). Returnerer null hvis
+ * token mangler eller ingen foretak finnes.
+ */
+async function resolveConfig(): Promise<{ token: string; slug: string } | null> {
   const token = process.env.FIKEN_API_TOKEN;
-  const slug = process.env.FIKEN_COMPANY_SLUG;
-  if (!token || !slug) {
-    console.warn(
-      "[fiken] FIKEN_API_TOKEN/FIKEN_COMPANY_SLUG mangler – hopper over Fiken-kall.",
-    );
+  if (!token) {
+    console.warn("[fiken] FIKEN_API_TOKEN mangler – hopper over Fiken-kall.");
     return null;
   }
-  return { token, slug };
+
+  const envSlug = process.env.FIKEN_COMPANY_SLUG;
+  if (envSlug) return { token, slug: envSlug };
+  if (cachedSlug) return { token, slug: cachedSlug };
+
+  try {
+    const res = await fetch(`${BASE_URL}/companies`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.warn(`[fiken] /companies svarte ${res.status} – sjekk tokenet.`);
+      return null;
+    }
+    const companies = (await res.json()) as { slug?: string }[];
+    const slug = companies?.[0]?.slug;
+    if (!slug) {
+      console.warn("[fiken] Fant ingen foretak på dette tokenet.");
+      return null;
+    }
+    cachedSlug = slug;
+    return { token, slug };
+  } catch (e) {
+    console.warn("[fiken] Klarte ikke hente foretak:", e);
+    return null;
+  }
 }
 
 type QueryValue = string | number | boolean | undefined;
@@ -131,7 +163,7 @@ async function fikenGetAll<T>(
 export async function listInvoices(
   opts: { settled?: boolean } = {},
 ): Promise<FikenInvoice[]> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return [];
   return fikenGetAll<FikenInvoice>(
     `/companies/${cfg.slug}/invoices`,
@@ -144,7 +176,7 @@ export async function listInvoices(
 export async function getInvoice(
   invoiceId: number,
 ): Promise<FikenInvoice | null> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return null;
   const res = await fikenFetch(
     `/companies/${cfg.slug}/invoices/${invoiceId}`,
@@ -158,7 +190,7 @@ export async function getInvoice(
 export async function listSales(
   opts: { settled?: boolean } = {},
 ): Promise<FikenSale[]> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return [];
   return fikenGetAll<FikenSale>(
     `/companies/${cfg.slug}/sales`,
@@ -169,7 +201,7 @@ export async function listSales(
 
 /** Kontakter/kunder i Fiken (for matching mot CRM-kunder på org.nr). */
 export async function listContacts(): Promise<FikenContact[]> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return [];
   return fikenGetAll<FikenContact>(
     `/companies/${cfg.slug}/contacts`,
@@ -208,7 +240,7 @@ export async function createContact(input: {
   email?: string | null;
   phoneNumber?: string | null;
 }): Promise<number | null> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return null;
   const body: Record<string, unknown> = { name: input.name, customer: true };
   if (input.organizationNumber) {
@@ -246,7 +278,7 @@ export async function createInvoiceDraft(input: {
   orderReference?: string;
   lines: DraftLine[];
 }): Promise<string | null> {
-  const cfg = requireConfig();
+  const cfg = await resolveConfig();
   if (!cfg) return null;
   const body = {
     type: "invoice",
