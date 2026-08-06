@@ -88,9 +88,9 @@ export default function NotesLog({
             // Cmd/Ctrl+Enter lagrer raskt.
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addNote();
           }}
-          rows={7}
+          rows={16}
           placeholder="Skriv notat fra samtale/interaksjon … (Cmd/Ctrl+Enter for å lagre)"
-          className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-[15px] leading-relaxed focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="min-h-[48vh] w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-[15px] leading-relaxed focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <div className="flex items-center gap-2">
           <select
