@@ -21,15 +21,16 @@ interface CartLine {
 // automatisk), og flytt dealen gjennom pipeline-stegene direkte på kundekortet.
 export default function DealsPanel({
   customerId,
-  initialDeals,
+  deals,
+  setDeals,
   products,
 }: {
   customerId: string;
-  initialDeals: Deal[];
+  deals: Deal[];
+  setDeals: React.Dispatch<React.SetStateAction<Deal[]>>;
   products: Product[];
 }) {
   const supabase = createClient();
-  const [deals, setDeals] = useState<Deal[]>(initialDeals);
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [title, setTitle] = useState("");

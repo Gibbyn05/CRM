@@ -20,7 +20,7 @@ const TABS: { key: TabKey; label: string; icon: IconName }[] = [
 export default function CustomerTabs({
   customer,
   notes,
-  deals,
+  deals: initialDeals,
   contracts,
   products,
   nameMap,
@@ -33,6 +33,8 @@ export default function CustomerTabs({
   nameMap: Record<string, string>;
 }) {
   const [tab, setTab] = useState<TabKey>("aktivitet");
+  // Delt salgs-state så et nytt salg overlever fanebytte OG dukker opp i loggen.
+  const [deals, setDeals] = useState<Deal[]>(initialDeals);
 
   return (
     <div className="space-y-4">
@@ -80,7 +82,8 @@ export default function CustomerTabs({
         <div className="space-y-4">
           <DealsPanel
             customerId={customer.id}
-            initialDeals={deals}
+            deals={deals}
+            setDeals={setDeals}
             products={products}
           />
           <ContractsPanel customer={customer} initialContracts={contracts} />

@@ -288,7 +288,7 @@ function NoteBubble({
 }) {
   return (
     <div className="flex flex-col items-end">
-      <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-brand-600 px-3.5 py-2 text-[15px] leading-relaxed text-white shadow-sm">
+      <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-emerald-600 px-3.5 py-2 text-[15px] leading-relaxed text-white shadow-sm">
         <p className="whitespace-pre-wrap">{text}</p>
       </div>
       <div className="mt-1 flex items-center gap-1.5 pr-1 text-2xs text-slate-400">
