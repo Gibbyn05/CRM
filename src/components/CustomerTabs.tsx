@@ -68,6 +68,8 @@ export default function CustomerTabs({
           <NotesLog
             customerId={customer.id}
             initialNotes={notes}
+            deals={deals}
+            contracts={contracts}
             nameMap={nameMap}
           />
           <LiveTranscript customerId={customer.id} />
