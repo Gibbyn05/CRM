@@ -527,6 +527,12 @@ function CartPanel({
           {formatCurrency(total)}
         </span>
       </div>
+      {cart.length > 0 && (
+        <p className="mt-3 rounded-lg bg-slate-50 p-2.5 text-2xs text-slate-500">
+          Du har {cart.length === 1 ? "et produkt" : `${cart.length} produkter`}{" "}
+          i kurven. Det vil bli fakturert etter at avtalen er signert.
+        </p>
+      )}
     </div>
   );
 }

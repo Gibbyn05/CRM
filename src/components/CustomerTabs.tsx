@@ -7,7 +7,6 @@ import type {
   CustomerFile,
   Deal,
   Note,
-  Product,
 } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
@@ -33,7 +32,6 @@ export default function CustomerTabs({
   notes,
   deals: initialDeals,
   contracts,
-  products,
   files,
   nameMap,
 }: {
@@ -41,7 +39,6 @@ export default function CustomerTabs({
   notes: Note[];
   deals: Deal[];
   contracts: Contract[];
-  products: Product[];
   files: CustomerFile[];
   nameMap: Record<string, string>;
 }) {
@@ -114,7 +111,6 @@ export default function CustomerTabs({
             customerId={customer.id}
             deals={deals}
             setDeals={setDeals}
-            products={products}
           />
           <ContractsPanel customer={customer} initialContracts={contracts} />
         </div>
