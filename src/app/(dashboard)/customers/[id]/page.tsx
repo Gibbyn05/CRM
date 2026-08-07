@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   Contract,
   Customer,
+  CustomerFile,
   CustomerStatus,
   Deal,
   Note,
@@ -62,6 +63,12 @@ export default async function CustomerDetailPage({
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, full_name"),
     ]);
+
+  const { data: files } = await supabase
+    .from("customer_files")
+    .select("*")
+    .eq("customer_id", params.id)
+    .order("created_at", { ascending: false });
 
   const { data: customerStatuses } = await supabase
     .from("customer_statuses")
@@ -179,6 +186,7 @@ export default async function CustomerDetailPage({
             deals={(deals as Deal[]) ?? []}
             contracts={(contracts as Contract[]) ?? []}
             products={(products as Product[]) ?? []}
+            files={(files as CustomerFile[]) ?? []}
             nameMap={Object.fromEntries(nameMap)}
           />
         </div>

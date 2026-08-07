@@ -79,8 +79,25 @@ export interface Customer {
   created_by: string | null;
   fiken_contact_id: number | null;
   status_id: string | null;
+  custom_info: CustomField[];
   created_at: string;
   updated_at: string;
+}
+
+export interface CustomField {
+  label: string;
+  value: string;
+}
+
+export interface CustomerFile {
+  id: string;
+  customer_id: string;
+  name: string;
+  path: string;
+  size: number | null;
+  mime: string | null;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 export interface CustomerStatus {

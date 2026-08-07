@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import type { Contract, Customer, Deal, Note, Product } from "@/lib/types";
+import type {
+  Contract,
+  Customer,
+  CustomerFile,
+  Deal,
+  Note,
+  Product,
+} from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
 import NotesLog from "./NotesLog";
 import DealsPanel from "./DealsPanel";
 import ContractsPanel from "./ContractsPanel";
+import CustomerCustomInfo from "./CustomerCustomInfo";
+import CustomerFiles from "./CustomerFiles";
 
-type TabKey = "aktivitet" | "salg";
+type TabKey = "aktivitet" | "salg" | "info" | "filer";
 
 const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "aktivitet", label: "Aktivitet", icon: "dagsavis" },
   { key: "salg", label: "Salg", icon: "pipeline" },
+  { key: "info", label: "Egendefinert info", icon: "building" },
+  { key: "filer", label: "Filer", icon: "box" },
 ];
 
 // Fanebasert høyrekolonne på kundekortet. Sekundært innhold (aktivitetslogg,
@@ -23,6 +34,7 @@ export default function CustomerTabs({
   deals: initialDeals,
   contracts,
   products,
+  files,
   nameMap,
 }: {
   customer: Customer;
@@ -30,6 +42,7 @@ export default function CustomerTabs({
   deals: Deal[];
   contracts: Contract[];
   products: Product[];
+  files: CustomerFile[];
   nameMap: Record<string, string>;
 }) {
   const [tab, setTab] = useState<TabKey>("aktivitet");
@@ -88,6 +101,21 @@ export default function CustomerTabs({
           />
           <ContractsPanel customer={customer} initialContracts={contracts} />
         </div>
+      )}
+
+      {tab === "info" && (
+        <CustomerCustomInfo
+          customerId={customer.id}
+          initialFields={customer.custom_info ?? []}
+        />
+      )}
+
+      {tab === "filer" && (
+        <CustomerFiles
+          customerId={customer.id}
+          initialFiles={files}
+          nameMap={nameMap}
+        />
       )}
     </div>
   );
