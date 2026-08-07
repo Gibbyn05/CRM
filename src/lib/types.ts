@@ -224,6 +224,10 @@ export interface Contract {
   provider: string | null;
   provider_ref: string | null;
   document_url: string | null;
+  sign_token: string;
+  contract_text: string | null;
+  signer_name: string | null;
+  signer_ip: string | null;
   created_at: string;
   updated_at: string;
 }

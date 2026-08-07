@@ -43,10 +43,13 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname;
 
-    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook.
+    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook,
+    // samt kundens signeringsside/-API (ingen innlogging – nås via token).
     const isPublic =
       path.startsWith("/login") ||
       path.startsWith("/tv") ||
+      path.startsWith("/signer") ||
+      path.startsWith("/api/signer") ||
       path.startsWith("/api/telephony");
 
     if (!user && !isPublic) {

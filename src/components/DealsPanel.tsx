@@ -22,7 +22,30 @@ export default function DealsPanel({
 }) {
   const supabase = createClient();
   const [invoicingId, setInvoicingId] = useState<string | null>(null);
+  const [signingId, setSigningId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  async function sendToSigning(deal: Deal) {
+    setSigningId(deal.id);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/contracts/sign-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_id: deal.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error ?? "Kunne ikke sende til signering.");
+      } else {
+        setMsg(`Avtale sendt til signering på ${json.recipient}.`);
+      }
+    } catch {
+      setMsg("Kunne ikke sende til signering.");
+    } finally {
+      setSigningId(null);
+    }
+  }
 
   async function sendInvoice(deal: Deal) {
     setInvoicingId(deal.id);
@@ -95,6 +118,13 @@ export default function DealsPanel({
                 <span className="text-sm font-semibold text-slate-700">
                   {formatCurrency(d.amount, d.currency)}
                 </span>
+                <button
+                  onClick={() => sendToSigning(d)}
+                  disabled={signingId === d.id}
+                  className="whitespace-nowrap rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+                >
+                  {signingId === d.id ? "Sender …" : "Send til signering"}
+                </button>
                 <button
                   onClick={() => sendInvoice(d)}
                   disabled={invoicingId === d.id}
