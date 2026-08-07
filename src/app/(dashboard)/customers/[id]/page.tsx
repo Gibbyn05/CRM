@@ -14,6 +14,7 @@ import { formatDate, formatOrgNumber } from "@/lib/format";
 import DeleteCustomerButton from "@/components/DeleteCustomerButton";
 import CustomerTabs from "@/components/CustomerTabs";
 import CustomerStatusControl from "@/components/CustomerStatusControl";
+import CustomerContactInfo from "@/components/CustomerContactInfo";
 
 export const dynamic = "force-dynamic";
 
@@ -82,13 +83,6 @@ export default async function CustomerDetailPage({
   );
   const ownerName = customer.owner_id ? nameMap.get(customer.owner_id) : null;
 
-  const fullAddress = [
-    customer.address,
-    [customer.postal_code, customer.city].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
-
   return (
     <div className="space-y-5">
       <Link
@@ -145,7 +139,6 @@ export default async function CustomerDetailPage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Venstre: Om kunden */}
         <aside className="card h-fit p-5 lg:sticky lg:top-4">
-          <h2 className="label-eyebrow mb-4">Om kunden</h2>
           <div className="mb-4">
             <CustomerStatusControl
               customerId={customer.id}
@@ -154,20 +147,22 @@ export default async function CustomerDetailPage({
               isManager={isManager}
             />
           </div>
-          <dl className="space-y-4">
-            <Fact label="Kontaktperson" value={customer.contact_name} />
-            <Fact label="E-post" value={customer.email} breakAll />
-            <Fact label="Telefon" value={customer.phone} />
-            <Fact label="Adresse" value={fullAddress || null} />
-            <Fact
-              label="Organisasjonsnummer"
-              value={
-                customer.org_number ? formatOrgNumber(customer.org_number) : null
-              }
-            />
-            <Fact label="Tildelt" value={ownerName ?? null} />
-            <Fact label="Opprettet" value={formatDate(customer.created_at)} />
-          </dl>
+          <CustomerContactInfo
+            customerId={customer.id}
+            initial={{
+              contact_name: customer.contact_name,
+              email: customer.email,
+              phone: customer.phone,
+              address: customer.address,
+              postal_code: customer.postal_code,
+              city: customer.city,
+            }}
+            orgNumberDisplay={
+              customer.org_number ? formatOrgNumber(customer.org_number) : null
+            }
+            ownerName={ownerName ?? null}
+            createdDisplay={formatDate(customer.created_at)}
+          />
         </aside>
 
         {/* Høyre: fanebasert innhold */}
@@ -182,29 +177,6 @@ export default async function CustomerDetailPage({
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-function Fact({
-  label,
-  value,
-  breakAll = false,
-}: {
-  label: string;
-  value: string | null;
-  breakAll?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt className="label-eyebrow">{label}</dt>
-      <dd
-        className={`mt-0.5 font-medium text-slate-700 ${
-          breakAll ? "break-all" : "break-words"
-        }`}
-      >
-        {value ?? <span className="text-slate-300">–</span>}
-      </dd>
     </div>
   );
 }
