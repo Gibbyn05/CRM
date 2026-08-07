@@ -55,6 +55,12 @@ export default function CustomerTabs({
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-card ring-1 ring-slate-200/70 thin-scroll">
         {TABS.map((t) => {
           const active = tab === t.key;
+          const count =
+            t.key === "salg"
+              ? deals.length
+              : t.key === "filer"
+                ? files.length
+                : 0;
           return (
             <button
               key={t.key}
@@ -72,6 +78,17 @@ export default function CustomerTabs({
                 className={active ? "text-brand-600" : "text-slate-400"}
               />
               {t.label}
+              {count > 0 && (
+                <span
+                  className={`ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-2xs font-bold ${
+                    active
+                      ? "bg-brand-600 text-white"
+                      : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
             </button>
           );
         })}
