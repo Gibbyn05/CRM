@@ -14,6 +14,15 @@ export interface WizardCustomer {
   contact_name: string | null;
   email: string | null;
   phone: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+}
+
+export interface WizardOrg {
+  name: string;
+  org_number: string | null;
+  address: string;
 }
 
 interface CartItem {
@@ -44,11 +53,15 @@ export default function SaleWizard({
   products,
   customers,
   currentUserId,
+  sellerName,
+  org,
   preselectedCustomerId,
 }: {
   products: Product[];
   customers: WizardCustomer[];
   currentUserId: string;
+  sellerName: string;
+  org: WizardOrg;
   preselectedCustomerId: string | null;
 }) {
   const supabase = createClient();
@@ -66,9 +79,53 @@ export default function SaleWizard({
 
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [contract, setContract] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function generateContract() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/contracts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim() || cart[0]?.name,
+          seller: sellerName,
+          org,
+          customer: customer
+            ? {
+                name: customer.name,
+                org_number: customer.org_number,
+                contact_name: customer.contact_name,
+                address: [
+                  customer.address,
+                  [customer.postal_code, customer.city]
+                    .filter(Boolean)
+                    .join(" "),
+                ]
+                  .filter(Boolean)
+                  .join(", "),
+              }
+            : {},
+          lines: cart.map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+          })),
+        }),
+      });
+      const json = await res.json();
+      if (json.contract) setContract(json.contract);
+    } catch {
+      setError("Kunne ikke generere kontrakt.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const total = useMemo(
     () => cart.reduce((s, i) => s + i.unit_price * i.quantity, 0),
@@ -139,6 +196,7 @@ export default function SaleWizard({
         stage: "tilbud_sendt",
         offer_sent_at: new Date().toISOString(),
         lost_reason: note.trim() || null,
+        contract_text: contract.trim() || null,
       })
       .select("id")
       .single();
@@ -353,10 +411,31 @@ export default function SaleWizard({
         </div>
       )}
 
-      {/* STEG 3: Kontraktsdetaljer */}
+      {/* STEG 3: Kontrakt (AI-forslag) */}
       {step === 3 && (
-        <div className="card mx-auto max-w-2xl space-y-4 p-6">
-          <h2 className="text-lg font-bold text-slate-900">Kontraktsdetaljer</h2>
+        <div className="card mx-auto max-w-3xl space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Kontrakt</h2>
+              <p className="text-xs text-slate-400">
+                Lag et kontraktforslag med AI ut fra produkt, kunde og bedrift –
+                og rediger fritt før du sjekker ut.
+              </p>
+            </div>
+            <button
+              onClick={generateContract}
+              disabled={generating}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
+            >
+              <Icon name="live" size={16} />
+              {generating
+                ? "Genererer …"
+                : contract
+                  ? "Generer på nytt"
+                  : "Generer kontrakt med AI"}
+            </button>
+          </div>
+
           <label className="block text-sm font-medium text-slate-600">
             Tilbudstittel
             <input
@@ -366,18 +445,21 @@ export default function SaleWizard({
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           </label>
+
           <label className="block text-sm font-medium text-slate-600">
-            Notat / avtaledetaljer (valgfritt)
+            Kontraktforslag
             <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              placeholder="Interne detaljer om avtalen …"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              value={contract}
+              onChange={(e) => setContract(e.target.value)}
+              rows={16}
+              placeholder="Trykk «Generer kontrakt med AI», eller skriv kontrakten selv …"
+              className="mt-1 w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-mono text-[13px] leading-relaxed focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
           </label>
+
           <p className="text-xs text-slate-400">
-            Etter «Sjekk ut» kan du sende tilbudet til signering fra kundekortet.
+            Kontrakten lagres på tilbudet og brukes når du sender faktura til
+            Fiken.
           </p>
         </div>
       )}

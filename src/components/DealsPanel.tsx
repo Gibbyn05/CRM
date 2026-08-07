@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Deal, DealStage } from "@/lib/types";
@@ -20,6 +21,31 @@ export default function DealsPanel({
   setDeals: React.Dispatch<React.SetStateAction<Deal[]>>;
 }) {
   const supabase = createClient();
+  const [invoicingId, setInvoicingId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function sendInvoice(deal: Deal) {
+    setInvoicingId(deal.id);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/salg/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_id: deal.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error ?? "Kunne ikke opprette faktura.");
+      } else {
+        setMsg("Fakturautkast opprettet i Fiken – åpner Fiken …");
+        if (json.fiken_url) window.open(json.fiken_url, "_blank");
+      }
+    } catch {
+      setMsg("Kunne ikke opprette faktura.");
+    } finally {
+      setInvoicingId(null);
+    }
+  }
 
   async function setStage(deal: Deal, stage: DealStage) {
     const patch: Partial<Deal> = { stage };
@@ -51,6 +77,8 @@ export default function DealsPanel({
         </Link>
       </div>
 
+      {msg && <p className="mb-3 text-xs text-slate-500">{msg}</p>}
+
       <ul className="space-y-3">
         {deals.map((d) => (
           <li key={d.id} className="rounded-xl border border-slate-200 p-3">
@@ -63,9 +91,18 @@ export default function DealsPanel({
                   </p>
                 )}
               </div>
-              <span className="shrink-0 text-sm font-semibold text-slate-700">
-                {formatCurrency(d.amount, d.currency)}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-sm font-semibold text-slate-700">
+                  {formatCurrency(d.amount, d.currency)}
+                </span>
+                <button
+                  onClick={() => sendInvoice(d)}
+                  disabled={invoicingId === d.id}
+                  className="whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  {invoicingId === d.id ? "Sender …" : "Send faktura"}
+                </button>
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
               {DEAL_STAGES.map((s) => (
