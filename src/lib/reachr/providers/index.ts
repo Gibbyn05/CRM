@@ -14,17 +14,28 @@ export const reachrProviders: ReachrProvider[] = [
   api1881Provider,
 ];
 
-export async function enrichCompanyFromProviders(orgNumber: string): Promise<ReachrCompany | null> {
+// Betalte kilder (per-oppslag-kostnad) kjøres kun når includePaid=true, dvs. ved
+// eksplisitt firmaoppslag – ikke ved bulk-berikelse i søkelista.
+const PAID_PROVIDERS = new Set(["api1881"]);
+
+export async function enrichCompanyFromProviders(
+  orgNumber: string,
+  opts?: { includePaid?: boolean },
+): Promise<ReachrCompany | null> {
   let company: ReachrCompany | null = null;
   const sources: ReachrDataSource[] = [];
 
   for (const provider of reachrProviders) {
+    if (PAID_PROVIDERS.has(provider.name) && !opts?.includePaid) continue;
     const result = await provider.enrichByOrgNumber(orgNumber, company);
     sources.push(result.source);
-    if (isUsableCompany(result.company)) {
-      company = company
-        ? mergeReachrCompany(company, result.company)
-        : result.company;
+    if (!result.company) continue;
+    if (company) {
+      // Berik den etablerte grunn-bedriften (fyller kun tomme felter).
+      company = mergeReachrCompany(company, result.company);
+    } else if (isUsableCompany(result.company)) {
+      // Første kilde som gir org.nr + navn + adresse setter grunnlaget.
+      company = result.company;
     }
   }
 

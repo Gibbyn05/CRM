@@ -161,7 +161,7 @@ export default function LeadSearchView() {
   }
 
   async function addLead(company: ReachrCompany) {
-    const enriched = await fetch(`/api/reachr/company?orgnr=${company.org_number}`)
+    const enriched = await fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => data.company ?? company)
       .catch(() => company);

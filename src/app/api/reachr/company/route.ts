@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const company = await enrichCompanyFromProviders(orgnr);
+    // deep=1 tillater betalte kilder (1881) – kun ved eksplisitt firmaoppslag.
+    const includePaid = req.nextUrl.searchParams.get("deep") === "1";
+    const company = await enrichCompanyFromProviders(orgnr, { includePaid });
     if (!company) {
       return NextResponse.json({ error: "Fant ikke bedriften." }, { status: 404 });
     }

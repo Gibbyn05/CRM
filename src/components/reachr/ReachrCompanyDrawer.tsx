@@ -29,7 +29,7 @@ export default function ReachrCompanyDrawer({
     let cancelled = false;
     setDetail(null);
     setLoading(true);
-    fetch(`/api/reachr/company?orgnr=${company.org_number}`)
+    fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => {
         if (!cancelled && data.company) setDetail(data.company);
