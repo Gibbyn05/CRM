@@ -17,10 +17,17 @@ export interface ReachrProviderResult {
   source: ReachrDataSource;
 }
 
+export interface ReachrKeywordResult {
+  keywords: string[];
+  source: ReachrDataSource;
+}
+
 export interface ReachrProvider {
   name: ReachrProviderName;
   label: string;
   isConfigured(): boolean;
   enrichByOrgNumber(orgNumber: string, currentCompany?: ReachrCompany | null): Promise<ReachrProviderResult>;
   search?(input: ReachrSearchInput): Promise<ReachrProviderResult>;
+  // Foreslår bransje-/kategorisøkeord fra Gule Sider (kun eniro-adapteren).
+  suggestKeywords?(query: string): Promise<ReachrKeywordResult>;
 }

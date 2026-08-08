@@ -5,16 +5,21 @@ import {
   BrregEntity,
   guessNaceCode,
   isRelevantBusiness,
-  mergeReachrCompany,
   normalizeBrregEntity,
   normalizeFinancials,
   ReachrCompany,
+  ReachrSearchResult,
 } from "@/lib/reachr";
+import { mergeSearchResults } from "@/lib/reachr/merge";
 import { searchAdditionalProviders } from "@/lib/reachr/providers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+
+// Maks antall ekstra søkeord som utvider ett søk. Hvert søkeord er en egen
+// Brreg-forespørsel, så dette holder kostnaden per kall kontrollert.
+const MAX_EXTRA_KEYWORDS = 5;
 
 export async function GET(req: NextRequest) {
   const supabase = createClient();
@@ -48,74 +53,63 @@ export async function GET(req: NextRequest) {
   const hasWebsite = sp.get("hasWebsite") === "true";
   const page = Math.max(0, parseInt(sp.get("page") ?? "0", 10) || 0);
   const size = Math.min(100, Math.max(10, parseInt(sp.get("size") ?? "50", 10) || 50));
+  const extraKeywords = [
+    ...new Set(
+      (sp.get("keywords") ?? "")
+        .split(",")
+        .map((keyword) => keyword.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, MAX_EXTRA_KEYWORDS);
 
-  const params = new URLSearchParams();
-  params.set("page", String(page));
-  params.set("size", String(Math.min(size + 75, 200)));
-  params.set("konkurs", "false");
-  if (query) params.set("navn", query);
-  if (location) params.set("forretningsadresse.poststed", location.toUpperCase());
-  if (mva) params.set("registrertIMvaregisteret", "true");
-  if (orgForm) params.set("organisasjonsform", orgForm);
-  if (foundedFrom) params.set("fraStiftelsesdato", foundedFrom);
-  if (foundedTo) params.set("tilStiftelsesdato", foundedTo);
-
-  const guessedNace = industry ? guessNaceCode(industry) : null;
-  const selectedNace = nace || guessedNace;
-  if (selectedNace === "B2B") {
-    B2B_NACE_CODES.forEach((code) => params.append("naeringskode", code));
-  } else if (selectedNace) {
-    params.set("naeringskode", selectedNace);
-  } else if (industry) {
-    params.set("navn", industry);
-  }
-
-  const [fromEmployees, toEmployees] = employeesRange(employees);
-  if (fromEmployees) params.set("fraAntallAnsatte", fromEmployees);
-  if (toEmployees) params.set("tilAntallAnsatte", toEmployees);
+  const shared = { location, mva, orgForm, foundedFrom, foundedTo, employees, page, size };
 
   try {
-    const res = await fetch(
-      `https://data.brreg.no/enhetsregisteret/api/enheter?${params}`,
-      { headers: { Accept: "application/json" }, next: { revalidate: 120 } },
-    );
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Brønnøysund svarte ikke akkurat nå.", status: res.status },
-        { status: 502 },
-      );
-    }
-
-    const data = (await res.json()) as {
-      _embedded?: { enheter?: BrregEntity[] };
-      page?: { totalElements?: number };
-    };
     const takenOrgNumbers = await getTakenOrgNumbers(supabase);
-    let results = (data._embedded?.enheter ?? [])
-      .filter(isRelevantBusiness)
-      .map(normalizeBrregEntity)
-      .filter((company) => !takenOrgNumbers.has(company.org_number));
+
+    const baseBrreg = await fetchBrregResults({ ...shared, query, industry, nace });
+    let merged: ReachrSearchResult[] = baseBrreg.companies
+      .filter((company) => !takenOrgNumbers.has(company.org_number))
+      .map((company) => ({ ...company, matched_keyword: null }));
 
     const external = await searchAdditionalProviders({
       query,
       location,
       industry,
-      nace: selectedNace ?? nace,
+      nace: baseBrreg.selectedNace ?? nace,
       page,
       size,
     });
-    results = mergeCompanies(results, external.companies)
+    merged = mergeSearchResults(
+      merged,
+      external.companies.map((company) => ({ ...company, matched_keyword: null })),
+    );
+
+    // Søkeordutvidelse: én ekstra Brreg-forespørsel per valgt søkeord, kun
+    // Brreg (ikke hele leverandørkjeden) for å holde kostnaden nede. Merker
+    // hvert nytt treff med hvilket søkeord som først ga det.
+    for (const keyword of extraKeywords) {
+      const keywordBrreg = await fetchBrregResults({ ...shared, query: "", industry: keyword, nace: "" });
+      const tagged = keywordBrreg.companies.map((company) => ({
+        ...company,
+        matched_keyword: keyword,
+      }));
+      merged = mergeSearchResults(merged, tagged);
+    }
+
+    merged = merged
       .filter((company) => !takenOrgNumbers.has(company.org_number))
       .filter((company) => (hasEmail ? Boolean(company.email) : true))
       .filter((company) => (hasWebsite ? Boolean(company.website) : true));
 
+    let results: ReachrSearchResult[] = merged;
     if (minRevenue != null || maxRevenue != null || minResult != null) {
       results = await filterByFinancials(results, { minRevenue, maxRevenue, minResult });
     }
 
     return NextResponse.json({
       results: results.slice(0, size),
-      total: data.page?.totalElements ?? results.length,
+      total: baseBrreg.total ?? results.length,
       page,
       has_more: results.length > size,
       sources: external.sources,
@@ -129,17 +123,65 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function mergeCompanies(primary: ReachrCompany[], extra: ReachrCompany[]): ReachrCompany[] {
-  const map = new Map<string, ReachrCompany>();
-  for (const company of [...primary, ...extra]) {
-    if (!company.org_number) continue;
-    const existing = map.get(company.org_number);
-    map.set(
-      company.org_number,
-      existing ? mergeReachrCompany(existing, company) : company,
-    );
+interface BrregQuery {
+  query: string;
+  location: string;
+  industry: string;
+  nace: string;
+  mva: boolean;
+  orgForm: string;
+  foundedFrom: string;
+  foundedTo: string;
+  employees: string;
+  page: number;
+  size: number;
+}
+
+async function fetchBrregResults(
+  input: BrregQuery,
+): Promise<{ companies: ReachrCompany[]; total: number | null; selectedNace: string | null }> {
+  const params = new URLSearchParams();
+  params.set("page", String(input.page));
+  params.set("size", String(Math.min(input.size + 75, 200)));
+  params.set("konkurs", "false");
+  if (input.query) params.set("navn", input.query);
+  if (input.location) params.set("forretningsadresse.poststed", input.location.toUpperCase());
+  if (input.mva) params.set("registrertIMvaregisteret", "true");
+  if (input.orgForm) params.set("organisasjonsform", input.orgForm);
+  if (input.foundedFrom) params.set("fraStiftelsesdato", input.foundedFrom);
+  if (input.foundedTo) params.set("tilStiftelsesdato", input.foundedTo);
+
+  const guessedNace = input.industry ? guessNaceCode(input.industry) : null;
+  const selectedNace = input.nace || guessedNace;
+  if (selectedNace === "B2B") {
+    B2B_NACE_CODES.forEach((code) => params.append("naeringskode", code));
+  } else if (selectedNace) {
+    params.set("naeringskode", selectedNace);
+  } else if (input.industry) {
+    params.set("navn", input.industry);
   }
-  return [...map.values()];
+
+  const [fromEmployees, toEmployees] = employeesRange(input.employees);
+  if (fromEmployees) params.set("fraAntallAnsatte", fromEmployees);
+  if (toEmployees) params.set("tilAntallAnsatte", toEmployees);
+
+  const res = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter?${params}`, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 120 },
+  });
+  if (!res.ok) {
+    return { companies: [], total: null, selectedNace };
+  }
+
+  const data = (await res.json()) as {
+    _embedded?: { enheter?: BrregEntity[] };
+    page?: { totalElements?: number };
+  };
+  const companies = (data._embedded?.enheter ?? [])
+    .filter(isRelevantBusiness)
+    .map(normalizeBrregEntity);
+
+  return { companies, total: data.page?.totalElements ?? null, selectedNace };
 }
 
 async function getTakenOrgNumbers(
@@ -181,9 +223,9 @@ function employeesRange(value: string): [string | null, string | null] {
 }
 
 async function filterByFinancials(
-  companies: ReachrCompany[],
+  companies: ReachrSearchResult[],
   filters: { minRevenue: number | null; maxRevenue: number | null; minResult: number | null },
-): Promise<ReachrCompany[]> {
+): Promise<ReachrSearchResult[]> {
   const enriched = await Promise.all(
     companies.slice(0, 40).map(async (company) => {
       try {

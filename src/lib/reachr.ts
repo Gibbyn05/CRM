@@ -61,6 +61,12 @@ export interface ReachrCompany {
   data_sources?: ReachrDataSource[];
 }
 
+// Brukes kun i søkeresultater (ikke lagret) — sporer hvilket ekstra søkeord
+// (utover hovedsøket) som først ga treff på denne bedriften.
+export interface ReachrSearchResult extends ReachrCompany {
+  matched_keyword: string | null;
+}
+
 export interface ReachrLead extends ReachrCompany {
   id: string;
   owner_id: string;
