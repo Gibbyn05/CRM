@@ -314,6 +314,8 @@ export interface CallTranscript {
   created_at: string;
 }
 
+export type SmsReminderRecipients = "customer" | "agent" | "both";
+
 export interface Organization {
   id: number;
   name: string;
@@ -328,9 +330,80 @@ export interface Organization {
   email_signature: string | null;
   contract_footer: string | null;
   commission_rate: number;
+  timezone: string;
+  // E-post
+  email_from_name: string | null;
+  email_from_address: string | null;
+  email_reply_to: string | null;
+  email_link_domain: string | null;
+  // SMS
+  sms_from_name: string | null;
+  sms_default_phone: string | null;
+  sms_reminders_enabled: boolean;
+  sms_reminder_recipients: SmsReminderRecipients;
+  sms_reminder_offsets_hours: number[];
+  sms_template_customer: string | null;
+  sms_template_agent: string | null;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type SmsReminderRecipientType = "customer" | "agent";
+export type SmsReminderStatus =
+  | "scheduled"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "cancelled";
+
+export interface AppointmentSmsReminder {
+  id: string;
+  appointment_id: string;
+  recipient_type: SmsReminderRecipientType;
+  offset_hours: number;
+  phone_number: string;
+  send_at: string;
+  status: SmsReminderStatus;
+  provider: string | null;
+  provider_ref: string | null;
+  error: string | null;
+  attempt_count: number;
+  idempotency_key: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmailEventType =
+  | "queued"
+  | "sent"
+  | "accepted"
+  | "delivered"
+  | "soft_bounced"
+  | "hard_bounced"
+  | "complained"
+  | "opened";
+
+export interface EmailEvent {
+  id: string;
+  contract_id: string | null;
+  recipient: string;
+  event_type: EmailEventType;
+  provider: string | null;
+  provider_message_id: string | null;
+  meta: Record<string, unknown>;
+  occurred_at: string;
+  created_at: string;
+}
+
+export type EmailSuppressionReason = "hard_bounce" | "complaint" | "manual";
+
+export interface EmailSuppression {
+  email: string;
+  reason: EmailSuppressionReason;
+  source: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export type CommissionStatus =

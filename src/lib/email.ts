@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 // Tynn Resend-integrasjon via REST (ingen ekstra avhengighet). Sender e-post
 // når RESEND_API_KEY er satt; ellers kjøres en "dry-run" som logger og lar
 // resten av flyten fortsette (nyttig i utvikling/uten nøkkel).
@@ -12,6 +14,9 @@ export interface SendEmailInput {
   html: string;
   text?: string;
   replyTo?: string;
+  // Overstyrer EMAIL_FROM — brukes til å sende fra organisasjonens eget
+  // konfigurerte avsendernavn/-adresse (se organization.email_from_*).
+  from?: string;
 }
 
 export interface SendEmailResult {
@@ -22,9 +27,24 @@ export interface SendEmailResult {
 
 const DEFAULT_FROM = "Salgssentral <onboarding@resend.dev>";
 
+// Domenet i DEFAULT_FROM (Resends delte test-domene) har ingen egen
+// avsender-reputation og bør ALDRI brukes i produksjon — se domene-status-
+// siden i Kommunikasjon-innstillingene.
+export const RESEND_SHARED_TEST_DOMAIN = "resend.dev";
+
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+// Domenet i en "Navn <adresse@domene>"- eller ren "adresse@domene"-streng.
+export function extractDomain(fromOrAddress: string): string | null {
+  const match = fromOrAddress.match(/@([^\s>]+)/);
+  return match ? match[1].toLowerCase() : null;
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? DEFAULT_FROM;
+  const from = input.from?.trim() || process.env.EMAIL_FROM || DEFAULT_FROM;
 
   if (!key) {
     console.log(`[dry-run] E-post til ${input.to}: ${input.subject}`);
@@ -61,6 +81,120 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     console.error(`Resend unntak: ${msg}`);
     return { provider: "resend", provider_ref: null, error: msg };
   }
+}
+
+// ============================================================================
+//  Domene-status (SPF/DKIM/DMARC) — hentes direkte fra Resends Domains-API,
+//  IKKE fra egne DNS-oppslag. Dette er den ekte verifiseringsstatusen
+//  leverandøren selv har målt, inkludert nøyaktig hvilke DNS-oppføringer som
+//  mangler/venter/er verifisert.
+//  Docs: https://resend.com/docs/api-reference/domains/list-domains
+// ============================================================================
+
+export interface DomainDnsRecord {
+  record: string; // f.eks. "SPF" | "DKIM" | "DMARC" | "MX"
+  name: string;
+  type: string;
+  value: string;
+  status: string; // "verified" | "pending" | "failed" | ...
+  priority?: number | null;
+}
+
+export interface DomainStatus {
+  id: string;
+  name: string;
+  status: string; // "verified" | "pending" | "failed" | "not_started"
+  records: DomainDnsRecord[];
+}
+
+export interface DomainStatusResult {
+  ok: boolean;
+  domains: DomainStatus[];
+  error?: string;
+}
+
+export async function getResendDomainStatus(): Promise<DomainStatusResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    return { ok: false, domains: [], error: "RESEND_API_KEY er ikke satt." };
+  }
+  try {
+    const listRes = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${key}` },
+      cache: "no-store",
+    });
+    if (!listRes.ok) {
+      return { ok: false, domains: [], error: `Resend svarte ${listRes.status} på domeneliste.` };
+    }
+    const list = (await listRes.json()) as {
+      data?: Array<{ id: string; name: string; status: string }>;
+    };
+    const domains = list.data ?? [];
+
+    // Hent detaljerte DNS-oppføringer (records) pr. domene.
+    const details = await Promise.all(
+      domains.map(async (d) => {
+        try {
+          const detailRes = await fetch(`https://api.resend.com/domains/${d.id}`, {
+            headers: { Authorization: `Bearer ${key}` },
+            cache: "no-store",
+          });
+          if (!detailRes.ok) return { ...d, records: [] as DomainDnsRecord[] };
+          const detail = (await detailRes.json()) as { records?: DomainDnsRecord[] };
+          return { ...d, records: detail.records ?? [] };
+        } catch {
+          return { ...d, records: [] as DomainDnsRecord[] };
+        }
+      }),
+    );
+
+    return { ok: true, domains: details };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "Ukjent feil";
+    return { ok: false, domains: [], error: `Kunne ikke kontakte Resend: ${m}` };
+  }
+}
+
+// ============================================================================
+//  Webhook-signaturverifisering (Resend bruker Svix-formatet).
+//  Headere: svix-id, svix-timestamp, svix-signature.
+//  Hemmelighet fra Resend-dashbordet har prefiks "whsec_" (base64 etter det).
+//  Docs: https://resend.com/docs/dashboard/webhooks/verify-webhooks-requests
+// ============================================================================
+
+export function verifyResendWebhookSignature(opts: {
+  payload: string;
+  svixId: string | null;
+  svixTimestamp: string | null;
+  svixSignature: string | null;
+  secret: string;
+}): boolean {
+  const { payload, svixId, svixTimestamp, svixSignature, secret } = opts;
+  if (!svixId || !svixTimestamp || !svixSignature) return false;
+
+  // Avvis gamle forespørsler (> 5 min) for å begrense replay-vinduet.
+  const ts = Number(svixTimestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 5 * 60) return false;
+
+  const secretBytes = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const signedContent = `${svixId}.${svixTimestamp}.${payload}`;
+
+  const expected = createHmac("sha256", secretBytes)
+    .update(signedContent)
+    .digest("base64");
+
+  const provided = svixSignature
+    .split(" ")
+    .map((part) => part.split(",")[1])
+    .filter(Boolean);
+
+  return provided.some((sig) => {
+    try {
+      return timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    } catch {
+      return false; // ulik lengde => garantert ikke lik
+    }
+  });
 }
 
 export function dagsavisEmailHtml(opts: {

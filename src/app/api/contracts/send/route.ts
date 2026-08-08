@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractChannel } from "@/lib/types";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { sendSms as sendSmsViaProvider } from "@/lib/providers/sms";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Send kontrakt via e-post eller SMS fra kundekortet.
 //
-//  E-post går via Resend når RESEND_API_KEY er satt (se src/lib/email.ts),
-//  ellers kjøres en "dry-run". SMS er fortsatt stubbet – koble på en norsk
-//  SMS-leverandør (Sveve/Link Mobility) i sendSms nedenfor. Status-sporing
-//  (åpnet/signert) oppdateres senere av leverandørens webhook.
+//  E-post går via Resend når RESEND_API_KEY er satt (se src/lib/email.ts).
+//  SMS går via den delte leverandør-adapteren i src/lib/providers/sms.ts
+//  (samme adapter som avtalepåminnelsene bruker) — "ikke konfigurert" gir en
+//  tydelig feil i stedet for en stille dry-run.
 // ============================================================================
 
 interface Body {
@@ -22,14 +23,13 @@ interface Body {
   message?: string;
 }
 
-async function sendSms(to: string, appUrl: string, contractId: string) {
-  if (!process.env.SMS_PROVIDER_API_KEY) {
-    console.log(`[dry-run] SMS kontrakt til ${to} (id: ${contractId})`);
-    return { provider: "dry-run", provider_ref: null as string | null };
-  }
-  // TODO: integrer SMS-leverandør her.
-  console.log(`Sender SMS til ${to} via leverandør (${appUrl}/sign/${contractId})`);
-  return { provider: "sms-provider", provider_ref: null as string | null };
+async function sendSms(to: string, appUrl: string, contractId: string, fromName?: string) {
+  const result = await sendSmsViaProvider(
+    to,
+    `Du har mottatt et tilbud. Åpne og signer her: ${appUrl}/sign/${contractId}`,
+    fromName || "CRM",
+  );
+  return { provider: result.provider, provider_ref: result.provider_ref, error: result.error };
 }
 
 export async function POST(req: NextRequest) {
@@ -91,11 +91,23 @@ export async function POST(req: NextRequest) {
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     supabase
       .from("organization")
-      .select("name, logo_url, contract_footer")
+      .select(
+        "name, logo_url, contract_footer, email_from_name, email_from_address, email_reply_to, sms_from_name",
+      )
       .eq("id", 1)
       .maybeSingle(),
   ]);
-  const brandName = (org as { name: string | null } | null)?.name?.trim() || undefined;
+  type OrgRow = {
+    name: string | null;
+    logo_url: string | null;
+    contract_footer: string | null;
+    email_from_name: string | null;
+    email_from_address: string | null;
+    email_reply_to: string | null;
+    sms_from_name: string | null;
+  };
+  const orgRow = org as OrgRow | null;
+  const brandName = orgRow?.name?.trim() || undefined;
 
   // 2) Send via valgt kanal.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -112,18 +124,19 @@ export async function POST(req: NextRequest) {
             senderName: sender?.full_name || undefined,
             bodyText: body.message,
             orgName: brandName,
-            logoUrl:
-              (org as { logo_url: string | null } | null)?.logo_url || undefined,
-            footer:
-              (org as { contract_footer: string | null } | null)?.contract_footer ||
-              undefined,
+            logoUrl: orgRow?.logo_url || undefined,
+            footer: orgRow?.contract_footer || undefined,
           }),
           text: `Hei ${customer?.name ?? "der"},\n\n${
             body.message?.trim() ||
             "Vi har sendt deg et tilbud/kontrakt."
           }\n\nÅpne og signer her: ${signUrl}`,
+          replyTo: orgRow?.email_reply_to || undefined,
+          from: orgRow?.email_from_address
+            ? `${orgRow.email_from_name?.trim() || brandName || "Salgssentral"} <${orgRow.email_from_address}>`
+            : undefined,
         })
-      : await sendSms(body.recipient, appUrl, contract.id);
+      : await sendSms(body.recipient, appUrl, contract.id, orgRow?.sms_from_name || undefined);
 
   // Hvis e-postleverandøren feilet, la kontrakten stå som kladd og meld fra.
   if ("error" in result && result.error) {
