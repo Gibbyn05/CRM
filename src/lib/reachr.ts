@@ -259,6 +259,30 @@ export function formatMoney(value: number | null | undefined): string {
   }).format(value);
 }
 
+// Relevans-score for hvor godt et bedriftsnavn matcher et fritekstsøk. Brukes
+// til å sortere navnesøk slik at den nærmeste treffet kommer øverst (Brønnøysund
+// sitt navnesøk er løst og returnerer mange «...Norge AS» uten rangering).
+const NAME_STOPWORDS = new Set(["as", "asa", "da", "ans", "nuf", "enk", "sa", "ba"]);
+
+export function scoreNameMatch(name: string, query: string): number {
+  const n = name.trim().toLowerCase();
+  const q = query.trim().toLowerCase();
+  if (!q || !n) return 0;
+  if (n === q) return 1000;
+  if (n.startsWith(q)) return 700;
+  if (n.includes(q)) return 500;
+
+  // Token-basert fallback: tell hvor mange av søkeordene (uten selskapsform-ord
+  // som «AS») som finnes i navnet.
+  const qTokens = q.split(/\s+/).filter((t) => t && !NAME_STOPWORDS.has(t));
+  if (qTokens.length === 0) return 0;
+  const nWords = new Set(n.split(/\s+/));
+  let hits = 0;
+  for (const t of qTokens) if (nWords.has(t) || n.includes(t)) hits++;
+  if (hits === 0) return 0;
+  return hits === qTokens.length ? 300 : hits * 40;
+}
+
 export function isRelevantBusiness(entity: BrregEntity): boolean {
   const formCode = entity.organisasjonsform?.kode ?? "";
   if (EXCLUDED_ORG_FORMS.has(formCode)) return false;

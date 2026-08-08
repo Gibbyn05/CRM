@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReachrCompany } from "@/lib/reachr";
-import { INDUSTRY_FILTERS, formatMoney } from "@/lib/reachr";
+import { INDUSTRY_FILTERS, formatMoney, scoreNameMatch } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
 
 type SearchResponse = {
@@ -71,8 +71,17 @@ export default function LeadSearchView() {
   );
   const visibleResults = useMemo(() => {
     const filtered = hasPhone ? results.filter((company) => Boolean(company.phone)) : results;
-    return [...filtered].sort((a, b) => contactScore(b) - contactScore(a));
-  }, [hasPhone, results]);
+    const q = query.trim();
+    return [...filtered].sort((a, b) => {
+      // Har man skrevet et navn, rangeres nærmeste navnetreff øverst; ellers
+      // (rent filtersøk) sorteres ringbare leads først som før.
+      if (q) {
+        const rel = scoreNameMatch(b.name, q) - scoreNameMatch(a.name, q);
+        if (rel !== 0) return rel;
+      }
+      return contactScore(b) - contactScore(a);
+    });
+  }, [hasPhone, results, query]);
 
   async function search(nextPage = 0, append = false) {
     if (!query.trim() && !location.trim() && !industry.trim() && !nace) {

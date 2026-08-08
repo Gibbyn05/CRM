@@ -9,6 +9,7 @@ import {
   normalizeBrregEntity,
   normalizeFinancials,
   ReachrCompany,
+  scoreNameMatch,
 } from "@/lib/reachr";
 import { searchAdditionalProviders } from "@/lib/reachr/providers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -131,6 +132,15 @@ export async function GET(req: NextRequest) {
 
     if (minRevenue != null || maxRevenue != null || minResult != null) {
       results = await filterByFinancials(results, { minRevenue, maxRevenue, minResult });
+    }
+
+    // Ved navnesøk: ranger etter hvor godt navnet matcher, slik at det nærmeste
+    // treffet beholdes og havner øverst (før vi kutter til «size»).
+    if (query) {
+      results = results
+        .map((company) => ({ company, score: scoreNameMatch(company.name, query) }))
+        .sort((a, b) => b.score - a.score)
+        .map((entry) => entry.company);
     }
 
     return NextResponse.json({
