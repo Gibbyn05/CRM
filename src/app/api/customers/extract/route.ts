@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
 //  Trekk ut kundeopplysninger fra fritekst eller et bilde (visittkort,
-//  skjermbilde, e-postsignatur) med Claude. Returnerer felter som klienten
+//  skjermbilde, e-postsignatur) med OpenAI. Returnerer felter som klienten
 //  fyller inn i "Ny kunde"-skjemaet. Skriver ingenting til databasen.
 // ============================================================================
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 const ALLOWED_IMAGE = new Set([
   "image/jpeg",
@@ -62,9 +63,9 @@ export async function POST(req: NextRequest) {
   });
   if (limited) return limited;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: "Automatisk utfylling er ikke konfigurert (mangler ANTHROPIC_API_KEY)." },
+      { error: "Automatisk utfylling er ikke konfigurert (mangler OPENAI_API_KEY)." },
       { status: 503 },
     );
   }
@@ -85,8 +86,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Bygg innholdet til Claude (tekst og/eller bilde).
-  const content: Anthropic.MessageParam["content"] = [];
+  // Bygg innholdet til OpenAI (tekst og/eller bilde, vision-format).
+  type OpenAIPart =
+    | { type: "text"; text: string }
+    | { type: "image_url"; image_url: { url: string } };
+  const content: OpenAIPart[] = [];
+  content.push({
+    type: "text",
+    text: hasText
+      ? `Trekk ut kundeopplysninger fra denne teksten:\n\n${body.text!.trim()}`
+      : "Trekk ut kundeopplysninger fra bildet.",
+  });
   if (hasImage) {
     const mt = body.image!.media_type ?? "image/png";
     if (!ALLOWED_IMAGE.has(mt)) {
@@ -96,30 +106,40 @@ export async function POST(req: NextRequest) {
       );
     }
     content.push({
-      type: "image",
-      source: { type: "base64", media_type: mt as never, data: body.image!.data! },
+      type: "image_url",
+      image_url: { url: `data:${mt};base64,${body.image!.data!}` },
     });
   }
-  content.push({
-    type: "text",
-    text: hasText
-      ? `Trekk ut kundeopplysninger fra denne teksten:\n\n${body.text!.trim()}`
-      : "Trekk ut kundeopplysninger fra bildet.",
-  });
 
   try {
-    const msg = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 400,
-      system: SYSTEM,
-      messages: [{ role: "user", content }],
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        max_tokens: 400,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content },
+        ],
+      }),
     });
-
-    const raw = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    if (!res.ok) {
+      const detail = await res.text();
+      return NextResponse.json(
+        { error: "Feil ved analyse: " + detail },
+        { status: 502 },
+      );
+    }
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const raw = (json.choices?.[0]?.message?.content ?? "").trim();
 
     const fields = parseFields(raw);
     if (!fields) {

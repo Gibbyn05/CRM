@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import type { CallTranscript } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 // ============================================================================
 //  Lager et kort AI-sammendrag + forslag til neste steg fra live-transkriptet
@@ -30,9 +31,9 @@ export async function POST(req: NextRequest) {
   });
   if (limited) return limited;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: "AI-sammendrag er ikke konfigurert (mangler ANTHROPIC_API_KEY)." },
+      { error: "AI-sammendrag er ikke konfigurert (mangler OPENAI_API_KEY)." },
       { status: 503 },
     );
   }
@@ -92,16 +93,30 @@ NESTE STEG: <én konkret oppfølgingshandling>`;
   let summary = "";
   let nextStep = "";
   try {
-    const msg = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 400,
-      messages: [{ role: "user", content: prompt }],
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.4,
+        max_tokens: 400,
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
-    const text = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    if (!res.ok) {
+      const detail = await res.text();
+      return NextResponse.json(
+        { error: "Feil ved sammendrag: " + detail },
+        { status: 502 },
+      );
+    }
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const text = (json.choices?.[0]?.message?.content ?? "").trim();
     const sMatch = text.match(/SAMMENDRAG:\s*([\s\S]*?)(?:\nNESTE STEG:|$)/i);
     const nMatch = text.match(/NESTE STEG:\s*([\s\S]*)$/i);
     summary = (sMatch?.[1] ?? text).trim();

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
-//  Foreslå en kort, profesjonell kontrakt-/tilbudstekst med Claude, basert på
+//  Foreslå en kort, profesjonell kontrakt-/tilbudstekst med OpenAI, basert på
 //  kunde, siste deal og noen loggnotater. Returnerer ren tekst som selgeren
 //  kan redigere før utsendelse. Skriver ingenting til databasen.
 // ============================================================================
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 interface Body {
   customer_id?: string;
@@ -29,9 +30,9 @@ export async function POST(req: NextRequest) {
   });
   if (limited) return limited;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: "AI-forslag er ikke konfigurert (mangler ANTHROPIC_API_KEY)." },
+      { error: "AI-forslag er ikke konfigurert (mangler OPENAI_API_KEY)." },
       { status: 503 },
     );
   }
@@ -109,16 +110,30 @@ ${transcriptText ? `\nTranskript fra siste samtale:\n${transcriptText}` : ""}
 Krav: Bygg brødteksten på det som faktisk kom fram i samtalen (transkript) og notatene – referer konkret til kundens behov/innvendinger og det dere ble enige om. Oppsummer verdien kort for kunden og oppfordre til å åpne og signere. Ingen emoji, ingen klisjeer, ingen overdrivelser. Svar KUN med brødteksten.`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 400,
-      messages: [{ role: "user", content: prompt }],
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.5,
+        max_tokens: 400,
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
-    const text = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    if (!res.ok) {
+      const detail = await res.text();
+      return NextResponse.json(
+        { error: "Feil ved forslag: " + detail },
+        { status: 502 },
+      );
+    }
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const text = json.choices?.[0]?.message?.content?.trim() ?? "";
     return NextResponse.json({
       message: text,
       sender: (me as { full_name: string } | null)?.full_name ?? null,
