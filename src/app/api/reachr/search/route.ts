@@ -33,6 +33,16 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const query = (sp.get("q") ?? "").trim();
+
+  // Direkte oppslag på organisasjonsnummer (9 sifre, uansett mellomrom):
+  // hent bedriften rett fra Brønnøysund og hopp over ALLE filtre (B2B-kode,
+  // ansatte, «allerede tatt» osv.). Da finner man alltid en spesifikk bedrift
+  // – f.eks. i en demo – selv om den allerede er kunde.
+  const orgQuery = query.replace(/\D/g, "");
+  if (/^\d{9}$/.test(orgQuery)) {
+    return lookupByOrgNumber(orgQuery);
+  }
+
   const location = (sp.get("location") ?? "").trim();
   const industry = (sp.get("industry") ?? "").trim();
   const nace = (sp.get("nace") ?? "").trim();
@@ -124,6 +134,48 @@ export async function GET(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Ukjent feil";
     return NextResponse.json(
       { error: `Kunne ikke hente leads: ${message}` },
+      { status: 502 },
+    );
+  }
+}
+
+// Slår opp én bedrift direkte via organisasjonsnummer. Returnerer den uansett
+// bransje/ansatte/status og uten «allerede tatt»-filteret, slik at en konkret
+// bedrift alltid kan hentes fram (verifisering, demo, gjenåpning).
+async function lookupByOrgNumber(orgNumber: string) {
+  try {
+    const res = await fetch(
+      `https://data.brreg.no/enhetsregisteret/api/enheter/${orgNumber}`,
+      { headers: { Accept: "application/json" }, next: { revalidate: 120 } },
+    );
+    if (res.status === 404) {
+      return NextResponse.json({
+        results: [],
+        total: 0,
+        page: 0,
+        has_more: false,
+        sources: [],
+      });
+    }
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Brønnøysund svarte ikke akkurat nå.", status: res.status },
+        { status: 502 },
+      );
+    }
+    const entity = (await res.json()) as BrregEntity;
+    const company = normalizeBrregEntity(entity);
+    return NextResponse.json({
+      results: [company],
+      total: 1,
+      page: 0,
+      has_more: false,
+      sources: [],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Ukjent feil";
+    return NextResponse.json(
+      { error: `Kunne ikke hente bedrift: ${message}` },
       { status: 502 },
     );
   }
