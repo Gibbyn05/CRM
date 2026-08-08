@@ -53,6 +53,8 @@ export default function LeadSearchView() {
   const [results, setResults] = useState<ReachrCompany[]>([]);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [finding, setFinding] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState<ReachrCompany | null>(null);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -174,21 +176,69 @@ export default function LeadSearchView() {
     }
   }
 
+  // Lagre ett lead (rå kompanidata) og fjern det fra trefflista.
+  async function postLead(company: ReachrCompany) {
+    const res = await fetch("/api/reachr/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) throw new Error(data.error ?? "Kunne ikke lagre lead.");
+    setAdded((current) => new Set([...current, company.org_number]));
+    setPicked((s) => {
+      const next = new Set(s);
+      next.delete(company.org_number);
+      return next;
+    });
+    setResults((current) =>
+      current.filter((item) => item.org_number !== company.org_number),
+    );
+  }
+
+  // Enkelt-tillegg beriker med telefon (deep) før lagring.
   async function addLead(company: ReachrCompany) {
     const enriched = await fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => data.company ?? company)
       .catch(() => company);
+    await postLead(enriched);
+  }
 
-    const res = await fetch("/api/reachr/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ company: enriched }),
+  // Bulk-handlinger på avkryssede bedrifter.
+  function toggleSelect(org: string) {
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(org)) next.delete(org);
+      else next.add(org);
+      return next;
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) throw new Error(data.error ?? "Kunne ikke lagre lead.");
-    setAdded((current) => new Set([...current, company.org_number]));
-    setResults((current) => current.filter((item) => item.org_number !== company.org_number));
+  }
+
+  async function bulkAdd() {
+    setBulkBusy(true);
+    const picks = visibleResults.filter(
+      (c) => picked.has(c.org_number) && !c.in_crm,
+    );
+    for (const company of picks) {
+      try {
+        await postLead(company);
+      } catch {
+        /* hopp over feilende, fortsett */
+      }
+    }
+    setBulkBusy(false);
+  }
+
+  async function bulkFindNumbers() {
+    setBulkBusy(true);
+    const picks = visibleResults.filter(
+      (c) => picked.has(c.org_number) && !c.phone,
+    );
+    for (const company of picks) {
+      await findNumber(company);
+    }
+    setBulkBusy(false);
   }
 
   return (
@@ -273,6 +323,37 @@ export default function LeadSearchView() {
             CRM (med merke). Rene filtersøk viser kun nye prospekter.
           </p>
         </div>
+
+        {picked.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#d8c9b0] bg-[#eafff5] px-5 py-3">
+            <span className="text-sm font-black text-[#24513b]">
+              {picked.size} valgt
+            </span>
+            <button
+              type="button"
+              onClick={bulkAdd}
+              disabled={bulkBusy}
+              className="rounded-full bg-[#09fe94] px-4 py-2 text-sm font-black text-[#171717] transition hover:brightness-95 disabled:opacity-60"
+            >
+              {bulkBusy ? "Jobber …" : "Legg til valgte"}
+            </button>
+            <button
+              type="button"
+              onClick={bulkFindNumbers}
+              disabled={bulkBusy}
+              className="rounded-full border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:opacity-60"
+            >
+              🔎 Finn nr. på valgte
+            </button>
+            <button
+              type="button"
+              onClick={() => setPicked(new Set())}
+              className="ml-auto text-sm font-bold text-[#6f5a43] hover:underline"
+            >
+              Fjern valg
+            </button>
+          </div>
+        )}
         <div className="divide-y divide-[#eadcc5] md:hidden">
           {visibleResults.map((company) => (
             <article
@@ -286,7 +367,16 @@ export default function LeadSearchView() {
               className="p-4 transition active:bg-[#f7ffe9]"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="flex min-w-0 gap-3">
+                  <input
+                    type="checkbox"
+                    checked={picked.has(company.org_number)}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={() => toggleSelect(company.org_number)}
+                    className="mt-1.5 h-4 w-4 shrink-0 rounded border-[#b7a991] text-[#09fe94]"
+                    aria-label={`Velg ${company.name}`}
+                  />
+                  <div className="min-w-0">
                   <h3 className="font-display text-2xl font-black leading-tight tracking-[-0.04em] text-[#2b2118]">
                     {company.name}
                   </h3>
@@ -296,6 +386,7 @@ export default function LeadSearchView() {
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {company.in_crm && <CrmBadge kind={company.in_crm} />}
                     <SignalBadges signals={companySignals(company)} />
+                  </div>
                   </div>
                 </div>
                 {company.phone ? (
@@ -352,6 +443,24 @@ export default function LeadSearchView() {
           <table className="min-w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-[#e4d3b8] text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">
+                <th className="px-3 py-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Velg alle synlige"
+                    checked={
+                      visibleResults.length > 0 &&
+                      visibleResults.every((c) => picked.has(c.org_number))
+                    }
+                    onChange={(event) =>
+                      setPicked(
+                        event.target.checked
+                          ? new Set(visibleResults.map((c) => c.org_number))
+                          : new Set(),
+                      )
+                    }
+                    className="h-4 w-4 rounded border-[#b7a991] text-[#09fe94]"
+                  />
+                </th>
                 <th className="px-5 py-3">Bedrift</th>
                 <th className="px-5 py-3">Sted</th>
                 <th className="px-5 py-3">Bransje</th>
@@ -373,6 +482,15 @@ export default function LeadSearchView() {
                     if (event.key === "Enter" || event.key === " ") setSelected(company);
                   }}
                 >
+                  <td className="px-3 py-4" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={picked.has(company.org_number)}
+                      onChange={() => toggleSelect(company.org_number)}
+                      className="h-4 w-4 rounded border-[#b7a991] text-[#09fe94]"
+                      aria-label={`Velg ${company.name}`}
+                    />
+                  </td>
                   <td className="px-5 py-4">
                     <p className="font-display text-xl font-black leading-tight tracking-[-0.03em] text-[#2b2118]">
                       {company.name}
