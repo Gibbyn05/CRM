@@ -283,6 +283,41 @@ export function scoreNameMatch(name: string, query: string): number {
   return hits === qTokens.length ? 300 : hits * 40;
 }
 
+// Kjøps-/kvalitetssignaler beregnet fra offentlige data vi allerede har.
+// Hjelper selgeren å se hvilke leads som er «varme» uten å åpne firmakortet.
+export interface CompanySignal {
+  label: string;
+  tone: "new" | "good" | "info";
+}
+
+export function companySignals(c: ReachrCompany): CompanySignal[] {
+  const signals: CompanySignal[] = [];
+
+  // Nyregistrert (< 18 mnd): høy kjøpsintensjon – setter ofte opp tjenester nå.
+  if (c.founded_at) {
+    const founded = new Date(c.founded_at);
+    if (!Number.isNaN(founded.getTime())) {
+      const months =
+        (Date.now() - founded.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+      if (months <= 18) signals.push({ label: "Nyregistrert", tone: "new" });
+    }
+  }
+
+  // Reell aktivitet: MVA-registrert (>50k omsetning) og har ansatte.
+  if (c.vat_registered) signals.push({ label: "MVA", tone: "good" });
+  if ((c.employees ?? 0) >= 5) {
+    signals.push({ label: `${c.employees} ansatte`, tone: "info" });
+  }
+
+  // God økonomi når vi har tall (etter berikelse/økonomifilter).
+  const rev = c.financials?.revenue;
+  if (rev != null && rev >= 3_000_000) {
+    signals.push({ label: "God omsetning", tone: "good" });
+  }
+
+  return signals;
+}
+
 export function isRelevantBusiness(entity: BrregEntity): boolean {
   const formCode = entity.organisasjonsform?.kode ?? "";
   if (EXCLUDED_ORG_FORMS.has(formCode)) return false;

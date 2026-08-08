@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReachrCompany } from "@/lib/reachr";
-import { INDUSTRY_FILTERS, formatMoney, scoreNameMatch } from "@/lib/reachr";
+import type { ReachrCompany, CompanySignal } from "@/lib/reachr";
+import {
+  INDUSTRY_FILTERS,
+  formatMoney,
+  scoreNameMatch,
+  companySignals,
+} from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
 
 type SearchResponse = {
@@ -41,6 +46,7 @@ export default function LeadSearchView() {
   const [hasPhone, setHasPhone] = useState(false);
   const [hasEmail, setHasEmail] = useState(false);
   const [hasWebsite, setHasWebsite] = useState(false);
+  const [newlyRegistered, setNewlyRegistered] = useState(false);
   const [minRevenue, setMinRevenue] = useState("");
   const [maxRevenue, setMaxRevenue] = useState("");
   const [minResult, setMinResult] = useState("");
@@ -62,9 +68,9 @@ export default function LeadSearchView() {
 
   const activeFilters = useMemo(
     () =>
-      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasPhone, hasEmail, hasWebsite, minRevenue, maxRevenue, minResult]
+      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasPhone, hasEmail, hasWebsite, newlyRegistered, minRevenue, maxRevenue, minResult]
         .filter(Boolean).length,
-    [employees, hasEmail, hasPhone, hasWebsite, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
+    [employees, hasEmail, hasPhone, hasWebsite, newlyRegistered, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
   );
   const ringableCount = useMemo(
     () => results.filter((company) => Boolean(company.phone)).length,
@@ -104,6 +110,12 @@ export default function LeadSearchView() {
     if (mva) params.set("mva", "true");
     if (hasEmail) params.set("hasEmail", "true");
     if (hasWebsite) params.set("hasWebsite", "true");
+    if (newlyRegistered) {
+      // Nyregistrert: stiftet i løpet av de siste 18 månedene.
+      const d = new Date();
+      d.setMonth(d.getMonth() - 18);
+      params.set("foundedFrom", d.toISOString().slice(0, 10));
+    }
     if (minRevenue) params.set("minRevenue", minRevenue);
     if (maxRevenue) params.set("maxRevenue", maxRevenue);
     if (minResult) params.set("minResult", minResult);
@@ -219,11 +231,12 @@ export default function LeadSearchView() {
               ))}
             </select>
           </Field>
-          <div className="grid grid-cols-2 gap-2 pt-6 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 pt-6 xl:grid-cols-5">
             <Toggle label="MVA" checked={mva} onChange={setMva} />
             <Toggle label="Telefon" checked={hasPhone} onChange={setHasPhone} />
             <Toggle label="E-post" checked={hasEmail} onChange={setHasEmail} />
             <Toggle label="Nettside" checked={hasWebsite} onChange={setHasWebsite} />
+            <Toggle label="Nyreg." checked={newlyRegistered} onChange={setNewlyRegistered} />
           </div>
         </div>
 
@@ -280,7 +293,10 @@ export default function LeadSearchView() {
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
                     Org.nr. {company.org_number}
                   </p>
-                  {company.in_crm && <CrmBadge kind={company.in_crm} />}
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {company.in_crm && <CrmBadge kind={company.in_crm} />}
+                    <SignalBadges signals={companySignals(company)} />
+                  </div>
                 </div>
                 {company.phone ? (
                   <span className="shrink-0 rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#24513b]">
@@ -364,11 +380,10 @@ export default function LeadSearchView() {
                     <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
                       Org.nr. {company.org_number}
                     </p>
-                    {company.in_crm && (
-                      <div className="mt-1.5">
-                        <CrmBadge kind={company.in_crm} />
-                      </div>
-                    )}
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {company.in_crm && <CrmBadge kind={company.in_crm} />}
+                      <SignalBadges signals={companySignals(company)} />
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.address.city ?? "Norge"}</td>
                   <td className="max-w-xs px-5 py-4 text-sm text-[#6f5a43]">
@@ -509,6 +524,27 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     >
       {label}
     </button>
+  );
+}
+
+function SignalBadges({ signals }: { signals: CompanySignal[] }) {
+  if (signals.length === 0) return null;
+  const style: Record<CompanySignal["tone"], string> = {
+    new: "border-[#09fe94]/50 bg-[#eafff5] text-[#0d7a4b]",
+    good: "border-[#c9a24b]/50 bg-[#fbf0d3] text-[#8a6a1f]",
+    info: "border-[#d8c9b0] bg-[#fff8ea] text-[#8b7357]",
+  };
+  return (
+    <>
+      {signals.map((s) => (
+        <span
+          key={s.label}
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${style[s.tone]}`}
+        >
+          {s.label}
+        </span>
+      ))}
+    </>
   );
 }
 
