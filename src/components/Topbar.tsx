@@ -10,7 +10,7 @@ import Avatar from "./Avatar";
 import Icon from "./Icon";
 import NotificationBell from "./NotificationBell";
 
-type Hit = Pick<Customer, "id" | "name" | "org_number" | "city">;
+type Hit = Pick<Customer, "id" | "name" | "org_number" | "city" | "phone">;
 
 // Slank topplinje med live hurtigsøk: en dropdown fylles mens man skriver, og
 // man kan hoppe rett til et kundekort. Enter (eller «Se alle»-raden) går til
@@ -40,11 +40,17 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
     const handle = setTimeout(async () => {
       let query = supabase
         .from("customers")
-        .select("id, name, org_number, city")
+        .select("id, name, org_number, city, phone")
         .order("name")
         .limit(8);
-      query = /^\d+$/.test(trimmed)
-        ? query.ilike("org_number", `${trimmed}%`)
+
+      // Kun sifre/telefontegn (mellomrom, +, -, parenteser) ⇒ tolk som
+      // nummer-søk: match telefon (format-uavhengig) ELLER org.nr. Ellers
+      // søk på navn.
+      const digits = trimmed.replace(/\D/g, "");
+      const isNumberSearch = digits.length > 0 && /^[\d\s+()./-]+$/.test(trimmed);
+      query = isNumberSearch
+        ? query.or(`phone_digits.ilike.*${digits}*,org_number.ilike.${digits}*`)
         : query.ilike("name", `%${trimmed}%`);
       const { data } = await query;
       if (!alive) return;
@@ -165,8 +171,13 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
                     {h.name}
                   </span>
                   <span className="block truncate text-xs text-slate-400">
-                    {h.org_number ? `Org.nr ${formatOrgNumber(h.org_number)}` : "—"}
-                    {h.city ? ` · ${h.city}` : ""}
+                    {[
+                      h.phone ? `📞 ${h.phone}` : null,
+                      h.org_number ? `Org.nr ${formatOrgNumber(h.org_number)}` : null,
+                      h.city || null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </span>
                 </span>
               </button>

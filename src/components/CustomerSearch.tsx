@@ -34,9 +34,10 @@ export default function CustomerSearch({
 
       const trimmed = query.trim();
       if (trimmed) {
-        if (/^\d+$/.test(trimmed)) {
-          // Numerisk: søk på org.nr (prefiks).
-          q = q.ilike("org_number", `${trimmed}%`);
+        const digits = trimmed.replace(/\D/g, "");
+        if (digits.length > 0 && /^[\d\s+()./-]+$/.test(trimmed)) {
+          // Nummer-søk: telefon (format-uavhengig) eller org.nr.
+          q = q.or(`phone_digits.ilike.*${digits}*,org_number.ilike.${digits}*`);
         } else {
           q = q.ilike("name", `%${trimmed}%`);
         }
