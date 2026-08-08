@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   // – f.eks. i en demo – selv om den allerede er kunde.
   const orgQuery = query.replace(/\D/g, "");
   if (/^\d{9}$/.test(orgQuery)) {
-    return lookupByOrgNumber(orgQuery);
+    return lookupByOrgNumber(orgQuery, supabase);
   }
 
   const location = (sp.get("location") ?? "").trim();
@@ -100,11 +100,10 @@ export async function GET(req: NextRequest) {
       _embedded?: { enheter?: BrregEntity[] };
       page?: { totalElements?: number };
     };
-    const takenOrgNumbers = await getTakenOrgNumbers(supabase);
+    const takenMap = await getTakenOrgNumbers(supabase);
     let results = (data._embedded?.enheter ?? [])
       .filter(isRelevantBusiness)
-      .map(normalizeBrregEntity)
-      .filter((company) => !takenOrgNumbers.has(company.org_number));
+      .map(normalizeBrregEntity);
 
     const external = await searchAdditionalProviders({
       query,
@@ -115,9 +114,20 @@ export async function GET(req: NextRequest) {
       size,
     });
     results = mergeCompanies(results, external.companies)
-      .filter((company) => !takenOrgNumbers.has(company.org_number))
       .filter((company) => (hasEmail ? Boolean(company.email) : true))
       .filter((company) => (hasWebsite ? Boolean(company.website) : true));
+
+    // «Allerede i CRM»: ved et navnesøk vil man som regel lete etter en konkret
+    // bedrift – da viser vi den med et merke i stedet for å skjule den. Ved rent
+    // filter-/bransjesøk (prospektering) skjuler vi tatte bedrifter som før.
+    if (query) {
+      results = results.map((company) => {
+        const inCrm = takenMap.get(company.org_number);
+        return inCrm ? { ...company, in_crm: inCrm } : company;
+      });
+    } else {
+      results = results.filter((company) => !takenMap.has(company.org_number));
+    }
 
     if (minRevenue != null || maxRevenue != null || minResult != null) {
       results = await filterByFinancials(results, { minRevenue, maxRevenue, minResult });
@@ -142,7 +152,10 @@ export async function GET(req: NextRequest) {
 // Slår opp én bedrift direkte via organisasjonsnummer. Returnerer den uansett
 // bransje/ansatte/status og uten «allerede tatt»-filteret, slik at en konkret
 // bedrift alltid kan hentes fram (verifisering, demo, gjenåpning).
-async function lookupByOrgNumber(orgNumber: string) {
+async function lookupByOrgNumber(
+  orgNumber: string,
+  supabase: ReturnType<typeof createClient>,
+) {
   try {
     const res = await fetch(
       `https://data.brreg.no/enhetsregisteret/api/enheter/${orgNumber}`,
@@ -165,6 +178,8 @@ async function lookupByOrgNumber(orgNumber: string) {
     }
     const entity = (await res.json()) as BrregEntity;
     const company = normalizeBrregEntity(entity);
+    const inCrm = (await getTakenOrgNumbers(supabase)).get(company.org_number);
+    if (inCrm) company.in_crm = inCrm;
     return NextResponse.json({
       results: [company],
       total: 1,
@@ -196,7 +211,7 @@ function mergeCompanies(primary: ReachrCompany[], extra: ReachrCompany[]): Reach
 
 async function getTakenOrgNumbers(
   supabase: ReturnType<typeof createClient>,
-): Promise<Set<string>> {
+): Promise<Map<string, "customer" | "lead">> {
   const client = process.env.SUPABASE_SERVICE_ROLE_KEY
     ? createAdminClient()
     : supabase;
@@ -206,16 +221,18 @@ async function getTakenOrgNumbers(
     client.from("customers").select("org_number").not("org_number", "is", null),
   ]);
 
-  const values = [
-    ...((leadRows.data as { org_number: string | null }[] | null) ?? []),
-    ...((customerRows.data as { org_number: string | null }[] | null) ?? []),
-  ];
-
-  return new Set(
-    values
-      .map((row) => row.org_number?.replace(/\s/g, ""))
-      .filter((org): org is string => Boolean(org)),
-  );
+  const map = new Map<string, "customer" | "lead">();
+  const norm = (v: string | null) => v?.replace(/\D/g, "") || null;
+  // Leads først, deretter kunder – kunde «vinner» hvis begge finnes.
+  for (const row of (leadRows.data as { org_number: string | null }[] | null) ?? []) {
+    const org = norm(row.org_number);
+    if (org) map.set(org, "lead");
+  }
+  for (const row of (customerRows.data as { org_number: string | null }[] | null) ?? []) {
+    const org = norm(row.org_number);
+    if (org) map.set(org, "customer");
+  }
+  return map;
 }
 
 function parseNumber(value: string | null): number | null {

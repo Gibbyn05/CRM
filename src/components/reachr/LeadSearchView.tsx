@@ -245,7 +245,8 @@ export default function LeadSearchView() {
             </h2>
           </div>
           <p className="hidden max-w-md text-right text-sm text-[#6f5a43] md:block">
-            Bedrifter som finnes i Mine leads eller Kunder er filtrert bort globalt.
+            Søk på firmanavn eller org.nr viser også bedrifter som allerede er i
+            CRM (med merke). Rene filtersøk viser kun nye prospekter.
           </p>
         </div>
         <div className="divide-y divide-[#eadcc5] md:hidden">
@@ -268,6 +269,7 @@ export default function LeadSearchView() {
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
                     Org.nr. {company.org_number}
                   </p>
+                  {company.in_crm && <CrmBadge kind={company.in_crm} />}
                 </div>
                 <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
                   company.phone
@@ -289,14 +291,20 @@ export default function LeadSearchView() {
                 </span>
                 <button
                   type="button"
-                  disabled={added.has(company.org_number)}
+                  disabled={added.has(company.org_number) || Boolean(company.in_crm)}
                   onClick={(event) => {
                     event.stopPropagation();
                     addLead(company);
                   }}
                   className="rounded-2xl border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition active:scale-[0.98] disabled:border-[#d8c9b0] disabled:bg-[#efe1c7] disabled:text-[#8b7357]"
                 >
-                  {added.has(company.org_number) ? "Lagt til" : "Legg til"}
+                  {company.in_crm
+                    ? company.in_crm === "customer"
+                      ? "Er kunde"
+                      : "Er lead"
+                    : added.has(company.org_number)
+                      ? "Lagt til"
+                      : "Legg til"}
                 </button>
               </div>
             </article>
@@ -335,6 +343,11 @@ export default function LeadSearchView() {
                     <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
                       Org.nr. {company.org_number}
                     </p>
+                    {company.in_crm && (
+                      <div className="mt-1.5">
+                        <CrmBadge kind={company.in_crm} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.address.city ?? "Norge"}</td>
                   <td className="max-w-xs px-5 py-4 text-sm text-[#6f5a43]">
@@ -380,14 +393,20 @@ export default function LeadSearchView() {
                   <td className="px-5 py-4 text-right">
                     <button
                       type="button"
-                      disabled={added.has(company.org_number)}
+                      disabled={added.has(company.org_number) || Boolean(company.in_crm)}
                       onClick={(event) => {
                         event.stopPropagation();
                         addLead(company);
                       }}
                       className="rounded-2xl border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:border-[#d8c9b0] disabled:bg-[#efe1c7] disabled:text-[#8b7357]"
                     >
-                      {added.has(company.org_number) ? "Lagt til" : "Legg til"}
+                      {company.in_crm
+                        ? company.in_crm === "customer"
+                          ? "Er kunde"
+                          : "Er lead"
+                        : added.has(company.org_number)
+                          ? "Lagt til"
+                          : "Legg til"}
                     </button>
                   </td>
                 </tr>
@@ -420,7 +439,7 @@ export default function LeadSearchView() {
         <ReachrCompanyDrawer
           open
           company={selected}
-          alreadyAdded={added.has(selected.org_number)}
+          alreadyAdded={added.has(selected.org_number) || Boolean(selected.in_crm)}
           onClose={() => setSelected(null)}
           onAdd={addLead}
         />
@@ -447,6 +466,14 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     >
       {label}
     </button>
+  );
+}
+
+function CrmBadge({ kind }: { kind: "customer" | "lead" }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[#c9a24b] bg-[#fbf0d3] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#8a6a1f]">
+      {kind === "customer" ? "Allerede kunde" : "Allerede lead"}
+    </span>
   );
 }
 

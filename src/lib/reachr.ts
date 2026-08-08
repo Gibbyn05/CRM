@@ -59,6 +59,9 @@ export interface ReachrCompany {
   financials?: ReachrFinancials | null;
   roles?: ReachrRole[];
   data_sources?: ReachrDataSource[];
+  // Satt når bedriften allerede finnes i CRM-en (vises med merke ved navnesøk
+  // i stedet for å skjules). null/undefined = ny prospekt.
+  in_crm?: "customer" | "lead" | null;
 }
 
 export interface ReachrLead extends ReachrCompany {
