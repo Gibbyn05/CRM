@@ -17,7 +17,7 @@ export const reachrProviders: ReachrProvider[] = [
 // «Dype» kilder kjøres kun på eksplisitt nummer-søk (deep=true): Proff (tung
 // skraping av firmakortet) og 1881 (betalt per oppslag). De hoppes over ved
 // bulk-berikelse i søkelista for fart og kostnad.
-const DEEP_PROVIDERS = new Set(["api1881", "proff"]);
+const DEEP_PROVIDERS = new Set(["api1881", "proff", "website"]);
 
 export async function enrichCompanyFromProviders(
   orgNumber: string,

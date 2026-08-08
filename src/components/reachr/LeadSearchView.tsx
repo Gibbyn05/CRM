@@ -46,6 +46,7 @@ export default function LeadSearchView() {
   const [minResult, setMinResult] = useState("");
   const [results, setResults] = useState<ReachrCompany[]>([]);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [finding, setFinding] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<ReachrCompany | null>(null);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -119,7 +120,6 @@ export default function LeadSearchView() {
           seen.add(company.org_number);
           return true;
         });
-        hydratePhoneData(deduped);
         return deduped;
       });
       setTotal(data.total);
@@ -132,31 +132,33 @@ export default function LeadSearchView() {
     }
   }
 
-  async function hydratePhoneData(companies: ReachrCompany[]) {
-    const candidates = companies
-      .filter((company) => !company.phone && company.website)
-      .slice(0, 20);
-    if (candidates.length === 0) return;
-
-    for (let index = 0; index < candidates.length; index += 4) {
-      const batch = candidates.slice(index, index + 4);
-      const enriched = await Promise.allSettled(
-        batch.map((company) =>
-          fetch(`/api/reachr/company?orgnr=${company.org_number}`)
-            .then((res) => res.ok ? res.json() : null)
-            .then((data: { company?: ReachrCompany } | null) => data?.company ?? null),
-        ),
-      );
-      const updates = enriched
-        .map((result) => result.status === "fulfilled" ? result.value : null)
-        .filter((company): company is ReachrCompany => Boolean(company));
-      if (updates.length === 0) continue;
-      setResults((current) =>
-        current.map((company) => {
-          const update = updates.find((item) => item.org_number === company.org_number);
-          return update ? mergeContactData(company, update) : company;
-        }),
-      );
+  // Finn telefon for én bedrift på forespørsel (Proff + 1881 + nettside).
+  // Erstatter den gamle auto-berikelsen av 20 bedrifter per søk, som gjorde
+  // trefflista treg fordi hver bedrift skrapte opptil 6 nettsider.
+  async function findNumber(company: ReachrCompany) {
+    setFinding((s) => new Set(s).add(company.org_number));
+    try {
+      const data = await fetch(
+        `/api/reachr/company?orgnr=${company.org_number}&deep=1`,
+      )
+        .then((res) => (res.ok ? res.json() : null))
+        .then((d: { company?: ReachrCompany } | null) => d?.company ?? null)
+        .catch(() => null);
+      if (data) {
+        setResults((current) =>
+          current.map((item) =>
+            item.org_number === company.org_number
+              ? mergeContactData(item, data)
+              : item,
+          ),
+        );
+      }
+    } finally {
+      setFinding((s) => {
+        const next = new Set(s);
+        next.delete(company.org_number);
+        return next;
+      });
     }
   }
 
@@ -280,13 +282,23 @@ export default function LeadSearchView() {
                   </p>
                   {company.in_crm && <CrmBadge kind={company.in_crm} />}
                 </div>
-                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
-                  company.phone
-                    ? "border-[#09fe94]/40 bg-[#09fe94]/15 text-[#24513b]"
-                    : "border-[#d8c9b0] bg-[#fff8ea] text-[#8b7357]"
-                }`}>
-                  {company.phone ? "Ringbar" : "Mangler tlf"}
-                </span>
+                {company.phone ? (
+                  <span className="shrink-0 rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#24513b]">
+                    Ringbar
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      findNumber(company);
+                    }}
+                    disabled={finding.has(company.org_number)}
+                    className="shrink-0 rounded-full border border-[#2b2118] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#2b2118] disabled:opacity-50"
+                  >
+                    {finding.has(company.org_number) ? "Søker …" : "🔎 Finn nr."}
+                  </button>
+                )}
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <Mini label="Sted" value={company.address.city ?? "Norge"} />
@@ -375,9 +387,17 @@ export default function LeadSearchView() {
                           Ringbar: {formatPhone(company.phone)}
                         </a>
                       ) : (
-                        <span className="inline-flex rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-3 py-1 text-xs font-black text-[#8b7357]">
-                          Mangler telefon
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            findNumber(company);
+                          }}
+                          disabled={finding.has(company.org_number)}
+                          className="inline-flex rounded-full border border-[#2b2118] px-3 py-1 text-xs font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:opacity-50"
+                        >
+                          {finding.has(company.org_number) ? "Søker …" : "🔎 Finn nr."}
+                        </button>
                       )}
                       <p className="text-xs">
                         {[company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ingen ekstra kontakt"}

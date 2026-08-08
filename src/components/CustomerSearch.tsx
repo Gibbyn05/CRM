@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/lib/types";
@@ -19,42 +19,71 @@ export default function CustomerSearch({
 }) {
   const supabase = createClient();
   const [query, setQuery] = useState(initialQuery);
+  const [sort, setSort] = useState<"updated" | "name" | "created">("updated");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    const handle = setTimeout(async () => {
-      setLoading(true);
+  const PAGE_SIZE = 50;
+
+  // Bygger spørringen for et gitt vindu (paginering via range). Henter kun de
+  // kolonnene lista viser – ikke select("*") – for raskere last.
+  const buildQuery = useCallback(
+    (from: number, to: number) => {
       let q = supabase
         .from("customers")
-        .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(50);
+        .select(
+          "id, name, org_number, contact_name, email, phone, city, status_id, updated_at, created_at",
+        );
 
       const trimmed = query.trim();
       if (trimmed) {
         const digits = trimmed.replace(/\D/g, "");
         if (digits.length > 0 && /^[\d\s+()./-]+$/.test(trimmed)) {
-          // Nummer-søk: telefon (format-uavhengig) eller org.nr.
           q = q.or(`phone_digits.ilike.*${digits}*,org_number.ilike.${digits}*`);
         } else {
           q = q.ilike("name", `%${trimmed}%`);
         }
       }
 
-      const { data } = await q;
+      if (sort === "name") q = q.order("name", { ascending: true });
+      else if (sort === "created") q = q.order("created_at", { ascending: false });
+      else q = q.order("updated_at", { ascending: false });
+
+      return q.range(from, to);
+    },
+    [query, sort, supabase],
+  );
+
+  // Første side (debounced) når søk/sortering endres.
+  useEffect(() => {
+    let active = true;
+    const handle = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await buildQuery(0, PAGE_SIZE - 1);
       if (active) {
-        setCustomers((data as Customer[]) ?? []);
+        const rows = (data as Customer[]) ?? [];
+        setCustomers(rows);
+        setHasMore(rows.length === PAGE_SIZE);
         setLoading(false);
       }
     }, 250);
-
     return () => {
       active = false;
       clearTimeout(handle);
     };
-  }, [query, supabase]);
+  }, [buildQuery]);
+
+  async function loadMore() {
+    setLoadingMore(true);
+    const from = customers.length;
+    const { data } = await buildQuery(from, from + PAGE_SIZE - 1);
+    const rows = (data as Customer[]) ?? [];
+    setCustomers((c) => [...c, ...rows]);
+    setHasMore(rows.length === PAGE_SIZE);
+    setLoadingMore(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -72,6 +101,16 @@ export default function CustomerSearch({
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          title="Sortering"
+        >
+          <option value="updated">Sist aktiv</option>
+          <option value="created">Nyeste</option>
+          <option value="name">Navn (A–Å)</option>
+        </select>
         {canCreate && <NewCustomerButton />}
       </div>
 
@@ -135,6 +174,19 @@ export default function CustomerSearch({
         </table>
         </div>
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {loadingMore ? "Laster …" : "Last flere"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
