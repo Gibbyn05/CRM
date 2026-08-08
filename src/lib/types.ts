@@ -80,6 +80,7 @@ export interface Customer {
   fiken_contact_id: number | null;
   status_id: string | null;
   custom_info: CustomField[];
+  customer_since: string | null;
   created_at: string;
   updated_at: string;
 }

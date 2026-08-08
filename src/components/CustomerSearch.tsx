@@ -19,23 +19,33 @@ export default function CustomerSearch({
 }) {
   const supabase = createClient();
   const [query, setQuery] = useState(initialQuery);
+  const [tab, setTab] = useState<"kunder" | "potensielle">("kunder");
   const [sort, setSort] = useState<"updated" | "name" | "created">("updated");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  // Faller tilbake til «ingen fane-filtrering» hvis customer_since-kolonnen
+  // ikke finnes ennå (før migrasjon 0030 er kjørt), så lista ikke krasjer.
+  const [tabSupported, setTabSupported] = useState(true);
 
   const PAGE_SIZE = 50;
 
   // Bygger spørringen for et gitt vindu (paginering via range). Henter kun de
   // kolonnene lista viser – ikke select("*") – for raskere last.
   const buildQuery = useCallback(
-    (from: number, to: number) => {
+    (from: number, to: number, useTab: boolean) => {
       let q = supabase
         .from("customers")
         .select(
           "id, name, org_number, contact_name, email, phone, city, status_id, updated_at, created_at",
         );
+
+      // Fane: faktiske kunder (har customer_since) vs potensielle (mangler den).
+      if (useTab) {
+        if (tab === "kunder") q = q.not("customer_since", "is", null);
+        else q = q.is("customer_since", null);
+      }
 
       const trimmed = query.trim();
       if (trimmed) {
@@ -53,15 +63,22 @@ export default function CustomerSearch({
 
       return q.range(from, to);
     },
-    [query, sort, supabase],
+    [query, sort, tab, supabase],
   );
 
-  // Første side (debounced) når søk/sortering endres.
+  // Første side (debounced) når søk/sortering/fane endres.
   useEffect(() => {
     let active = true;
     const handle = setTimeout(async () => {
       setLoading(true);
-      const { data } = await buildQuery(0, PAGE_SIZE - 1);
+      let useTab = tabSupported;
+      let { data, error } = await buildQuery(0, PAGE_SIZE - 1, useTab);
+      if (error && useTab) {
+        // Kolonnen finnes ikke ennå → prøv uten fane-filter.
+        setTabSupported(false);
+        useTab = false;
+        ({ data } = await buildQuery(0, PAGE_SIZE - 1, false));
+      }
       if (active) {
         const rows = (data as Customer[]) ?? [];
         setCustomers(rows);
@@ -73,12 +90,12 @@ export default function CustomerSearch({
       active = false;
       clearTimeout(handle);
     };
-  }, [buildQuery]);
+  }, [buildQuery, tabSupported]);
 
   async function loadMore() {
     setLoadingMore(true);
     const from = customers.length;
-    const { data } = await buildQuery(from, from + PAGE_SIZE - 1);
+    const { data } = await buildQuery(from, from + PAGE_SIZE - 1, tabSupported);
     const rows = (data as Customer[]) ?? [];
     setCustomers((c) => [...c, ...rows]);
     setHasMore(rows.length === PAGE_SIZE);
@@ -87,6 +104,25 @@ export default function CustomerSearch({
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1 rounded-xl bg-white p-1 shadow-card ring-1 ring-slate-200/70 sm:w-fit">
+        {([
+          { key: "kunder", label: "Kunder" },
+          { key: "potensielle", label: "Potensielle kunder" },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              tab === t.key
+                ? "bg-brand-50 text-brand-700"
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative w-full sm:max-w-md">
           <Icon
