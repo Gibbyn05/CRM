@@ -10,6 +10,7 @@ type Props = {
   alreadyAdded?: boolean;
   onClose: () => void;
   onAdd?: (company: ReachrCompany) => Promise<void> | void;
+  onEnriched?: (company: ReachrCompany) => void;
 };
 
 export default function ReachrCompanyDrawer({
@@ -18,18 +19,23 @@ export default function ReachrCompanyDrawer({
   alreadyAdded,
   onClose,
   onAdd,
+  onEnriched,
 }: Props) {
   const [detail, setDetail] = useState<ReachrCompany | null>(null);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [searchingPhone, setSearchingPhone] = useState(false);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
   const active = detail ?? company;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setDetail(null);
+    setPhoneMsg(null);
     setLoading(true);
-    fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
+    // Lett oppslag: roller/regnskap + gratis nettside-skanning (raskt).
+    fetch(`/api/reachr/company?orgnr=${company.org_number}`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => {
         if (!cancelled && data.company) setDetail(data.company);
@@ -42,6 +48,32 @@ export default function ReachrCompanyDrawer({
       cancelled = true;
     };
   }, [company.org_number, open]);
+
+  // «Søk etter nummer»: kjør de tunge kildene (Proff-skrap + 1881) for å finne
+  // telefon/e-post/nettside når Brønnøysund/nettsiden ikke ga noe.
+  async function searchPhone() {
+    setSearchingPhone(true);
+    setPhoneMsg(null);
+    try {
+      const res = await fetch(`/api/reachr/company?orgnr=${active.org_number}&deep=1`);
+      const data = (await res.json()) as { company?: ReachrCompany; error?: string };
+      if (!res.ok || !data.company) {
+        setPhoneMsg(data.error ?? "Fant ingen kontaktinfo.");
+        return;
+      }
+      setDetail(data.company);
+      onEnriched?.(data.company);
+      setPhoneMsg(
+        data.company.phone
+          ? `Fant nummer: ${data.company.phone}`
+          : "Fant ingen telefon i kildene. Prøv lenkene under manuelt.",
+      );
+    } catch {
+      setPhoneMsg("Søket feilet. Prøv igjen.");
+    } finally {
+      setSearchingPhone(false);
+    }
+  }
 
   const primaryPeople = useMemo(
     () =>
@@ -194,6 +226,35 @@ export default function ReachrCompanyDrawer({
                 <ContactRow label="E-post" value={active.email} href={active.email ? `mailto:${active.email}` : null} />
                 <ContactRow label="Nettside" value={active.website} href={active.website} />
               </div>
+
+              {!active.phone && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={searchPhone}
+                    disabled={searchingPhone}
+                    className="w-full rounded-2xl bg-[#2b2118] px-5 py-3 text-sm font-black text-[#fffaf0] transition hover:brightness-125 disabled:opacity-60"
+                  >
+                    {searchingPhone ? "Søker gjennom Proff, 1881 og nettside …" : "🔎 Søk etter nummer"}
+                  </button>
+                  <p className="mt-2 text-xs leading-relaxed text-[#8b7357]">
+                    Leter automatisk gjennom Proff, 1881 (hvis nøkkel er satt) og
+                    bedriftens nettside, og fyller inn nummeret hvis det finnes.
+                  </p>
+                </div>
+              )}
+              {phoneMsg && (
+                <p
+                  className={`mt-3 rounded-2xl border px-4 py-2 text-sm font-semibold ${
+                    active.phone
+                      ? "border-[#09fe94]/40 bg-[#09fe94]/15 text-[#24513b]"
+                      : "border-[#d8c9b0] bg-[#fff8ea] text-[#8b7357]"
+                  }`}
+                >
+                  {phoneMsg}
+                </p>
+              )}
+
               <div className="mt-4 rounded-2xl border border-[#d8c9b0] bg-[#fffaf0] p-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">Finn kontaktinfo</p>
                 <div className="mt-3 flex flex-wrap gap-2">

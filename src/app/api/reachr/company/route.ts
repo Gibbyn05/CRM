@@ -26,9 +26,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // deep=1 tillater betalte kilder (1881) – kun ved eksplisitt firmaoppslag.
-    const includePaid = req.nextUrl.searchParams.get("deep") === "1";
-    const company = await enrichCompanyFromProviders(orgnr, { includePaid });
+    // deep=1 slår på de tunge/betalte nummer-kildene (Proff-skrap + 1881) –
+    // kun ved eksplisitt «Søk etter nummer», ikke ved bulk-berikelse.
+    const deep = req.nextUrl.searchParams.get("deep") === "1";
+    const company = await enrichCompanyFromProviders(orgnr, { deep });
     if (!company) {
       return NextResponse.json({ error: "Fant ikke bedriften." }, { status: 404 });
     }

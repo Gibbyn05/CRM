@@ -15,11 +15,17 @@ export const proffProvider: ReachrProvider = {
   isConfigured() {
     return Boolean(process.env.PROFF_API_TOKEN);
   },
-  async enrichByOrgNumber(orgNumber: string): Promise<ReachrProviderResult> {
+  async enrichByOrgNumber(
+    orgNumber: string,
+    currentCompany?: ReachrCompany | null,
+  ): Promise<ReachrProviderResult> {
+    // Uten offisiell API-nøkkel: skrap Proffs offentlige firmakort for
+    // telefon/e-post/nettside (gratis). Med PROFF_API_TOKEN brukes API-et.
     if (!this.isConfigured()) {
-      return {
-        source: source("not_configured", [], "Mangler PROFF_API_TOKEN."),
-      };
+      if (currentCompany?.phone) {
+        return { source: source("active", [], "Hoppet over – telefon allerede funnet.") };
+      }
+      return scrapeProffCard(orgNumber);
     }
 
     try {
@@ -86,6 +92,86 @@ export const proffProvider: ReachrProvider = {
     }
   },
 };
+
+// Skraper Proffs offentlige firmakort (https://www.proff.no/company/{orgnr},
+// som redirecter til selve siden) og henter kontaktinfo fra HTML-en. Gratis,
+// men best-effort – Proff kan endre markup.
+async function scrapeProffCard(orgNumber: string): Promise<ReachrProviderResult> {
+  try {
+    const res = await fetch(`https://www.proff.no/company/${orgNumber}`, {
+      headers: {
+        Accept: "text/html",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) {
+      return { source: source("error", [], `Proff svarte ${res.status}.`) };
+    }
+    const html = await res.text();
+
+    // Telefon: «"phone":"75007509"» eller «phone_click">75 00 75 09».
+    const phoneRaw =
+      html.match(/"phone(?:Number)?":"(\+?\d[\d\s]{6,})"/i)?.[1] ??
+      html.match(/phone_click"[^>]*>([\d\s]{8,})/i)?.[1] ??
+      html.match(/tel:(\+?\d[\d\s]{6,})/i)?.[1] ??
+      null;
+    const phone = phoneRaw ? toNorwegianPhone(phoneRaw, orgNumber) : null;
+
+    const emailRaw = html.match(/"email":"([^"@\s]+@[^"\s]+)"/i)?.[1] ?? null;
+    const email = emailRaw && /^[^@]+@[^@]+\.[a-z]{2,}$/i.test(emailRaw) ? emailRaw.toLowerCase() : null;
+
+    const websiteRaw =
+      html.match(/"(?:homePage|webAddress|homepage|website)":"(https?:\/\/[^"\s]+)"/i)?.[1] ?? null;
+    const website = normalizeUrl(websiteRaw);
+
+    const enrichment: Partial<ReachrCompany> = {};
+    if (phone) enrichment.phone = phone;
+    if (email) enrichment.email = email;
+    if (website) enrichment.website = website;
+
+    const fields = [
+      phone ? "telefon" : null,
+      email ? "e-post" : null,
+      website ? "nettside" : null,
+    ].filter((f): f is string => Boolean(f));
+
+    return {
+      company: Object.keys(enrichment).length ? enrichment : undefined,
+      source: source(
+        "active",
+        fields,
+        fields.length ? undefined : "Proff-kortet ble lest, men uten tydelig telefon.",
+      ),
+    };
+  } catch (error) {
+    return {
+      source: source(
+        "error",
+        [],
+        error instanceof Error ? error.message : "Proff-skrap feilet.",
+      ),
+    };
+  }
+}
+
+// Normaliser til +47XXXXXXXX hvis det ser ut som et norsk telefonnummer.
+function toNorwegianPhone(value: string, orgNumber: string): string | null {
+  const d = value.replace(/[^\d+]/g, "");
+  const p = d.startsWith("0047")
+    ? `+47${d.slice(4)}`
+    : d.startsWith("+47")
+      ? d
+      : d.length === 8
+        ? `+47${d}`
+        : d;
+  if (!/^\+47\d{8}$/.test(p)) return null;
+  if (p.replace("+47", "") === orgNumber) return null;
+  return p;
+}
 
 async function proffFetch(path: string): Promise<Response> {
   return fetch(`${BASE_URL}${path}`, {

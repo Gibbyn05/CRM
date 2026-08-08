@@ -451,6 +451,20 @@ export default function LeadSearchView() {
           alreadyAdded={added.has(selected.org_number) || Boolean(selected.in_crm)}
           onClose={() => setSelected(null)}
           onAdd={addLead}
+          onEnriched={(company) => {
+            setResults((current) =>
+              current.map((item) =>
+                item.org_number === company.org_number
+                  ? mergeContactData(item, company)
+                  : item,
+              ),
+            );
+            setSelected((current) =>
+              current && current.org_number === company.org_number
+                ? mergeContactData(current, company)
+                : current,
+            );
+          }}
         />
       )}
     </div>

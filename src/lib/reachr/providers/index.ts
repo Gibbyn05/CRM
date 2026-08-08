@@ -14,19 +14,20 @@ export const reachrProviders: ReachrProvider[] = [
   api1881Provider,
 ];
 
-// Betalte kilder (per-oppslag-kostnad) kjøres kun når includePaid=true, dvs. ved
-// eksplisitt firmaoppslag – ikke ved bulk-berikelse i søkelista.
-const PAID_PROVIDERS = new Set(["api1881"]);
+// «Dype» kilder kjøres kun på eksplisitt nummer-søk (deep=true): Proff (tung
+// skraping av firmakortet) og 1881 (betalt per oppslag). De hoppes over ved
+// bulk-berikelse i søkelista for fart og kostnad.
+const DEEP_PROVIDERS = new Set(["api1881", "proff"]);
 
 export async function enrichCompanyFromProviders(
   orgNumber: string,
-  opts?: { includePaid?: boolean },
+  opts?: { deep?: boolean },
 ): Promise<ReachrCompany | null> {
   let company: ReachrCompany | null = null;
   const sources: ReachrDataSource[] = [];
 
   for (const provider of reachrProviders) {
-    if (PAID_PROVIDERS.has(provider.name) && !opts?.includePaid) continue;
+    if (DEEP_PROVIDERS.has(provider.name) && !opts?.deep) continue;
     const result = await provider.enrichByOrgNumber(orgNumber, company);
     sources.push(result.source);
     if (!result.company) continue;
