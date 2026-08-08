@@ -130,6 +130,7 @@ export default function DashboardView({
   const [recent, setRecent] = useState<RecentCall[]>([]);
   const [deals, setDeals] = useState<ActiveDeal[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [meetingsToday, setMeetingsToday] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const now = new Date();
@@ -245,8 +246,20 @@ export default function DashboardView({
       .eq("agent_id", userId)
       .eq("done", false)
       .order("due_at", { ascending: true })
-      .limit(20)
+      .limit(50)
       .then(({ data }) => setReminders((data as Reminder[]) ?? []));
+
+    // Møter i dag (RLS avgjør om selger ser egne / leder ser alle).
+    const t0 = new Date();
+    t0.setHours(0, 0, 0, 0);
+    const t1 = new Date();
+    t1.setHours(23, 59, 59, 999);
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .gte("starts_at", t0.toISOString())
+      .lte("starts_at", t1.toISOString())
+      .then(({ count }) => setMeetingsToday(count ?? 0));
   }, [supabase, userId]);
 
   // Realtime for samtaler.
@@ -308,6 +321,23 @@ export default function DashboardView({
 
   const maxCalls = Math.max(1, ...buckets.map((b) => b.calls));
   const pipelineValue = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+
+  // «Krever oppmerksomhet»-tall (svarer på «hva bør jeg gjøre nå?»).
+  const sot = new Date(now);
+  sot.setHours(0, 0, 0, 0);
+  const eot = new Date(now);
+  eot.setHours(23, 59, 59, 999);
+  const staleMs = 7 * 24 * 60 * 60 * 1000;
+  const overdueCount = reminders.filter((r) => new Date(r.due_at) < sot).length;
+  const followUpTodayCount = reminders.filter((r) => {
+    const d = new Date(r.due_at);
+    return d >= sot && d <= eot;
+  }).length;
+  const staleCount = deals.filter(
+    (d) =>
+      (d.stage === "ringt" || d.stage === "tilbud_sendt") &&
+      now.getTime() - new Date(d.updated_at).getTime() > staleMs,
+  ).length;
   const dateLine = now
     .toLocaleDateString("nb-NO", {
       weekday: "long",
@@ -352,6 +382,38 @@ export default function DashboardView({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Krever oppmerksomhet – handlingsorientert stripe øverst */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ActionTile
+          href="/reminders"
+          label="Forfalt"
+          count={overdueCount}
+          hint="oppgaver over frist"
+          tone={overdueCount > 0 ? "danger" : "calm"}
+        />
+        <ActionTile
+          href="/reminders"
+          label="Følg opp i dag"
+          count={followUpTodayCount}
+          hint="oppgaver med frist i dag"
+          tone={followUpTodayCount > 0 ? "warn" : "calm"}
+        />
+        <ActionTile
+          href="/pipeline"
+          label="Stale avtaler"
+          count={staleCount}
+          hint="ingen aktivitet på 7+ dager"
+          tone={staleCount > 0 ? "warn" : "calm"}
+        />
+        <ActionTile
+          href="/calendar"
+          label="Møter i dag"
+          count={meetingsToday}
+          hint="i kalenderen"
+          tone={meetingsToday > 0 ? "good" : "calm"}
+        />
       </div>
 
       {/* Nøkkeltall-stripe */}
@@ -596,6 +658,59 @@ export default function DashboardView({
         </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────── Handlingsflis «krever oppmerksomhet» ───────────────────
+function ActionTile({
+  href,
+  label,
+  count,
+  hint,
+  tone,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  hint: string;
+  tone: "danger" | "warn" | "good" | "calm";
+}) {
+  const active = count > 0;
+  const toneStyle =
+    tone === "danger"
+      ? "border-[#f0b3a1] bg-[#fff0ea]"
+      : tone === "warn"
+        ? "border-[#e8cf8f] bg-[#fff7e6]"
+        : tone === "good"
+          ? "border-[#9fe6c4] bg-[#eafff5]"
+          : "border-[#d8c9b0] bg-[#fffaf0]";
+  const numStyle =
+    tone === "danger"
+      ? "text-[#c0392b]"
+      : tone === "warn"
+        ? "text-[#a9720a]"
+        : tone === "good"
+          ? "text-[#008f52]"
+          : "text-[#8d806e]";
+  return (
+    <Link
+      href={href}
+      className={`group rounded-2xl border p-4 shadow-[0_10px_30px_rgba(61,44,24,0.05)] transition hover:shadow-[0_14px_36px_rgba(61,44,24,0.10)] ${toneStyle} ${
+        active ? "" : "opacity-75"
+      }`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="label-eyebrow">{label}</span>
+        <span
+          className={`font-display text-3xl font-bold leading-none tabular-nums ${numStyle}`}
+        >
+          {count}
+        </span>
+      </div>
+      <p className="mt-1.5 text-xs text-[#8d806e] group-hover:text-[#6b6660]">
+        {hint}
+      </p>
+    </Link>
   );
 }
 
