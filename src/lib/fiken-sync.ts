@@ -24,6 +24,7 @@ export interface SyncResult {
 
 interface CommissionRow {
   id: string;
+  deal_id: string | null;
   fiken_invoice_id: number | null;
   status: string;
   paid_at: string | null;
@@ -39,7 +40,7 @@ export async function syncCommissionsWithFiken(
   // Alle rader som er fakturert (utkast eller ferdig) og ikke avskrevet.
   const { data } = await admin
     .from("commissions")
-    .select("id, fiken_invoice_id, status, paid_at")
+    .select("id, deal_id, fiken_invoice_id, status, paid_at")
     .in("status", ["fakturert", "forfalt", "betalt"])
     .neq("status", "avskrevet");
 
@@ -68,10 +69,13 @@ export async function syncCommissionsWithFiken(
 
   for (const c of commissions) {
     // Mangler vi faktura-id (kun utkast så langt)? Prøv å matche på
-    // orderReference – lederen kan ha gjort utkastet til en faktura i Fiken.
+    // orderReference. Leder-flyten bruker commission-id, selger-flyten (fra
+    // salgssiden) kan bruke deal-id – prøv begge.
     let invoiceId = c.fiken_invoice_id;
     if (!invoiceId) {
-      const matched = invoiceByOrderRef.get(c.id);
+      const matched =
+        invoiceByOrderRef.get(c.id) ??
+        (c.deal_id ? invoiceByOrderRef.get(c.deal_id) : undefined);
       if (matched) invoiceId = matched;
     }
 

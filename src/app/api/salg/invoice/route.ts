@@ -115,6 +115,16 @@ export async function POST(req: NextRequest) {
           },
         ];
 
+  // Provisjonsraden for dette salget (lages av trigger når deal blir «akseptert»).
+  // Vi kobler fakturaen til den slik at betaling i Fiken senere flyter til
+  // «Min inntekt». Finnes den, bruker vi commission-id som orderReference –
+  // da matcher Fiken-synkroniseringen den likt som leder-flyten.
+  const { data: commission } = await admin
+    .from("commissions")
+    .select("id, status")
+    .eq("deal_id", dealId)
+    .maybeSingle();
+
   try {
     // Finn/opprett Fiken-kontakt for kunden.
     let contactId = customer.fiken_contact_id ?? null;
@@ -140,7 +150,7 @@ export async function POST(req: NextRequest) {
     const draftUuid = await createInvoiceDraft({
       customerId: contactId,
       daysUntilDueDate: dueDays,
-      orderReference: dealId,
+      orderReference: commission?.id ?? dealId,
       lines,
     });
 
@@ -150,6 +160,20 @@ export async function POST(req: NextRequest) {
         .from("customers")
         .update({ fiken_contact_id: contactId })
         .eq("id", deal.customer_id);
+    }
+
+    // Marker provisjonsraden som fakturert (utkast finnes) + lagre koblinger,
+    // slik at den kommer med i Fiken-synkroniseringen og til slutt «betalt».
+    if (commission && commission.status === "ikke_fakturert") {
+      await admin
+        .from("commissions")
+        .update({
+          status: "fakturert",
+          invoiced_at: new Date().toISOString(),
+          fiken_contact_id: contactId,
+          fiken_draft_uuid: draftUuid,
+        })
+        .eq("id", commission.id);
     }
 
     return NextResponse.json({
