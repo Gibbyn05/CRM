@@ -343,13 +343,17 @@ function getMissingData(company: ReachrCompany | ReachrLead): string[] {
 }
 
 function getExternalLinks(company: ReachrCompany | ReachrLead) {
-  const query = encodeURIComponent(`${company.name} ${company.org_number}`);
+  const org = company.org_number;
+  // Org.nr er unikt og stabilt, så vi slår opp bedriften direkte der det er
+  // mulig (Proff/1881/Brreg går rett til firmakortet via org.nr). Google og
+  // Gule Sider bruker fritekst (navn + org.nr).
+  const text = encodeURIComponent(`${company.name} ${org}`);
   return [
-    { label: "Google", href: `https://www.google.com/search?q=${query}` },
-    { label: "Proff", href: `https://www.proff.no/s%C3%B8k?q=${query}` },
-    { label: "1881", href: `https://www.1881.no/?query=${query}` },
-    { label: "Gule Sider", href: `https://www.gulesider.no/${query}/bedrifter` },
-    { label: "Brreg", href: `https://w2.brreg.no/enhet/sok/detalj.jsp?orgnr=${company.org_number}` },
+    { label: "Google", href: `https://www.google.com/search?q=${text}` },
+    { label: "Proff", href: `https://www.proff.no/company/${org}` },
+    { label: "1881", href: `https://www.1881.no/?query=${org}` },
+    { label: "Gule Sider", href: `https://www.gulesider.no/${text}/bedrifter` },
+    { label: "Brreg", href: `https://virksomhet.brreg.no/nb/oppslag/enheter/${org}` },
   ];
 }
 
