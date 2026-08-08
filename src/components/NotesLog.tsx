@@ -55,7 +55,7 @@ export default function NotesLog({
   const [body, setBody] = useState("");
   const [noteType, setNoteType] = useState<NoteType>("call");
   const [saving, setSaving] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const channel = supabase
@@ -167,9 +167,11 @@ export default function NotesLog({
     return items;
   }, [notes, deals, contracts]);
 
-  // Rull til bunnen når nye meldinger kommer.
+  // Rull loggen til bunnen når nye meldinger kommer – men KUN inne i
+  // logg-boksen (ikke hele siden), så man ikke dras nedover ved åpning.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [timeline.length]);
 
   async function addNote() {
@@ -200,7 +202,10 @@ export default function NotesLog({
       </div>
 
       {/* Meldinger */}
-      <div className="thin-scroll flex-1 space-y-3 overflow-y-auto bg-slate-50/40 px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="thin-scroll flex-1 space-y-3 overflow-y-auto bg-slate-50/40 px-4 py-4"
+      >
         {timeline.length === 0 && (
           <p className="py-10 text-center text-sm text-slate-400">
             Ingen aktivitet ennå. Skriv en melding under, eller send et tilbud –
@@ -231,7 +236,6 @@ export default function NotesLog({
             />
           ),
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Skrivefelt nederst */}

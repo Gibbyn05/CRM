@@ -21,7 +21,7 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
   const [rows, setRows] = useState<CallTranscript[]>([]);
   const [summarizing, setSummarizing] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   async function summarize() {
     setSummarizing(true);
@@ -76,8 +76,10 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
     };
   }, [supabase, customerId]);
 
+  // Rull kun inne i transkript-boksen (ikke hele siden).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [rows]);
 
   return (
@@ -113,7 +115,7 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
         </p>
       )}
 
-      <div className="max-h-72 space-y-2 overflow-y-auto thin-scroll">
+      <div ref={scrollRef} className="max-h-72 space-y-2 overflow-y-auto thin-scroll">
         {rows.map((t) => (
           <div key={t.id} className="text-sm">
             <span
@@ -139,7 +141,6 @@ export default function LiveTranscript({ customerId }: { customerId: string }) {
             mens du snakker (via ICE-integrasjonen).
           </p>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
