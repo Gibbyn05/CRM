@@ -6,6 +6,7 @@ import {
   dagsavisEmailText,
   sendEmail,
 } from "@/lib/email";
+import { sendSms, isSmsConfigured, getSmsProvider } from "@/lib/providers/sms";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import type { DailyReport, DailyTeamReport, Profile } from "@/lib/types";
 import {
@@ -133,23 +134,26 @@ function reportCards(report: DailyReport | DailyTeamReport) {
 }
 
 async function sendDagsavisSms(to: string, text: string): Promise<DagsavisSendResult> {
-  if (process.env.DAGSAVIS_SMS_ENABLED !== "true" || !process.env.SMS_PROVIDER_API_KEY) {
+  if (process.env.DAGSAVIS_SMS_ENABLED !== "true") {
     console.log(`[dry-run] Dagsavis-SMS til ${to}: ${text.slice(0, 140)}`);
+    return { channel: "sms", to, provider: "dry-run", provider_ref: null };
+  }
+  if (!isSmsConfigured()) {
     return {
       channel: "sms",
       to,
-      provider: "dry-run",
+      provider: getSmsProvider().id,
       provider_ref: null,
+      error: "SMS er ikke konfigurert.",
     };
   }
-
-  // TODO: koble til valgt SMS-leverandør når abonnement/provider er klart.
-  console.log(`Dagsavis-SMS klar for provider til ${to}`);
+  const result = await sendSms(to, text, "Dagsavis");
   return {
     channel: "sms",
     to,
-    provider: "sms-provider",
-    provider_ref: null,
+    provider: result.provider,
+    provider_ref: result.provider_ref,
+    error: result.error,
   };
 }
 
@@ -510,7 +514,7 @@ export async function GET(req: NextRequest) {
     sms_sent: smsResults.filter((result) => !result.error).length,
     sms_mode:
       process.env.DAGSAVIS_SMS_ENABLED === "true"
-        ? process.env.SMS_PROVIDER_API_KEY
+        ? isSmsConfigured()
           ? "provider"
           : "dry-run"
         : "disabled",

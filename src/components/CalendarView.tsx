@@ -875,6 +875,7 @@ function DetailModal({
           <p className="text-sm text-slate-600">📍 {appointment.location}</p>
         )}
         <p className="text-sm text-slate-500">Ansvarlig: {agentName}</p>
+        <AppointmentReminderStatus appointmentId={appointment.id} />
         {appointment.customer_id && (
           <Link
             href={`/customers/${appointment.customer_id}`}
@@ -924,6 +925,75 @@ function DetailModal({
         </button>
       </div>
     </Modal>
+  );
+}
+
+const REMINDER_STATUS_LABEL: Record<string, string> = {
+  scheduled: "Planlagt",
+  sent: "Sendt",
+  delivered: "Levert",
+  failed: "Mislykket",
+  cancelled: "Avbrutt",
+};
+const REMINDER_STATUS_STYLE: Record<string, string> = {
+  scheduled: "bg-slate-100 text-slate-600",
+  sent: "bg-blue-100 text-blue-700",
+  delivered: "bg-emerald-100 text-emerald-700",
+  failed: "bg-red-100 text-red-700",
+  cancelled: "bg-slate-100 text-slate-400",
+};
+
+// Viser status (og ev. feilmelding) for SMS-påminnelsene knyttet til denne
+// avtalen — planlagt/sendt/levert/mislykket/avbrutt. Skjules helt hvis SMS-
+// påminnelser ikke er aktivert eller ingen er planlagt for denne avtalen.
+function AppointmentReminderStatus({ appointmentId }: { appointmentId: string }) {
+  const supabase = createClient();
+  const [reminders, setReminders] = useState<
+    { id: string; recipient_type: string; status: string; error: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("appointment_sms_reminders")
+      .select("id, recipient_type, status, error")
+      .eq("appointment_id", appointmentId)
+      .order("offset_hours", { ascending: false })
+      .then(({ data }) => {
+        if (active) setReminders(data ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [appointmentId, supabase]);
+
+  if (reminders.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-2.5">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        SMS-påminnelser
+      </p>
+      <div className="space-y-1">
+        {reminders.map((r) => (
+          <div key={r.id} className="flex items-center justify-between text-xs">
+            <span className="text-slate-600">
+              {r.recipient_type === "customer" ? "Kunde" : "Selger"}
+            </span>
+            <span className="flex items-center gap-2">
+              <span
+                className={`rounded-full px-2 py-0.5 font-medium ${
+                  REMINDER_STATUS_STYLE[r.status] ?? "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {REMINDER_STATUS_LABEL[r.status] ?? r.status}
+              </span>
+              {r.error && <span className="text-red-500">{r.error}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
