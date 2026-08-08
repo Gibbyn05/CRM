@@ -51,8 +51,14 @@ export interface Profile {
   sale_song_url: string | null;
   sale_song_start_seconds: number;
   sale_song_duration_seconds: number | null;
+  reachr_search_preferences: ReachrSearchPreferences;
   created_at: string;
   updated_at: string;
+}
+
+// Husker brukerens siste valgte Reachr-søkefiltre (lagres som jsonb).
+export interface ReachrSearchPreferences {
+  exclude_1881_logo?: boolean;
 }
 
 export interface AgentState {

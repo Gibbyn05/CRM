@@ -1,16 +1,52 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReachrCompany } from "@/lib/reachr";
+import type { ReachrCompany, ReachrSearchResult } from "@/lib/reachr";
 import { INDUSTRY_FILTERS, formatMoney } from "@/lib/reachr";
+import { shouldHideCompany, type Logo1881Status } from "@/lib/reachr/logo-filter";
+import { createClient } from "@/lib/supabase/client";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
 
 type SearchResponse = {
-  results: ReachrCompany[];
+  results: ReachrSearchResult[];
   total: number;
   page: number;
   has_more: boolean;
   error?: string;
+};
+
+interface LogoCheckResult {
+  org_number: string;
+  status: Logo1881Status;
+  match_method: "org_number" | "name_address_phone" | "none";
+  checked_at: string | null;
+  message?: string;
+  from_cache: boolean;
+}
+
+interface KeywordSuggestion {
+  keyword: string;
+  source: "internal" | "gulesider";
+  nace_code: string | null;
+}
+
+interface DataSourceStatus {
+  status: "active" | "not_configured" | "error";
+  message?: string;
+}
+
+const LOGO_STATUS_LABEL: Record<Logo1881Status, string> = {
+  found: "Logo funnet",
+  not_found: "Ingen logo funnet",
+  uncertain: "Usikker match",
+  not_checked: "Ikke kontrollert",
+};
+
+const LOGO_STATUS_STYLE: Record<Logo1881Status, string> = {
+  found: "border-amber-300 bg-amber-50 text-amber-800",
+  not_found: "border-[#09fe94]/40 bg-[#09fe94]/15 text-[#24513b]",
+  uncertain: "border-[#d8c9b0] bg-[#fff8ea] text-[#8b7357]",
+  not_checked: "border-[#d8c9b0] bg-[#fffaf0] text-[#8b7357]",
 };
 
 const employeeOptions = [
@@ -30,7 +66,14 @@ const orgForms = [
   { label: "DA", value: "DA" },
 ];
 
-export default function LeadSearchView() {
+const LOGO_CHECK_BATCH_SIZE = 10;
+
+type Props = {
+  userId: string;
+  initialExcludeLogo1881: boolean;
+};
+
+export default function LeadSearchView({ userId, initialExcludeLogo1881 }: Props) {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [industry, setIndustry] = useState("");
@@ -44,20 +87,42 @@ export default function LeadSearchView() {
   const [minRevenue, setMinRevenue] = useState("");
   const [maxRevenue, setMaxRevenue] = useState("");
   const [minResult, setMinResult] = useState("");
-  const [results, setResults] = useState<ReachrCompany[]>([]);
+  const [results, setResults] = useState<ReachrSearchResult[]>([]);
   const [added, setAdded] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<ReachrCompany | null>(null);
+  const [selected, setSelected] = useState<ReachrSearchResult | null>(null);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // 1881-logofilter.
+  const [excludeLogo1881, setExcludeLogo1881] = useState(initialExcludeLogo1881);
+  const [logoStatuses, setLogoStatuses] = useState<Record<string, LogoCheckResult>>({});
+  const [logoCheckProgress, setLogoCheckProgress] = useState<{ checked: number; total: number } | null>(null);
+  const [logoCheckError, setLogoCheckError] = useState("");
+  const [showFilteredList, setShowFilteredList] = useState(false);
+
+  // Gule Sider / interne søkeordforslag.
+  const [suggestedKeywords, setSuggestedKeywords] = useState<KeywordSuggestion[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
+  const [customKeyword, setCustomKeyword] = useState("");
+  const [gulesiderStatus, setGulesiderStatus] = useState<DataSourceStatus | null>(null);
+  const [keywordsLoading, setKeywordsLoading] = useState(false);
+
   useEffect(() => {
     search(0, false);
     // Last standardlisten én gang når fanen åpnes. Standardfilteret er B2B.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (excludeLogo1881 && results.length > 0) {
+      runLogoCheck(results);
+    }
+    // Kjør kun når filteret slås PÅ eller nye bedrifter dukker opp mens det er på.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excludeLogo1881, results]);
 
   const activeFilters = useMemo(
     () =>
@@ -69,10 +134,26 @@ export default function LeadSearchView() {
     () => results.filter((company) => Boolean(company.phone)).length,
     [results],
   );
+
+  const logoSummary = useMemo(() => {
+    const checked = results.filter((company) => logoStatuses[company.org_number]).length;
+    const found = results.filter((company) => logoStatuses[company.org_number]?.status === "found").length;
+    const uncertain = results.filter((company) => logoStatuses[company.org_number]?.status === "uncertain").length;
+    const notChecked = results.length - checked;
+    return { checked, found, uncertain, notChecked, kept: results.length - found };
+  }, [results, logoStatuses]);
+
+  const filteredOutByLogo = useMemo(
+    () => results.filter((company) => logoStatuses[company.org_number]?.status === "found"),
+    [results, logoStatuses],
+  );
+
   const visibleResults = useMemo(() => {
-    const filtered = hasPhone ? results.filter((company) => Boolean(company.phone)) : results;
+    const filtered = (hasPhone ? results.filter((company) => Boolean(company.phone)) : results).filter(
+      (company) => !shouldHideCompany(logoStatuses[company.org_number]?.status, excludeLogo1881),
+    );
     return [...filtered].sort((a, b) => contactScore(b) - contactScore(a));
-  }, [hasPhone, results]);
+  }, [hasPhone, results, excludeLogo1881, logoStatuses]);
 
   async function search(nextPage = 0, append = false) {
     if (!query.trim() && !location.trim() && !industry.trim() && !nace) {
@@ -97,6 +178,7 @@ export default function LeadSearchView() {
     if (minRevenue) params.set("minRevenue", minRevenue);
     if (maxRevenue) params.set("maxRevenue", maxRevenue);
     if (minResult) params.set("minResult", minResult);
+    if (selectedKeywords.size > 0) params.set("keywords", [...selectedKeywords].join(","));
 
     try {
       const res = await fetch(`/api/reachr/search?${params}`);
@@ -116,6 +198,7 @@ export default function LeadSearchView() {
       setTotal(data.total);
       setHasMore(data.has_more);
       setPage(data.page);
+      if (!append) loadKeywordSuggestions();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Søket feilet.");
     } finally {
@@ -123,7 +206,106 @@ export default function LeadSearchView() {
     }
   }
 
-  async function hydratePhoneData(companies: ReachrCompany[]) {
+  async function loadKeywordSuggestions() {
+    if (!query.trim() && !industry.trim()) {
+      setSuggestedKeywords([]);
+      setGulesiderStatus(null);
+      return;
+    }
+    setKeywordsLoading(true);
+    try {
+      const params = new URLSearchParams({ q: query, industry });
+      const res = await fetch(`/api/reachr/keywords?${params}`);
+      const data = (await res.json()) as {
+        suggestions?: KeywordSuggestion[];
+        gulesider_status?: DataSourceStatus;
+      };
+      if (res.ok) {
+        setSuggestedKeywords(data.suggestions ?? []);
+        setGulesiderStatus(data.gulesider_status ?? null);
+      }
+    } catch {
+      // Søkeordforslag er en hjelp, ikke kritisk — feiler stille.
+    } finally {
+      setKeywordsLoading(false);
+    }
+  }
+
+  function toggleKeyword(keyword: string) {
+    setSelectedKeywords((current) => {
+      const next = new Set(current);
+      if (next.has(keyword)) next.delete(keyword);
+      else next.add(keyword);
+      return next;
+    });
+  }
+
+  function addCustomKeyword() {
+    const value = customKeyword.trim().toLowerCase();
+    if (!value) return;
+    setSelectedKeywords((current) => new Set([...current, value]));
+    if (!suggestedKeywords.some((item) => item.keyword === value)) {
+      setSuggestedKeywords((current) => [...current, { keyword: value, source: "internal", nace_code: null }]);
+    }
+    setCustomKeyword("");
+  }
+
+  async function runLogoCheck(companies: ReachrSearchResult[]) {
+    const pending = companies.filter((company) => !logoStatuses[company.org_number]);
+    if (pending.length === 0) return;
+    setLogoCheckError("");
+    setLogoCheckProgress({ checked: 0, total: pending.length });
+
+    let checkedSoFar = 0;
+    for (let index = 0; index < pending.length; index += LOGO_CHECK_BATCH_SIZE) {
+      const batch = pending.slice(index, index + LOGO_CHECK_BATCH_SIZE);
+      try {
+        const res = await fetch("/api/reachr/logo-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companies: batch.map((company) => ({
+              org_number: company.org_number,
+              name: company.name,
+              address: company.address.address,
+              phone: company.phone,
+            })),
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          results?: LogoCheckResult[];
+          error?: string;
+        };
+        if (!res.ok) throw new Error(data.error ?? "1881-kontroll feilet.");
+        setLogoStatuses((current) => {
+          const next = { ...current };
+          for (const result of data.results ?? []) {
+            next[result.org_number] = result;
+          }
+          return next;
+        });
+      } catch (err) {
+        setLogoCheckError(
+          err instanceof Error ? err.message : "Kunne ikke kontrollere mot 1881 akkurat nå.",
+        );
+      }
+      checkedSoFar += batch.length;
+      setLogoCheckProgress({ checked: checkedSoFar, total: pending.length });
+    }
+    setLogoCheckProgress(null);
+  }
+
+  async function toggleExcludeLogo1881(next: boolean) {
+    setExcludeLogo1881(next);
+    if (!userId) return;
+    const supabase = createClient();
+    await supabase
+      .from("profiles")
+      .update({ reachr_search_preferences: { exclude_1881_logo: next } })
+      .eq("id", userId);
+  }
+
+  async function hydratePhoneData(companies: ReachrSearchResult[]) {
     const candidates = companies
       .filter((company) => !company.phone && company.website)
       .slice(0, 20);
@@ -151,6 +333,8 @@ export default function LeadSearchView() {
     }
   }
 
+  // Tar imot ReachrCompany (bredere enn ReachrSearchResult) slik at den kan
+  // brukes både fra søkeresultater og fra ReachrCompanyDrawer sitt onAdd.
   async function addLead(company: ReachrCompany) {
     const enriched = await fetch(`/api/reachr/company?orgnr=${company.org_number}`)
       .then((res) => res.json())
@@ -228,6 +412,121 @@ export default function LeadSearchView() {
           </Field>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-[#d8c9b0] bg-[#fff8ea] p-4">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={excludeLogo1881}
+              onChange={(event) => toggleExcludeLogo1881(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-[#d8c9b0]"
+            />
+            <span>
+              <span className="block text-sm font-black text-[#2b2118]">
+                Ekskluder bedrifter med logo på 1881
+              </span>
+              <span className="mt-0.5 block text-xs text-[#8b7357]">
+                Kontrollerer hver bedrift mot 1881 (org.nr, med navn/adresse/telefon som reserve) og skjuler kun bekreftede treff. Usikre og ikke-kontrollerte vises fortsatt.
+              </span>
+            </span>
+          </label>
+
+          {logoCheckProgress && (
+            <div className="mt-3">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[#efe1c7]">
+                <div
+                  className="h-full rounded-full bg-[#09fe94] transition-all"
+                  style={{ width: `${Math.round((logoCheckProgress.checked / Math.max(1, logoCheckProgress.total)) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-[#8b7357]">
+                Kontrollerer 1881-logo: {logoCheckProgress.checked} av {logoCheckProgress.total} ...
+              </p>
+            </div>
+          )}
+          {logoCheckError && (
+            <p className="mt-2 text-xs font-semibold text-red-700">{logoCheckError}</p>
+          )}
+          {logoSummary.checked > 0 && !logoCheckProgress && (
+            <p className="mt-3 text-xs font-semibold text-[#6f5a43]">
+              {logoSummary.checked} kontrollert · {logoSummary.kept} beholdt · {logoSummary.found}{" "}
+              {excludeLogo1881 ? "filtrert bort (logo funnet)" : "har logo (ville blitt filtrert bort med filteret på)"} ·{" "}
+              {logoSummary.uncertain + logoSummary.notChecked} usikre/ikke kontrollert
+              {logoSummary.found > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFilteredList(true)}
+                  className="ml-2 rounded-full border border-[#2b2118] px-3 py-1 text-[11px] font-black text-[#2b2118] hover:bg-[#efe1c7]"
+                >
+                  Vis filtrerte bedrifter ({logoSummary.found})
+                </button>
+              )}
+            </p>
+          )}
+        </div>
+
+        {(suggestedKeywords.length > 0 || keywordsLoading) && (
+          <div className="mt-4 rounded-2xl border border-[#d8c9b0] bg-[#f6ecd9] p-4">
+            <p className="label-eyebrow">
+              Foreslåtte søkeord {keywordsLoading ? "· laster ..." : ""}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {suggestedKeywords.map((item) => (
+                <button
+                  key={item.keyword}
+                  type="button"
+                  onClick={() => toggleKeyword(item.keyword)}
+                  title={item.source === "internal" ? "Fra intern bransjeordbok" : "Fra Gule Sider"}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    selectedKeywords.has(item.keyword)
+                      ? "border-[#09fe94]/40 bg-[#09fe94]/20 text-[#24513b]"
+                      : "border-[#d8c9b0] bg-[#fffaf0] text-[#8b7357] hover:bg-[#efe1c7]"
+                  }`}
+                >
+                  {item.keyword}
+                  <span className="ml-1 text-[9px] uppercase opacity-70">
+                    {item.source === "internal" ? "ordbok" : "gule sider"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                value={customKeyword}
+                onChange={(event) => setCustomKeyword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addCustomKeyword();
+                  }
+                }}
+                placeholder="Legg til eget søkeord"
+                className="reachr-input max-w-xs"
+              />
+              <button
+                type="button"
+                onClick={addCustomKeyword}
+                className="rounded-2xl border border-[#d8c9b0] bg-[#fffaf0] px-3 py-2 text-xs font-black text-[#2b2118] hover:bg-[#efe1c7]"
+              >
+                Legg til
+              </button>
+              {selectedKeywords.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => search(0, false)}
+                  className="rounded-2xl bg-[#2b2118] px-4 py-2 text-xs font-black text-[#fffaf0] hover:brightness-110"
+                >
+                  Utvid søk med valgte søkeord ({selectedKeywords.size})
+                </button>
+              )}
+            </div>
+            {gulesiderStatus && gulesiderStatus.status !== "active" && (
+              <p className="mt-2 text-[11px] text-[#8b7357]">
+                Gule Sider-forslag: {gulesiderStatus.message ?? "Krever datakildetilgang."}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6f5a43]">
           <span>{activeFilters} aktive filtre · {ringableCount} ringbare · ringbare leads sorteres først</span>
           {total > 0 && <span>{visibleResults.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
@@ -277,6 +576,14 @@ export default function LeadSearchView() {
                   {company.phone ? "Ringbar" : "Mangler tlf"}
                 </span>
               </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <Logo1881Badge status={logoStatuses[company.org_number]?.status} />
+                {company.matched_keyword && (
+                  <span className="rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-2 py-1 text-[10px] font-black text-[#8b7357]">
+                    Funnet via: {company.matched_keyword}
+                  </span>
+                )}
+              </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <Mini label="Sted" value={company.address.city ?? "Norge"} />
                 <Mini label="Ansatte" value={company.employees?.toString() ?? "Ukjent"} />
@@ -313,6 +620,7 @@ export default function LeadSearchView() {
                 <th className="px-5 py-3">Ansatte</th>
                 <th className="px-5 py-3">Kontakt</th>
                 <th className="px-5 py-3">Økonomi</th>
+                <th className="px-5 py-3">1881-logo</th>
                 <th className="px-5 py-3">Kilder</th>
                 <th className="px-5 py-3 text-right">Handling</th>
               </tr>
@@ -335,6 +643,11 @@ export default function LeadSearchView() {
                     <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8b7357]">
                       Org.nr. {company.org_number}
                     </p>
+                    {company.matched_keyword && (
+                      <p className="mt-1 text-[10px] font-bold text-[#8b7357]">
+                        Funnet via: {company.matched_keyword}
+                      </p>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#2b2118]">{company.address.city ?? "Norge"}</td>
                   <td className="max-w-xs px-5 py-4 text-sm text-[#6f5a43]">
@@ -364,6 +677,9 @@ export default function LeadSearchView() {
                   </td>
                   <td className="px-5 py-4 text-sm text-[#6f5a43]">
                     {company.financials?.revenue != null ? formatMoney(company.financials.revenue) : "Åpne for detaljer"}
+                  </td>
+                  <td className="px-5 py-4">
+                    <Logo1881Badge status={logoStatuses[company.org_number]?.status} />
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap gap-1.5">
@@ -425,7 +741,63 @@ export default function LeadSearchView() {
           onAdd={addLead}
         />
       )}
+
+      {showFilteredList && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-[#171717]/50 p-4"
+          onClick={() => setShowFilteredList(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[#d8c9b0] bg-[#fffaf0] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="font-display text-2xl font-black text-[#2b2118]">
+                Filtrert bort ({filteredOutByLogo.length}) — bekreftet logo på 1881
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFilteredList(false)}
+                className="rounded-xl border border-[#d8c9b0] px-3 py-2 text-sm font-bold text-[#2b2118] hover:bg-[#efe1c7]"
+              >
+                Lukk
+              </button>
+            </div>
+            <div className="mt-4 space-y-2">
+              {filteredOutByLogo.map((company) => (
+                <button
+                  key={company.org_number}
+                  type="button"
+                  onClick={() => {
+                    setShowFilteredList(false);
+                    setSelected(company);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#eadcc5] bg-[#fff8ea] p-3 text-left transition hover:bg-[#f7ffe9]"
+                >
+                  <span>
+                    <span className="block font-semibold text-[#2b2118]">{company.name}</span>
+                    <span className="block text-xs text-[#8b7357]">Org.nr. {company.org_number} · {company.address.city ?? "Norge"}</span>
+                  </span>
+                  <Logo1881Badge status="found" />
+                </button>
+              ))}
+              {filteredOutByLogo.length === 0 && (
+                <p className="text-sm text-[#8b7357]">Ingen bedrifter er filtrert bort ennå.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function Logo1881Badge({ status }: { status: Logo1881Status | undefined }) {
+  const effective = status ?? "not_checked";
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${LOGO_STATUS_STYLE[effective]}`}>
+      {LOGO_STATUS_LABEL[effective]}
+    </span>
   );
 }
 
@@ -459,11 +831,11 @@ function Mini({ label, value }: { label: string; value: string }) {
   );
 }
 
-function contactScore(company: ReachrCompany): number {
+function contactScore(company: ReachrSearchResult): number {
   return (company.phone ? 100 : 0) + (company.email ? 20 : 0) + (company.website ? 10 : 0);
 }
 
-function mergeContactData(base: ReachrCompany, update: ReachrCompany): ReachrCompany {
+function mergeContactData(base: ReachrSearchResult, update: ReachrCompany): ReachrSearchResult {
   return {
     ...base,
     phone: base.phone ?? update.phone,
