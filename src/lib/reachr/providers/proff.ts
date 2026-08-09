@@ -1,5 +1,6 @@
 import {
   ReachrCompany,
+  ReachrContactCandidate,
   ReachrFinancials,
   ReachrRole,
   capitalizeWords,
@@ -40,7 +41,7 @@ export const proffProvider: ReachrProvider = {
       const eniro = eniroRes.ok ? await eniroRes.json() : null;
 
       return {
-        company: normalizeProff(register, owners, eniro),
+        company: normalizeProff(register, owners, eniro, orgNumber),
         source: source("active", [
           "proff-register",
           "telefon",
@@ -183,13 +184,32 @@ async function proffFetch(path: string): Promise<Response> {
   });
 }
 
-function normalizeProff(register: unknown, owners: unknown, eniro: unknown): Partial<ReachrCompany> {
+function normalizeProff(
+  register: unknown,
+  owners: unknown,
+  eniro: unknown,
+  lookupOrgNumber?: string,
+): Partial<ReachrCompany> {
   const row = asRecord(register);
   const eniroRow = findArray(eniro, ["companies", "items", "results", "data"])[0] ?? asRecord(eniro);
-  const orgNumber = firstString(row, ["organisationNumber", "organizationNumber", "orgNumber", "businessId", "companyNumber"]);
+  const orgNumber =
+    firstString(row, ["organisationNumber", "organizationNumber", "orgNumber", "businessId", "companyNumber"]) ??
+    lookupOrgNumber ??
+    null;
   const name = firstString(row, ["name", "companyName", "officialName"]) ?? firstString(eniroRow, ["name", "companyName"]);
   const address = asRecord(firstValue(row, ["businessAddress", "postalAddress", "visitingAddress", "address"]));
   const accounts = asRecord(firstValue(row, ["companyAccounts", "annualAccounts", "accounts", "financials"]));
+
+  const companyPhone =
+    firstString(row, ["phone", "phoneNumber", "telephone"]) ??
+    firstString(eniroRow, ["phone", "phoneNumber", "telephone"]);
+  const contactCandidates = lookupOrgNumber
+    ? normalizeProffContacts(row, owners, eniroRow, {
+        orgNumber: lookupOrgNumber,
+        companyName: name,
+        companyPhone,
+      })
+    : [];
 
   return {
     org_number: orgNumber?.replace(/\D/g, "") ?? "",
@@ -201,7 +221,7 @@ function normalizeProff(register: unknown, owners: unknown, eniro: unknown): Par
     employees: firstNumber(row, ["numberOfEmployees", "numEmployees", "employees"]),
     website: normalizeUrl(firstString(row, ["homepage", "website", "webAddress"]) ?? firstString(eniroRow, ["homepage", "website", "url"])),
     email: firstString(row, ["email", "emailAddress"]) ?? firstString(eniroRow, ["email", "emailAddress"]) ?? null,
-    phone: firstString(row, ["phone", "phoneNumber", "telephone"]) ?? firstString(eniroRow, ["phone", "phoneNumber", "telephone"]) ?? null,
+    phone: companyPhone ?? null,
     founded_at: firstString(row, ["establishedDate", "foundationDate", "foundedDate"]) ?? null,
     address: {
       address: firstString(address, ["addressLine", "streetAddress", "street"]) ?? null,
@@ -211,8 +231,85 @@ function normalizeProff(register: unknown, owners: unknown, eniro: unknown): Par
     },
     financials: normalizeProffFinancials(accounts),
     roles: normalizeProffRoles(row, owners),
+    contact_candidates: contactCandidates,
     data_sources: [],
   };
+}
+
+function normalizeProffContacts(
+  register: Record<string, unknown> | null,
+  owners: unknown,
+  eniroRow: Record<string, unknown> | null,
+  company: { orgNumber: string; companyName: string | null; companyPhone: string | null },
+): ReachrContactCandidate[] {
+  const candidates: ReachrContactCandidate[] = [];
+  if (company.companyPhone) {
+    candidates.push({
+      phone: company.companyPhone,
+      subject: "company",
+      priority: "company_main",
+      person_name: null,
+      role_code: null,
+      role_name: null,
+      company_name: company.companyName,
+      org_number: company.orgNumber,
+      postal_code: null,
+      provider: "proff",
+      provider_label: "Proff / EniroPro",
+      source_context: "org_number_lookup",
+      verified: false,
+      confidence: 0,
+      matched_fields: [],
+    });
+  }
+
+  const personRows = [
+    ...findArray(register, ["roles", "boardMembers", "management"]),
+    ...findArray(owners, ["owners", "realOwners", "persons", "items"]),
+    ...findArray(eniroRow, ["contacts", "persons", "employees"]),
+  ];
+  for (const person of personRows) {
+    const phone = firstString(person, ["phone", "phoneNumber", "mobile", "mobilePhone", "telephone"]);
+    const personName = firstString(person, ["name", "fullName", "personName"]);
+    const roleCode = firstString(person, ["roleCode", "role", "type"]);
+    const roleName = firstString(person, ["roleDescription", "roleName", "title", "position", "type"]);
+    if (!phone || !personName || !isPriorityRole(roleCode, roleName)) continue;
+    candidates.push({
+      phone,
+      subject: "person",
+      priority: priorityFromRole(roleCode, roleName),
+      person_name: capitalizeWords(personName),
+      role_code: roleCode,
+      role_name: roleName,
+      company_name:
+        firstString(person, ["companyName", "employer", "businessName"]) ?? company.companyName,
+      org_number:
+        firstString(person, ["organisationNumber", "organizationNumber", "orgNumber", "companyNumber"]) ??
+        company.orgNumber,
+      postal_code: firstString(person, ["postCode", "postalCode", "zipCode"]),
+      provider: "proff",
+      provider_label: "Proff / EniroPro",
+      source_context: "org_number_lookup",
+      verified: false,
+      confidence: 0,
+      matched_fields: [],
+    });
+  }
+  return candidates;
+}
+
+function isPriorityRole(code: string | null, name: string | null): boolean {
+  return priorityFromRole(code, name) !== "company_main";
+}
+
+function priorityFromRole(
+  code: string | null,
+  name: string | null,
+): "daily_manager" | "chairperson" | "company_main" {
+  const value = `${code ?? ""} ${name ?? ""}`.toLocaleLowerCase("nb-NO");
+  if (/\bdagl\b|daglig leder/.test(value)) return "daily_manager";
+  if (/\blede\b|styreleder/.test(value)) return "chairperson";
+  return "company_main";
 }
 
 function isUsableCompany(company: Partial<ReachrCompany>): company is ReachrCompany {

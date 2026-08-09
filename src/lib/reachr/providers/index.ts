@@ -1,4 +1,5 @@
 import { mergeReachrCompany, type ReachrCompany, type ReachrDataSource } from "@/lib/reachr";
+import { resolveReachrContact } from "@/lib/reachr/contact-resolution";
 import { api1881Provider } from "./api1881";
 import { brregProvider } from "./brreg";
 import { eniroProvider } from "./eniro";
@@ -40,7 +41,9 @@ export async function enrichCompanyFromProviders(
     }
   }
 
-  return company ? { ...company, data_sources: sources } : null;
+  return company
+    ? resolveReachrContact({ ...company, data_sources: sources })
+    : null;
 }
 
 export async function searchAdditionalProviders(input: ReachrSearchInput): Promise<{

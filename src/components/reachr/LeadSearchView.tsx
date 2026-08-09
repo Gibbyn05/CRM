@@ -778,18 +778,32 @@ function Mini({ label, value }: { label: string; value: string }) {
 }
 
 function contactScore(company: ReachrCompany): number {
-  return (company.phone ? 100 : 0) + (company.email ? 20 : 0) + (company.website ? 10 : 0);
+  const phoneScore = company.selected_contact?.priority === "daily_manager"
+    ? 140
+    : company.selected_contact?.priority === "chairperson"
+      ? 130
+      : company.selected_contact?.priority === "company_main"
+        ? 100
+        : company.phone
+          ? 70
+          : 0;
+  return phoneScore + (company.email ? 20 : 0) + (company.website ? 10 : 0);
 }
 
 function mergeContactData(base: ReachrCompany, update: ReachrCompany): ReachrCompany {
   return {
     ...base,
-    phone: base.phone ?? update.phone,
+    // The enrichment endpoint applies the explicit contact priority and
+    // verification policy. Its selected number must therefore win over the
+    // unqualified phone returned by the broad company search.
+    phone: update.phone,
     email: base.email ?? update.email,
     website: base.website ?? update.website,
     purpose: base.purpose ?? update.purpose,
     keywords: update.keywords?.length ? update.keywords : base.keywords,
     financials: update.financials ?? base.financials,
+    contact_candidates: update.contact_candidates ?? base.contact_candidates,
+    selected_contact: update.selected_contact ?? base.selected_contact,
     data_sources: update.data_sources?.length ? update.data_sources : base.data_sources,
   };
 }

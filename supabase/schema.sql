@@ -1519,6 +1519,8 @@ create table if not exists public.reachr_leads (
   assets                          numeric(14, 2),
   debt                            numeric(14, 2),
   roles                           jsonb not null default '[]'::jsonb,
+  contact_candidates              jsonb not null default '[]'::jsonb,
+  selected_contact                jsonb,
   status                          text not null default 'Ikke kontaktet',
   source                          text not null default 'Brreg',
   notes                           text,
@@ -1527,6 +1529,12 @@ create table if not exists public.reachr_leads (
   updated_at                      timestamptz not null default now(),
 
   constraint reachr_leads_org_number_digits check (org_number ~ '^[0-9]{9}$'),
+  constraint reachr_leads_contact_candidates_array check (
+    jsonb_typeof(contact_candidates) = 'array'
+  ),
+  constraint reachr_leads_selected_contact_object check (
+    selected_contact is null or jsonb_typeof(selected_contact) = 'object'
+  ),
   constraint reachr_leads_status_check check (
     status in ('Ikke kontaktet', 'Kontaktet', 'Ikke svar', 'Booket møte', 'Avslått', 'Kunde')
   ),

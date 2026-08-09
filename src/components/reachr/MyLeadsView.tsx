@@ -140,7 +140,16 @@ export default function MyLeadsView() {
               <div className="mt-4 grid gap-2 sm:grid-cols-4">
                 <Mini label="Ansatte" value={lead.employees?.toString() ?? "Ukjent"} />
                 <Mini label="Omsetning" value={formatMoney(lead.financials?.revenue)} />
-                <Mini label="Tlf" value={lead.phone ?? "Ikke funnet"} />
+                <Mini
+                  label={
+                    lead.selected_contact?.priority === "daily_manager"
+                      ? "Daglig leder"
+                      : lead.selected_contact?.priority === "chairperson"
+                        ? "Styreleder"
+                        : "Hovednummer"
+                  }
+                  value={lead.phone ?? "Ikke funnet"}
+                />
                 <Mini label="Mail" value={lead.email ?? "Ikke funnet"} />
               </div>
             </button>

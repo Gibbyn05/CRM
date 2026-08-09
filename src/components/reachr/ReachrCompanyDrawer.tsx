@@ -223,11 +223,14 @@ export default function ReachrCompanyDrawer({
             <div className="rounded-3xl border border-[#d8c9b0] bg-[#fff8ea] p-5">
               <p className="label-eyebrow">Kontakt</p>
               <div className="mt-4 space-y-3 text-sm">
-                <ContactRow label="Telefon" value={active.phone} href={active.phone ? `tel:${active.phone}` : null} />
+                <ContactRow
+                  label={contactLabel(active)}
+                  value={active.phone}
+                  href={active.phone ? `tel:${active.phone}` : null}
+                />
                 <ContactRow label="E-post" value={active.email} href={active.email ? `mailto:${active.email}` : null} />
                 <ContactRow label="Nettside" value={active.website} href={active.website} />
               </div>
-
               {!active.phone && (
                 <div className="mt-4">
                   <button
@@ -255,7 +258,34 @@ export default function ReachrCompanyDrawer({
                   {phoneMsg}
                 </p>
               )}
-
+              {active.selected_contact && (
+                <div className="mt-4 rounded-2xl border border-[#09fe94]/40 bg-[#09fe94]/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-black text-[#24513b]">
+                      {active.selected_contact.subject === "person"
+                        ? active.selected_contact.person_name
+                        : "Bedriftens hovednummer"}
+                    </p>
+                    <span className="rounded-full bg-[#24513b] px-2.5 py-1 text-[11px] font-black text-white">
+                      {active.selected_contact.confidence}% sikkerhet
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[#39634d]">
+                    {active.selected_contact.selection_reason}
+                  </p>
+                  <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#39634d]">
+                    Kilde: {active.selected_contact.provider_label}
+                  </p>
+                </div>
+              )}
+              {!active.selected_contact && (active.contact_candidates?.length ?? 0) > 0 && (
+                <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-black text-amber-900">Ingen kontakt besto kvalitetssjekken</p>
+                  <p className="mt-2 text-xs leading-relaxed text-amber-800">
+                    Reachr fant kandidater, men kobler ikke nummeret til bedriften før navn, rolle og bedriftstilknytning er verifisert.
+                  </p>
+                </div>
+              )}
               <div className="mt-4 rounded-2xl border border-[#d8c9b0] bg-[#fffaf0] p-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">Finn kontaktinfo</p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -373,6 +403,14 @@ function ContactRow({ label, value, href }: { label: string; value: string | nul
       )}
     </div>
   );
+}
+
+function contactLabel(company: ReachrCompany | ReachrLead): string {
+  const selected = company.selected_contact;
+  if (!selected) return "Telefon";
+  if (selected.priority === "daily_manager") return "Daglig leder";
+  if (selected.priority === "chairperson") return "Styreleder";
+  return "Hovednummer";
 }
 
 function Badge({ active, children }: { active: boolean; children: React.ReactNode }) {

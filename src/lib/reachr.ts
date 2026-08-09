@@ -27,6 +27,33 @@ export interface ReachrRole {
   role_code: string;
   role_name: string;
   name: string;
+  postal_code?: string | null;
+}
+
+export type ReachrContactSubject = "person" | "company";
+export type ReachrContactPriority = "daily_manager" | "chairperson" | "company_main";
+
+export interface ReachrContactCandidate {
+  phone: string;
+  subject: ReachrContactSubject;
+  priority: ReachrContactPriority;
+  person_name: string | null;
+  role_code: string | null;
+  role_name: string | null;
+  company_name: string | null;
+  org_number: string | null;
+  postal_code: string | null;
+  provider: string;
+  provider_label: string;
+  source_context: "official_register" | "org_number_lookup" | "company_website";
+  verified: boolean;
+  confidence: number;
+  matched_fields: string[];
+  rejection_reason?: string;
+}
+
+export interface ReachrSelectedContact extends ReachrContactCandidate {
+  selection_reason: string;
 }
 
 export interface ReachrDataSource {
@@ -58,6 +85,8 @@ export interface ReachrCompany {
   address: ReachrAddress;
   financials?: ReachrFinancials | null;
   roles?: ReachrRole[];
+  contact_candidates?: ReachrContactCandidate[];
+  selected_contact?: ReachrSelectedContact | null;
   data_sources?: ReachrDataSource[];
   // Satt når bedriften allerede finnes i CRM-en (vises med merke ved navnesøk
   // i stedet for å skjules). null/undefined = ny prospekt.
@@ -433,6 +462,7 @@ export interface BrregEntity {
 
 export function normalizeBrregEntity(entity: BrregEntity): ReachrCompany {
   const address = entity.forretningsadresse ?? entity.postadresse;
+  const phone = entity.telefon ?? null;
   return {
     org_number: entity.organisasjonsnummer ?? "",
     name: capitalizeWords(entity.navn),
@@ -445,7 +475,26 @@ export function normalizeBrregEntity(entity: BrregEntity): ReachrCompany {
     employees: entity.antallAnsatte ?? null,
     website: normalizeUrl(entity.hjemmeside),
     email: entity.epostadresse ?? null,
-    phone: entity.telefon ?? null,
+    phone,
+    contact_candidates: phone
+      ? [{
+          subject: "company",
+          priority: "company_main",
+          phone,
+          person_name: null,
+          role_code: null,
+          role_name: null,
+          company_name: entity.navn ?? null,
+          org_number: entity.organisasjonsnummer ?? null,
+          postal_code: address?.postnummer ?? null,
+          provider: "brreg",
+          provider_label: "Brønnøysundregistrene",
+          source_context: "official_register",
+          verified: false,
+          confidence: 0,
+          matched_fields: [],
+        }]
+      : [],
     founded_at: entity.stiftelsesdato ?? null,
     vat_registered: Boolean(entity.registrertIMvaregisteret),
     business_register_registered: Boolean(entity.registrertIForetaksregisteret),
@@ -477,6 +526,9 @@ export function normalizeRoles(payload: unknown): ReachrRole[] {
           role_code: code,
           role_name: getString(type, "beskrivelse") ?? ROLE_LABELS[code] ?? code,
           name: capitalizeWords(name),
+          postal_code:
+            getString(person, "postnummer") ??
+            getString(getRecord(person, "bostedsadresse"), "postnummer"),
         };
       })
       .filter((role) => role.name),
@@ -555,6 +607,13 @@ export function leadRowToReachrLead(row: Record<string, unknown>): ReachrLead {
       debt: numberOrNull(row.debt),
     },
     roles: Array.isArray(row.roles) ? (row.roles as ReachrRole[]) : [],
+    contact_candidates: Array.isArray(row.contact_candidates)
+      ? (row.contact_candidates as ReachrContactCandidate[])
+      : [],
+    selected_contact:
+      row.selected_contact && typeof row.selected_contact === "object"
+        ? (row.selected_contact as ReachrSelectedContact)
+        : null,
     data_sources: [],
   };
 }
@@ -593,11 +652,34 @@ export function mergeReachrCompany(
         ? enrichment.keywords
         : base.keywords,
     roles: mergeRoles(base.roles ?? [], enrichment.roles ?? []),
+    contact_candidates: mergeContactCandidates(
+      base.contact_candidates ?? [],
+      enrichment.contact_candidates ?? [],
+    ),
+    selected_contact: enrichment.selected_contact ?? base.selected_contact,
     data_sources: [
       ...(base.data_sources ?? []),
       ...(enrichment.data_sources ?? []),
     ],
   };
+}
+
+function mergeContactCandidates(
+  base: ReachrContactCandidate[],
+  extra: ReachrContactCandidate[],
+): ReachrContactCandidate[] {
+  const map = new Map<string, ReachrContactCandidate>();
+  for (const candidate of [...base, ...extra]) {
+    const key = [
+      candidate.phone.replace(/\D/g, ""),
+      candidate.subject,
+      candidate.person_name ?? "",
+      candidate.role_code ?? "",
+      candidate.provider,
+    ].join(":").toLowerCase();
+    map.set(key, candidate);
+  }
+  return [...map.values()];
 }
 
 function mergeRoles(base: ReachrRole[], extra: ReachrRole[]): ReachrRole[] {

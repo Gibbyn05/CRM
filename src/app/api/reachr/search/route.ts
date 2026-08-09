@@ -12,6 +12,7 @@ import {
   scoreNameMatch,
 } from "@/lib/reachr";
 import { searchAdditionalProviders } from "@/lib/reachr/providers";
+import { resolveReachrContact } from "@/lib/reachr/contact-resolution";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -115,6 +116,7 @@ export async function GET(req: NextRequest) {
       size,
     });
     results = mergeCompanies(results, external.companies)
+      .map(resolveReachrContact)
       .filter((company) => (hasEmail ? Boolean(company.email) : true))
       .filter((company) => (hasWebsite ? Boolean(company.website) : true));
 

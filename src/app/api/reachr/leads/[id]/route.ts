@@ -19,11 +19,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     last_contacted_at?: string | null;
   };
 
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, unknown> = {};
   if (body.status && REACHR_LEAD_STATUSES.includes(body.status)) patch.status = body.status;
   if ("notes" in body) patch.notes = body.notes ?? null;
   if ("email" in body) patch.email = body.email ?? null;
-  if ("phone" in body) patch.phone = body.phone ?? null;
+  if ("phone" in body) {
+    patch.phone = body.phone ?? null;
+    // A manually edited number has not passed the provider verification flow.
+    // Clear provenance rather than leaving a stale person association behind.
+    patch.selected_contact = null;
+    patch.contact_candidates = [];
+  }
   if ("last_contacted_at" in body) patch.last_contacted_at = body.last_contacted_at ?? null;
 
   const { data, error } = await supabase

@@ -6,6 +6,7 @@ import {
   ReachrLeadStatus,
   REACHR_LEAD_STATUSES,
 } from "@/lib/reachr";
+import { enrichCompanyFromProviders } from "@/lib/reachr/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,20 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as { company?: ReachrCompany; status?: ReachrLeadStatus } | null;
-  const company = body?.company;
-  if (!company?.org_number || !company.name) {
+  const submittedCompany = body?.company;
+  if (!submittedCompany?.org_number || !submittedCompany.name) {
     return NextResponse.json({ error: "Mangler firmadata." }, { status: 400 });
+  }
+
+  // Never trust verification metadata submitted by the browser. Re-run the
+  // provider lookup and contact policy on the server before a person/number is
+  // persisted or copied to customers.
+  const company = await enrichCompanyFromProviders(submittedCompany.org_number);
+  if (!company) {
+    return NextResponse.json(
+      { error: "Kunne ikke verifisere bedriften og kontaktinformasjonen akkurat nå." },
+      { status: 502 },
+    );
   }
 
   const status = body?.status && REACHR_LEAD_STATUSES.includes(body.status)
@@ -56,8 +68,10 @@ export async function POST(req: NextRequest) {
         name: company.name,
         org_number: company.org_number,
         contact_name:
-          company.roles?.find((role) => ["DAGL", "LEDE"].includes(role.role_code))?.name ??
-          null,
+          company.selected_contact?.subject === "person" &&
+          company.selected_contact.verified
+            ? company.selected_contact.person_name
+            : null,
         email: company.email,
         phone: company.phone,
         address: company.address.address,
@@ -108,6 +122,8 @@ export async function POST(req: NextRequest) {
         assets: company.financials?.assets ?? null,
         debt: company.financials?.debt ?? null,
         roles: company.roles ?? [],
+        contact_candidates: company.contact_candidates ?? [],
+        selected_contact: company.selected_contact ?? null,
         customer_id: customerId,
         status,
         source: "Brreg",

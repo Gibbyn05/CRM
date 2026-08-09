@@ -50,6 +50,23 @@ export const websiteProvider: ReachrProvider = {
         email: currentCompany?.email ?? emails[0] ?? null,
         phone: currentCompany?.phone ?? phones[0] ?? null,
         purpose: currentCompany?.purpose ?? description ?? null,
+        contact_candidates: phones.map((phone) => ({
+          phone,
+          subject: "company" as const,
+          priority: "company_main" as const,
+          person_name: null,
+          role_code: null,
+          role_name: null,
+          company_name: currentCompany?.name ?? null,
+          org_number: currentCompany?.org_number ?? null,
+          postal_code: currentCompany?.address.postal_code ?? null,
+          provider: "website",
+          provider_label: "Egen nettside",
+          source_context: "company_website" as const,
+          verified: false,
+          confidence: 0,
+          matched_fields: [],
+        })),
       };
       const fields = [
         "nettside",
