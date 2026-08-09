@@ -395,7 +395,7 @@ export default function DashboardView({
         />
         <ActionTile
           href="/reminders"
-          label="Følg opp i dag"
+          label="Frist i dag"
           count={followUpTodayCount}
           hint="oppgaver med frist i dag"
           tone={followUpTodayCount > 0 ? "warn" : "calm"}

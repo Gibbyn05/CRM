@@ -87,10 +87,7 @@ export default function LeadSearchView() {
   );
 
   async function search(nextPage = 0, append = false) {
-    if (!query.trim() && !location.trim() && !industry.trim() && !nace) {
-      setError("Skriv inn firmanavn, sted eller velg en bransje.");
-      return;
-    }
+    // Tomt søk er lov: gir et bredt bedriftssøk (alle aktive bedrifter).
     setLoading(true);
     setError("");
     const params = new URLSearchParams({
