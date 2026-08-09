@@ -62,6 +62,8 @@ export interface ReachrCompany {
   // Satt når bedriften allerede finnes i CRM-en (vises med merke ved navnesøk
   // i stedet for å skjules). null/undefined = ny prospekt.
   in_crm?: "customer" | "lead" | null;
+  // Registrerte søkeord på 1881 (aktiv annonsør). Hentes ved berikelse.
+  keywords?: string[] | null;
 }
 
 export interface ReachrLead extends ReachrCompany {
@@ -383,6 +385,11 @@ export function companySignals(c: ReachrCompany): CompanySignal[] {
     signals.push({ label: "God omsetning", tone: "good" });
   }
 
+  // Registrerte søkeord på 1881 = aktiv annonsør (kvalifiseringssignal).
+  if (c.keywords && c.keywords.length > 0) {
+    signals.push({ label: "Aktiv på 1881", tone: "new" });
+  }
+
   return signals;
 }
 
@@ -581,6 +588,10 @@ export function mergeReachrCompany(
       municipality: enrichment.address?.municipality ?? base.address.municipality,
     },
     financials: enrichment.financials ?? base.financials,
+    keywords:
+      enrichment.keywords && enrichment.keywords.length
+        ? enrichment.keywords
+        : base.keywords,
     roles: mergeRoles(base.roles ?? [], enrichment.roles ?? []),
     data_sources: [
       ...(base.data_sources ?? []),

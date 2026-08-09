@@ -2,124 +2,129 @@ import type { ReachrCompany } from "@/lib/reachr";
 import type { ReachrProvider, ReachrProviderResult } from "./types";
 
 // ============================================================================
-//  1881 «Opplysningen Search API» (services.api1881.no).
+//  1881-kilde.
 //
-//  Slår opp bedriftens kontaktinfo (telefon/e-post/nettside) via
-//  GET /lookup/orgnumber/{orgnr}. Dette er et BETALT API – hvert oppslag
-//  koster – så det kalles kun ved eksplisitt firmaoppslag (drawer/lagring),
-//  ikke ved bulk-berikelse i søkelista, og hoppes over hvis vi allerede har
-//  telefon fra en gratis kilde.
+//  1) SØKEORD (gratis): leser bedriftens offentlige 1881-profil og henter de
+//     registrerte søkeordene («emneknagger»). At en bedrift HAR søkeord betyr
+//     at den er en aktiv 1881-annonsør – et nyttig kvalifiseringssignal.
+//  2) TELEFON (betalt): hvis API1881_KEY er satt, slås telefon opp via det
+//     offisielle API-et (services.api1881.no) når nummer mangler.
 //
-//  Konfig (Vercel → Environment Variables):
-//    API1881_KEY   – abonnementsnøkkel (Ocp-Apim-Subscription-Key) fra din
-//                    1881-profil. Uten den er kilden «ikke aktiv».
-//    API1881_HOST  – valgfritt, default https://services.api1881.no
+//  Kjøres kun ved eksplisitt («dyp») berikelse – ikke på hele trefflista.
 // ============================================================================
 
 const HOST = (process.env.API1881_HOST || "https://services.api1881.no").replace(
   /\/$/,
   "",
 );
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
 export const api1881Provider: ReachrProvider = {
   name: "api1881",
   label: "1881",
   isConfigured() {
-    return Boolean(process.env.API1881_KEY);
+    // Alltid «konfigurert»: søkeord-skrapingen er gratis. Telefon-API-et krever
+    // egen nøkkel, men det håndteres inne i enrichByOrgNumber.
+    return true;
   },
   async enrichByOrgNumber(
     orgNumber: string,
     currentCompany?: ReachrCompany | null,
   ): Promise<ReachrProviderResult> {
-    if (!this.isConfigured()) {
-      return {
-        source: src("not_configured", [], "Mangler API1881_KEY."),
-      };
+    const enrichment: Partial<ReachrCompany> = {};
+    const fields: string[] = [];
+
+    // 1) Søkeord fra offentlig profil (gratis).
+    const keywords = await scrape1881Keywords(orgNumber);
+    if (keywords.length) {
+      enrichment.keywords = keywords;
+      fields.push(`${keywords.length} søkeord`);
     }
 
-    // Spar penger: har vi allerede telefon fra en gratis kilde, dropp oppslaget.
-    if (currentCompany?.phone) {
-      return {
-        source: src("active", [], "Hoppet over – telefon allerede funnet gratis."),
-      };
-    }
-
-    try {
-      const res = await fetch(
-        `${HOST}/lookup/orgnumber/${encodeURIComponent(orgNumber)}`,
-        {
-          headers: {
-            "Ocp-Apim-Subscription-Key": process.env.API1881_KEY!,
-            Accept: "application/json",
-          },
-          next: { revalidate: 86400 },
-        },
-      );
-      if (!res.ok) {
-        return {
-          source: src("error", [], `1881 svarte ${res.status}.`),
-        };
+    // 2) Telefon via betalt API (kun hvis nøkkel satt og nummer mangler).
+    if (process.env.API1881_KEY && !currentCompany?.phone) {
+      const phone = await lookupPhoneViaApi(orgNumber);
+      if (phone) {
+        enrichment.phone = phone;
+        fields.push("telefon");
       }
-
-      const data = (await res.json()) as { contacts?: unknown[] };
-      const contact = Array.isArray(data.contacts) ? data.contacts[0] : null;
-      if (!contact) {
-        return { source: src("active", [], "Ingen treff i 1881.") };
-      }
-
-      // Samle alle strenger i kontakten og plukk ut telefon/e-post/nettside.
-      const strings = collectStrings(contact);
-      const phone = strings.map(toNorwegianPhone).find((p): p is string =>
-        Boolean(p) && p!.replace("+47", "") !== orgNumber,
-      );
-      const email = strings
-        .map((s) => s.toLowerCase())
-        .find((s) => /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(s));
-      const website = strings.find((s) => /^https?:\/\/\S+$/i.test(s));
-
-      const enrichment: Partial<ReachrCompany> = {};
-      if (phone) enrichment.phone = phone;
-      if (email) enrichment.email = email;
-      if (website) enrichment.website = website;
-
-      const fields = [
-        phone ? "telefon" : null,
-        email ? "e-post" : null,
-        website ? "nettside" : null,
-      ].filter((f): f is string => Boolean(f));
-
-      return {
-        company: Object.keys(enrichment).length ? enrichment : undefined,
-        source: src(
-          "active",
-          fields,
-          fields.length ? undefined : "1881 svarte, men uten kontaktpunkter.",
-        ),
-      };
-    } catch (e) {
-      return {
-        source: src("error", [], e instanceof Error ? e.message : "1881-feil."),
-      };
     }
+
+    return {
+      company: Object.keys(enrichment).length ? enrichment : undefined,
+      source: {
+        provider: "api1881",
+        label: "1881",
+        enabled: true,
+        fields,
+        status: "active",
+        message: fields.length ? undefined : "Ingen 1881-søkeord funnet.",
+      },
+    };
   },
 };
 
-function src(
-  status: "active" | "not_configured" | "error",
-  fields: string[],
-  message?: string,
-) {
-  return {
-    provider: "api1881" as const,
-    label: "1881",
-    enabled: status === "active",
-    fields,
-    status,
-    message,
-  };
+// Henter registrerte søkeord fra den offentlige 1881-profilen. Søkeordene ligger
+// som «emneknagger»-lenker under en «Søkeord»-seksjon. Ingen søkeord = ikke en
+// aktiv annonsør.
+async function scrape1881Keywords(orgNumber: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://www.1881.no/?query=${orgNumber}`, {
+      headers: { Accept: "text/html", "User-Agent": UA },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+
+    // Bare søkeord bruker /emneknagger/-lenker (bransjekategoriene bruker andre).
+    const matches = [...html.matchAll(/\/emneknagger\/[^"]+">([^<]+)<\/a>/gi)];
+    const seen = new Set<string>();
+    const keywords: string[] = [];
+    for (const m of matches) {
+      const kw = decodeEntities(m[1]).trim();
+      const key = kw.toLowerCase();
+      if (kw && !seen.has(key)) {
+        seen.add(key);
+        keywords.push(kw);
+      }
+      if (keywords.length >= 40) break;
+    }
+    return keywords;
+  } catch {
+    return [];
+  }
 }
 
-// Rekursivt samle alle strengverdier i et objekt/array (grunn nok for 1881).
+// Telefonoppslag via det offisielle (betalte) 1881-API-et.
+async function lookupPhoneViaApi(orgNumber: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${HOST}/lookup/orgnumber/${encodeURIComponent(orgNumber)}`,
+      {
+        headers: {
+          "Ocp-Apim-Subscription-Key": process.env.API1881_KEY!,
+          Accept: "application/json",
+        },
+        next: { revalidate: 86400 },
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { contacts?: unknown[] };
+    const contact = Array.isArray(data.contacts) ? data.contacts[0] : null;
+    if (!contact) return null;
+    for (const s of collectStrings(contact)) {
+      const p = toNorwegianPhone(s);
+      if (p && p.replace("+47", "") !== orgNumber) return p;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function collectStrings(node: unknown, out: string[] = [], depth = 0): string[] {
   if (depth > 6 || node == null) return out;
   if (typeof node === "string") {
@@ -133,7 +138,6 @@ function collectStrings(node: unknown, out: string[] = [], depth = 0): string[] 
   return out;
 }
 
-// Normaliser til +47XXXXXXXX hvis strengen ser ut som et norsk telefonnummer.
 function toNorwegianPhone(value: string): string | null {
   const d = value.replace(/[^\d+]/g, "");
   const p = d.startsWith("0047")
@@ -146,4 +150,13 @@ function toNorwegianPhone(value: string): string | null {
   if (!/^\+47\d{8}$/.test(p)) return null;
   if (/^(\+47)?0{8}$/.test(p)) return null;
   return p;
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&aring;/gi, "å")
+    .replace(/&oslash;/gi, "ø")
+    .replace(/&aelig;/gi, "æ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }

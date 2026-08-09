@@ -34,8 +34,9 @@ export default function ReachrCompanyDrawer({
     setDetail(null);
     setPhoneMsg(null);
     setLoading(true);
-    // Lett oppslag: roller/regnskap + gratis nettside-skanning (raskt).
-    fetch(`/api/reachr/company?orgnr=${company.org_number}`)
+    // Dypt oppslag for ÉN bedrift: roller/regnskap + telefon + 1881-søkeord.
+    // (Trygt for én av gangen; bulk-lista beriker ikke automatisk.)
+    fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => {
         if (!cancelled && data.company) setDetail(data.company);
@@ -139,7 +140,7 @@ export default function ReachrCompanyDrawer({
         <div className="space-y-6 p-6">
           {loading && (
             <div className="rounded-3xl border border-[#d8c9b0] bg-[#f6ecd9] p-5 text-sm text-[#6f5a43]">
-              Henter roller og regnskap fra offentlige registre ...
+              Henter roller, regnskap, telefon og 1881-søkeord ...
             </div>
           )}
 
@@ -276,6 +277,31 @@ export default function ReachrCompanyDrawer({
               </div>
             </div>
           </section>
+
+          {active.keywords && active.keywords.length > 0 && (
+            <section className="rounded-3xl border border-[#09fe94]/40 bg-[#eafff5] p-5">
+              <div className="flex items-center gap-2">
+                <p className="label-eyebrow">Søkeord på 1881</p>
+                <span className="rounded-full border border-[#09fe94]/50 bg-[#09fe94]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#0d7a4b]">
+                  Aktiv annonsør
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-[#6f5a43]">
+                Bedriften er registrert med {active.keywords.length} søkeord på 1881
+                – den betaler for synlighet, altså en aktiv bedrift.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {active.keywords.map((kw) => (
+                  <span
+                    key={kw}
+                    className="rounded-full border border-[#b7d8c4] bg-[#fffaf0] px-2.5 py-1 text-xs font-semibold text-[#2b2118]"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#d8c9b0] bg-[#fff8ea] p-5">
