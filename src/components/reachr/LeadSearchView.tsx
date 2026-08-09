@@ -47,6 +47,7 @@ export default function LeadSearchView() {
   const [hasEmail, setHasEmail] = useState(false);
   const [hasWebsite, setHasWebsite] = useState(false);
   const [newlyRegistered, setNewlyRegistered] = useState(false);
+  const [only1881, setOnly1881] = useState(false);
   const [minRevenue, setMinRevenue] = useState("");
   const [maxRevenue, setMaxRevenue] = useState("");
   const [minResult, setMinResult] = useState("");
@@ -70,9 +71,9 @@ export default function LeadSearchView() {
 
   const activeFilters = useMemo(
     () =>
-      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasPhone, hasEmail, hasWebsite, newlyRegistered, minRevenue, maxRevenue, minResult]
+      [nace && nace !== "B2B", employees !== "all", orgForm, mva, hasPhone, hasEmail, hasWebsite, newlyRegistered, only1881, minRevenue, maxRevenue, minResult]
         .filter(Boolean).length,
-    [employees, hasEmail, hasPhone, hasWebsite, newlyRegistered, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
+    [employees, hasEmail, hasPhone, hasWebsite, newlyRegistered, only1881, maxRevenue, minResult, minRevenue, mva, nace, orgForm],
   );
   const ringableCount = useMemo(
     () => results.filter((company) => Boolean(company.phone)).length,
@@ -81,10 +82,13 @@ export default function LeadSearchView() {
   // Kun filtrering her – IKKE sortering. Rekkefølgen bestemmes én gang når
   // søket lastes (se search()), slik at «Finn nr.» ikke får raden til å hoppe
   // oppover og miste plassen din.
-  const visibleResults = useMemo(
-    () => (hasPhone ? results.filter((company) => Boolean(company.phone)) : results),
-    [hasPhone, results],
-  );
+  const visibleResults = useMemo(() => {
+    let list = hasPhone ? results.filter((c) => Boolean(c.phone)) : results;
+    // «Aktiv på 1881»: vis kun bedrifter der vi har funnet registrerte søkeord
+    // (etter at de er sjekket via firmakortet eller «Sjekk valgte»).
+    if (only1881) list = list.filter((c) => c.keywords && c.keywords.length > 0);
+    return list;
+  }, [hasPhone, only1881, results]);
 
   async function search(nextPage = 0, append = false) {
     // Tomt søk er lov: gir et bredt bedriftssøk (alle aktive bedrifter).
@@ -231,11 +235,10 @@ export default function LeadSearchView() {
     setBulkBusy(false);
   }
 
-  async function bulkFindNumbers() {
+  // Dyp sjekk av valgte: henter telefon (om den mangler) OG 1881-søkeord.
+  async function bulkCheck() {
     setBulkBusy(true);
-    const picks = visibleResults.filter(
-      (c) => picked.has(c.org_number) && !c.phone,
-    );
+    const picks = visibleResults.filter((c) => picked.has(c.org_number));
     for (const company of picks) {
       await findNumber(company);
     }
@@ -282,12 +285,13 @@ export default function LeadSearchView() {
               ))}
             </select>
           </Field>
-          <div className="grid grid-cols-2 gap-2 pt-6 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 pt-6 sm:grid-cols-3 xl:grid-cols-6">
             <Toggle label="MVA" checked={mva} onChange={setMva} />
             <Toggle label="Telefon" checked={hasPhone} onChange={setHasPhone} />
             <Toggle label="E-post" checked={hasEmail} onChange={setHasEmail} />
             <Toggle label="Nettside" checked={hasWebsite} onChange={setHasWebsite} />
             <Toggle label="Nyreg." checked={newlyRegistered} onChange={setNewlyRegistered} />
+            <Toggle label="Aktiv 1881" checked={only1881} onChange={setOnly1881} />
           </div>
         </div>
 
@@ -340,11 +344,11 @@ export default function LeadSearchView() {
             </button>
             <button
               type="button"
-              onClick={bulkFindNumbers}
+              onClick={bulkCheck}
               disabled={bulkBusy}
               className="rounded-full border border-[#2b2118] px-4 py-2 text-sm font-black text-[#2b2118] transition hover:bg-[#2b2118] hover:text-[#fffaf0] disabled:opacity-60"
             >
-              🔎 Finn nr. på valgte
+              {bulkBusy ? "Sjekker …" : "🔎 Sjekk valgte (nr. + 1881)"}
             </button>
             <button
               type="button"
@@ -584,10 +588,18 @@ export default function LeadSearchView() {
       {!loading && visibleResults.length === 0 && (
         <div className="rounded-[2rem] border border-dashed border-[#d8c9b0] bg-[#fffaf0]/70 p-10 text-center">
           <p className="font-display text-3xl font-black text-[#2b2118]">
-            {hasPhone ? "Ingen ringbare bedrifter i dette søket" : "Ingen ledige bedrifter i dette søket"}
+            {only1881
+              ? "Ingen sjekket som aktiv på 1881 ennå"
+              : hasPhone
+                ? "Ingen ringbare bedrifter i dette søket"
+                : "Ingen ledige bedrifter i dette søket"}
           </p>
           <p className="mt-2 text-[#6f5a43]">
-            {hasPhone ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt." : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
+            {only1881
+              ? "Velg bedrifter og trykk «Sjekk valgte (nr. + 1881)» – da dukker de som har registrerte søkeord opp her."
+              : hasPhone
+                ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt."
+                : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
           </p>
         </div>
       )}
@@ -708,6 +720,8 @@ function mergeContactData(base: ReachrCompany, update: ReachrCompany): ReachrCom
     email: base.email ?? update.email,
     website: base.website ?? update.website,
     purpose: base.purpose ?? update.purpose,
+    keywords: update.keywords?.length ? update.keywords : base.keywords,
+    financials: update.financials ?? base.financials,
     data_sources: update.data_sources?.length ? update.data_sources : base.data_sources,
   };
 }
