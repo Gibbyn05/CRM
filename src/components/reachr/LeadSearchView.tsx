@@ -472,7 +472,9 @@ export default function LeadSearchView() {
                 <th className="px-5 py-3">Kontakt</th>
                 <th className="px-5 py-3">Økonomi</th>
                 <th className="px-5 py-3">Kilder</th>
-                <th className="px-5 py-3 text-right">Handling</th>
+                <th className="sticky right-0 z-20 bg-[#fffaf0] px-4 py-3 text-right shadow-[-10px_0_12px_-10px_rgba(43,33,24,0.12)]">
+                  Handling
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -480,7 +482,7 @@ export default function LeadSearchView() {
                 <tr
                   key={company.org_number}
                   onClick={() => setSelected(company)}
-                  className="cursor-pointer border-b border-[#eadcc5] transition hover:bg-[#f7ffe9]"
+                  className="group cursor-pointer border-b border-[#eadcc5] transition hover:bg-[#f7ffe9]"
                   tabIndex={0}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") setSelected(company);
@@ -551,12 +553,12 @@ export default function LeadSearchView() {
                           key={`${company.org_number}-${source.label}`}
                           className="rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#8b7357]"
                         >
-                          {source.label}
+                          {shortSource(source.label)}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="sticky right-0 z-10 bg-[#fffaf0] px-4 py-4 text-right shadow-[-10px_0_12px_-10px_rgba(43,33,24,0.12)] transition group-hover:bg-[#f7ffe9]">
                     <button
                       type="button"
                       disabled={added.has(company.org_number) || Boolean(company.in_crm)}
@@ -647,6 +649,17 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       {label}
     </button>
   );
+}
+
+// Korte kildenavn så «Kilder»-kolonnen ikke sprenger tabellbredden.
+function shortSource(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("brønnøysund") || l.includes("brreg")) return "Brreg";
+  if (l.includes("nettside") || l.includes("website")) return "Nettside";
+  if (l.includes("proff")) return "Proff";
+  if (l.includes("1881")) return "1881";
+  if (l.includes("eniro") || l.includes("gule")) return "Gule Sider";
+  return label;
 }
 
 function SignalBadges({ signals }: { signals: CompanySignal[] }) {
