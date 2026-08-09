@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const baseTabs = [
   { href: "/reachr/leadssok", label: "Leadssøk" },
+  { href: "/reachr/soek1881", label: "1881-søk" },
   { href: "/reachr/mine-leads", label: "Mine leads" },
 ];
 
