@@ -78,19 +78,13 @@ export default function LeadSearchView() {
     () => results.filter((company) => Boolean(company.phone)).length,
     [results],
   );
-  const visibleResults = useMemo(() => {
-    const filtered = hasPhone ? results.filter((company) => Boolean(company.phone)) : results;
-    const q = query.trim();
-    return [...filtered].sort((a, b) => {
-      // Har man skrevet et navn, rangeres nærmeste navnetreff øverst; ellers
-      // (rent filtersøk) sorteres ringbare leads først som før.
-      if (q) {
-        const rel = scoreNameMatch(b.name, q) - scoreNameMatch(a.name, q);
-        if (rel !== 0) return rel;
-      }
-      return contactScore(b) - contactScore(a);
-    });
-  }, [hasPhone, results, query]);
+  // Kun filtrering her – IKKE sortering. Rekkefølgen bestemmes én gang når
+  // søket lastes (se search()), slik at «Finn nr.» ikke får raden til å hoppe
+  // oppover og miste plassen din.
+  const visibleResults = useMemo(
+    () => (hasPhone ? results.filter((company) => Boolean(company.phone)) : results),
+    [hasPhone, results],
+  );
 
   async function search(nextPage = 0, append = false) {
     if (!query.trim() && !location.trim() && !industry.trim() && !nace) {
@@ -126,6 +120,7 @@ export default function LeadSearchView() {
       const res = await fetch(`/api/reachr/search?${params}`);
       const data = (await res.json()) as SearchResponse;
       if (!res.ok) throw new Error(data.error ?? "Søket feilet.");
+      const q = query.trim();
       setResults((current) => {
         const next = append ? [...current, ...data.results] : data.results;
         const seen = new Set<string>();
@@ -133,6 +128,15 @@ export default function LeadSearchView() {
           if (seen.has(company.org_number)) return false;
           seen.add(company.org_number);
           return true;
+        });
+        // Sorter rekkefølgen ÉN gang her (navnetreff / ringbare først). Etter
+        // dette holdes rekkefølgen stabil, så «Finn nr.» ikke flytter rader.
+        deduped.sort((a, b) => {
+          if (q) {
+            const rel = scoreNameMatch(b.name, q) - scoreNameMatch(a.name, q);
+            if (rel !== 0) return rel;
+          }
+          return contactScore(b) - contactScore(a);
         });
         return deduped;
       });
