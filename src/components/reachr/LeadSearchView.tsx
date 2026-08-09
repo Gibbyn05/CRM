@@ -664,7 +664,7 @@ export default function LeadSearchView() {
             {only1881 && check1881
               ? "Bedrifter med registrerte søkeord dukker opp fortløpende."
               : only1881
-                ? "Ingen av de innlastede bedriftene er registrert som aktiv annonsør på 1881. Trykk «Last flere» for å sjekke flere."
+                ? "Tips: kombiner «Aktiv 1881» med en bransje/søkeord (f.eks. «elektriker» eller «rørlegger»). Brede søk uten bransje har nesten ingen 1881-annonsører, så da finner filteret lite."
                 : hasPhone
                   ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt."
                   : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
