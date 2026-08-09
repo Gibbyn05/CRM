@@ -1,4 +1,5 @@
 import type { ReachrCompany } from "@/lib/reachr";
+import { fetch1881Keywords } from "../keywords1881";
 import type { ReachrProvider, ReachrProviderResult } from "./types";
 
 // ============================================================================
@@ -17,8 +18,6 @@ const HOST = (process.env.API1881_HOST || "https://services.api1881.no").replace
   /\/$/,
   "",
 );
-const UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
 export const api1881Provider: ReachrProvider = {
   name: "api1881",
@@ -36,7 +35,7 @@ export const api1881Provider: ReachrProvider = {
     const fields: string[] = [];
 
     // 1) Søkeord fra offentlig profil (gratis).
-    const keywords = await scrape1881Keywords(orgNumber);
+    const keywords = await fetch1881Keywords(orgNumber);
     if (keywords.length) {
       enrichment.keywords = keywords;
       fields.push(`${keywords.length} søkeord`);
@@ -64,39 +63,6 @@ export const api1881Provider: ReachrProvider = {
     };
   },
 };
-
-// Henter registrerte søkeord fra den offentlige 1881-profilen. Søkeordene ligger
-// som «emneknagger»-lenker under en «Søkeord»-seksjon. Ingen søkeord = ikke en
-// aktiv annonsør.
-async function scrape1881Keywords(orgNumber: string): Promise<string[]> {
-  try {
-    const res = await fetch(`https://www.1881.no/?query=${orgNumber}`, {
-      headers: { Accept: "text/html", "User-Agent": UA },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8000),
-      next: { revalidate: 86400 },
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-
-    // Bare søkeord bruker /emneknagger/-lenker (bransjekategoriene bruker andre).
-    const matches = [...html.matchAll(/\/emneknagger\/[^"]+">([^<]+)<\/a>/gi)];
-    const seen = new Set<string>();
-    const keywords: string[] = [];
-    for (const m of matches) {
-      const kw = decodeEntities(m[1]).trim();
-      const key = kw.toLowerCase();
-      if (kw && !seen.has(key)) {
-        seen.add(key);
-        keywords.push(kw);
-      }
-      if (keywords.length >= 40) break;
-    }
-    return keywords;
-  } catch {
-    return [];
-  }
-}
 
 // Telefonoppslag via det offisielle (betalte) 1881-API-et.
 async function lookupPhoneViaApi(orgNumber: string): Promise<string | null> {
@@ -150,13 +116,4 @@ function toNorwegianPhone(value: string): string | null {
   if (!/^\+47\d{8}$/.test(p)) return null;
   if (/^(\+47)?0{8}$/.test(p)) return null;
   return p;
-}
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, "&")
-    .replace(/&aring;/gi, "å")
-    .replace(/&oslash;/gi, "ø")
-    .replace(/&aelig;/gi, "æ")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }

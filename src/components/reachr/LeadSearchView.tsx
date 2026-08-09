@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReachrCompany, CompanySignal } from "@/lib/reachr";
 import {
   INDUSTRY_FILTERS,
@@ -62,12 +62,73 @@ export default function LeadSearchView() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [check1881, setCheck1881] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+  const checkingRef = useRef(false);
+  const checked1881Ref = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     search(0, false);
     // Last standardlisten én gang når fanen åpnes. Standardfilteret er B2B.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Når «Aktiv på 1881»-filteret er på, sjekk de innlastede bedriftene mot 1881
+  // (lett oppslag, 4 om gangen) og fyll inn søkeord fortløpende. Kjøres per
+  // side (results.length), så «Last flere» sjekker de nye også.
+  useEffect(() => {
+    if (!only1881 || checkingRef.current) return;
+    const candidates = results.filter(
+      (c) =>
+        !checked1881Ref.current.has(c.org_number) &&
+        !(c.keywords && c.keywords.length),
+    );
+    if (candidates.length === 0) return;
+
+    let cancelled = false;
+    checkingRef.current = true;
+    (async () => {
+      const batch = candidates.slice(0, 150);
+      setCheck1881({ done: 0, total: batch.length });
+      let done = 0;
+      for (let i = 0; i < batch.length; i += 4) {
+        if (cancelled) break;
+        await Promise.all(
+          batch.slice(i, i + 4).map(async (c) => {
+            checked1881Ref.current.add(c.org_number);
+            try {
+              const r = (await fetch(
+                `/api/reachr/keywords1881?orgnr=${c.org_number}`,
+              ).then((x) => (x.ok ? x.json() : null))) as {
+                keywords?: string[];
+              } | null;
+              const kws = r?.keywords;
+              if (kws && kws.length) {
+                setResults((cur) =>
+                  cur.map((it) =>
+                    it.org_number === c.org_number ? { ...it, keywords: kws } : it,
+                  ),
+                );
+              }
+            } catch {
+              /* ignorer enkeltfeil */
+            }
+            done++;
+          }),
+        );
+        if (!cancelled) setCheck1881({ done, total: batch.length });
+      }
+      checkingRef.current = false;
+      if (!cancelled) setCheck1881(null);
+    })();
+
+    return () => {
+      cancelled = true;
+      checkingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [only1881, results.length]);
 
   const activeFilters = useMemo(
     () =>
@@ -308,7 +369,10 @@ export default function LeadSearchView() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6f5a43]">
-          <span>{activeFilters} aktive filtre · {ringableCount} ringbare · ringbare leads sorteres først</span>
+          <span>
+            {activeFilters} aktive filtre · {ringableCount} ringbare · ringbare leads sorteres først
+            {check1881 && ` · sjekker 1881 (${check1881.done}/${check1881.total})`}
+          </span>
           {total > 0 && <span>{visibleResults.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
         </div>
       </section>
@@ -588,18 +652,22 @@ export default function LeadSearchView() {
       {!loading && visibleResults.length === 0 && (
         <div className="rounded-[2rem] border border-dashed border-[#d8c9b0] bg-[#fffaf0]/70 p-10 text-center">
           <p className="font-display text-3xl font-black text-[#2b2118]">
-            {only1881
-              ? "Ingen sjekket som aktiv på 1881 ennå"
-              : hasPhone
-                ? "Ingen ringbare bedrifter i dette søket"
-                : "Ingen ledige bedrifter i dette søket"}
+            {only1881 && check1881
+              ? `Sjekker mot 1881 … (${check1881.done}/${check1881.total})`
+              : only1881
+                ? "Ingen aktive på 1881 i dette søket"
+                : hasPhone
+                  ? "Ingen ringbare bedrifter i dette søket"
+                  : "Ingen ledige bedrifter i dette søket"}
           </p>
           <p className="mt-2 text-[#6f5a43]">
-            {only1881
-              ? "Velg bedrifter og trykk «Sjekk valgte (nr. + 1881)» – da dukker de som har registrerte søkeord opp her."
-              : hasPhone
-                ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt."
-                : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
+            {only1881 && check1881
+              ? "Bedrifter med registrerte søkeord dukker opp fortløpende."
+              : only1881
+                ? "Ingen av de innlastede bedriftene er registrert som aktiv annonsør på 1881. Trykk «Last flere» for å sjekke flere."
+                : hasPhone
+                  ? "Slå av Telefon-filteret for å se bedrifter der telefon må finnes manuelt."
+                  : "Prøv å utvide filtrene. Bedrifter som allerede er tatt vises ikke her."}
           </p>
         </div>
       )}
