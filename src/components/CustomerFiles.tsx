@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomerFile } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
@@ -26,7 +26,7 @@ export default function CustomerFiles({
   initialFiles: CustomerFile[];
   nameMap: Record<string, string>;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [files, setFiles] = useState<CustomerFile[]>(initialFiles);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -37,7 +37,7 @@ const orgForms = [
 ];
 
 export default function LeadSearchView() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [industry, setIndustry] = useState("");

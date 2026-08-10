@@ -17,12 +17,6 @@ create policy "Owners and managers can release lead claims"
 
 grant select, insert, delete on public.reachr_lead_claims to authenticated;
 
-insert into public.reachr_lead_claims (org_number, owner_id, claimed_at)
-select distinct on (org_number) org_number, owner_id, created_at
-from public.reachr_leads
-order by org_number, created_at
-on conflict (org_number) do nothing;
-
 do $$
 begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'customers') then

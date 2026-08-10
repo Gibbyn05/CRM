@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomerStatus } from "@/lib/types";
 import Icon from "./Icon";
@@ -24,7 +24,7 @@ export default function CustomerStatusControl({
   statuses: CustomerStatus[];
   isManager: boolean;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [statuses, setStatuses] = useState<CustomerStatus[]>(initialStatuses);
   const [statusId, setStatusId] = useState<string | null>(initialStatusId);
   const [open, setOpen] = useState(false);

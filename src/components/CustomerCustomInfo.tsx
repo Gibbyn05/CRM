@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomField } from "@/lib/types";
 import Icon from "./Icon";
@@ -14,7 +14,7 @@ export default function CustomerCustomInfo({
   customerId: string;
   initialFields: CustomField[];
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [fields, setFields] = useState<CustomField[]>(initialFields);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
