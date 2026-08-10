@@ -26,7 +26,7 @@ export const proffProvider: ReachrProvider = {
       if (currentCompany?.phone) {
         return { source: source("active", [], "Hoppet over – telefon allerede funnet.") };
       }
-      return scrapeProffCard(orgNumber);
+      return scrapeProffCard(orgNumber, currentCompany);
     }
 
     try {
@@ -97,7 +97,10 @@ export const proffProvider: ReachrProvider = {
 // Skraper Proffs offentlige firmakort (https://www.proff.no/company/{orgnr},
 // som redirecter til selve siden) og henter kontaktinfo fra HTML-en. Gratis,
 // men best-effort – Proff kan endre markup.
-async function scrapeProffCard(orgNumber: string): Promise<ReachrProviderResult> {
+async function scrapeProffCard(
+  orgNumber: string,
+  currentCompany?: ReachrCompany | null,
+): Promise<ReachrProviderResult> {
   try {
     const res = await fetch(`https://www.proff.no/company/${orgNumber}`, {
       headers: {
@@ -130,7 +133,26 @@ async function scrapeProffCard(orgNumber: string): Promise<ReachrProviderResult>
     const website = normalizeUrl(websiteRaw);
 
     const enrichment: Partial<ReachrCompany> = {};
-    if (phone) enrichment.phone = phone;
+    if (phone) {
+      enrichment.phone = phone;
+      enrichment.contact_candidates = [{
+        phone,
+        subject: "company",
+        priority: "company_main",
+        person_name: null,
+        role_code: null,
+        role_name: null,
+        company_name: currentCompany?.name ?? null,
+        org_number: orgNumber,
+        postal_code: currentCompany?.address.postal_code ?? null,
+        provider: "proff",
+        provider_label: "Proff",
+        source_context: "org_number_lookup",
+        verified: false,
+        confidence: 0,
+        matched_fields: [],
+      }];
+    }
     if (email) enrichment.email = email;
     if (website) enrichment.website = website;
 

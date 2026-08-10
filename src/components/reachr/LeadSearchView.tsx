@@ -324,7 +324,7 @@ export default function LeadSearchView() {
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
           <Field label="Bransjekode">
             <select value={nace} onChange={(event) => setNace(event.target.value)} className="reachr-input">
               {INDUSTRY_FILTERS.map((item) => (
@@ -346,7 +346,7 @@ export default function LeadSearchView() {
               ))}
             </select>
           </Field>
-          <div className="grid grid-cols-2 gap-2 pt-6 sm:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:col-span-3 xl:grid-cols-6">
             <Toggle label="MVA" checked={mva} onChange={setMva} />
             <Toggle label="Telefon" checked={hasPhone} onChange={setHasPhone} />
             <Toggle label="E-post" checked={hasEmail} onChange={setHasEmail} />
@@ -720,10 +720,17 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <button
       type="button"
+      aria-pressed={checked}
       onClick={() => onChange(!checked)}
-      className={`rounded-2xl border px-3 py-3 text-xs font-black transition ${checked ? "border-[#09fe94]/40 bg-[#09fe94]/20 text-[#24513b]" : "border-[#d8c9b0] bg-[#fffaf0] text-[#8b7357] hover:bg-[#efe1c7]"}`}
+      className={`group flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 text-left text-[13px] font-black leading-none transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24513b]/50 focus-visible:ring-offset-2 ${checked ? "border-[#72d9a7] bg-[#e9fff4] text-[#175c3c] shadow-[0_1px_0_rgba(36,81,59,0.08)]" : "border-[#d8c9b0] bg-[#fffaf0] text-[#6f5a43] hover:-translate-y-0.5 hover:border-[#bda98b] hover:bg-white hover:shadow-[0_5px_14px_rgba(86,64,37,0.08)]"}`}
     >
-      {label}
+      <span className="whitespace-nowrap">{label}</span>
+      <span
+        aria-hidden="true"
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[11px] transition ${checked ? "border-[#24513b] bg-[#24513b] text-white" : "border-[#c9b99f] bg-[#f8eedc] text-transparent group-hover:border-[#8b7357]"}`}
+      >
+        ✓
+      </span>
     </button>
   );
 }

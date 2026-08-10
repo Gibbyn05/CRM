@@ -1,5 +1,5 @@
-import type { ReachrCompany } from "@/lib/reachr";
-import { fetch1881Keywords } from "../keywords1881";
+import type { ReachrCompany, ReachrContactCandidate } from "@/lib/reachr";
+import { fetch1881Profile } from "../keywords1881";
 import type { ReachrProvider, ReachrProviderResult } from "./types";
 
 // ============================================================================
@@ -35,19 +35,31 @@ export const api1881Provider: ReachrProvider = {
     const fields: string[] = [];
 
     // 1) Søkeord fra offentlig profil (gratis).
-    const keywords = await fetch1881Keywords(orgNumber);
+    const profile = await fetch1881Profile(orgNumber);
+    const keywords = profile.keywords;
     if (keywords.length) {
       enrichment.keywords = keywords;
       fields.push(`${keywords.length} søkeord`);
     }
 
-    // 2) Telefon via betalt API (kun hvis nøkkel satt og nummer mangler).
-    if (process.env.API1881_KEY && !currentCompany?.phone) {
-      const phone = await lookupPhoneViaApi(orgNumber);
-      if (phone) {
-        enrichment.phone = phone;
-        fields.push("telefon");
-      }
+    // 2) Bruk offentlig profil først. Betalt API er kun reserve.
+    const existingCandidate = currentCompany?.contact_candidates?.some(
+      (candidate) => candidate.subject === "company",
+    );
+    const phone = profile.phone ?? (
+      process.env.API1881_KEY && !existingCandidate
+        ? await lookupPhoneViaApi(orgNumber)
+        : null
+    );
+    if (phone) {
+      enrichment.phone = phone;
+      enrichment.contact_candidates = [companyCandidate(
+        phone,
+        orgNumber,
+        currentCompany,
+        profile.phone ? "1881 offentlig profil" : "1881 API",
+      )];
+      fields.push(profile.phone ? "telefon (offentlig profil)" : "telefon (API)");
     }
 
     return {
@@ -63,6 +75,31 @@ export const api1881Provider: ReachrProvider = {
     };
   },
 };
+
+function companyCandidate(
+  phone: string,
+  orgNumber: string,
+  company: ReachrCompany | null | undefined,
+  providerLabel: string,
+): ReachrContactCandidate {
+  return {
+    phone,
+    subject: "company",
+    priority: "company_main",
+    person_name: null,
+    role_code: null,
+    role_name: null,
+    company_name: company?.name ?? null,
+    org_number: orgNumber,
+    postal_code: company?.address.postal_code ?? null,
+    provider: "api1881",
+    provider_label: providerLabel,
+    source_context: "org_number_lookup",
+    verified: false,
+    confidence: 0,
+    matched_fields: [],
+  };
+}
 
 // Telefonoppslag via det offisielle (betalte) 1881-API-et.
 async function lookupPhoneViaApi(orgNumber: string): Promise<string | null> {

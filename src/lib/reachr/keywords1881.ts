@@ -5,7 +5,12 @@
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
-export async function fetch1881Keywords(orgNumber: string): Promise<string[]> {
+export interface Profile1881Data {
+  keywords: string[];
+  phone: string | null;
+}
+
+export async function fetch1881Profile(orgNumber: string): Promise<Profile1881Data> {
   try {
     const res = await fetch(`https://www.1881.no/?query=${orgNumber}`, {
       headers: { Accept: "text/html", "User-Agent": UA },
@@ -13,7 +18,7 @@ export async function fetch1881Keywords(orgNumber: string): Promise<string[]> {
       signal: AbortSignal.timeout(8000),
       next: { revalidate: 86400 },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { keywords: [], phone: null };
     const html = await res.text();
     // Søkeord ligger som «emneknagger»-lenker (bransjekategoriene bruker andre).
     const matches = [...html.matchAll(/\/emneknagger\/[^"]+">([^<]+)<\/a>/gi)];
@@ -28,10 +33,28 @@ export async function fetch1881Keywords(orgNumber: string): Promise<string[]> {
       }
       if (keywords.length >= 40) break;
     }
-    return keywords;
+    return { keywords, phone: extractPublicPhone(html, orgNumber) };
   } catch {
-    return [];
+    return { keywords: [], phone: null };
   }
+}
+
+export async function fetch1881Keywords(orgNumber: string): Promise<string[]> {
+  return (await fetch1881Profile(orgNumber)).keywords;
+}
+
+export function extractPublicPhone(html: string, orgNumber: string): string | null {
+  const matches = html.match(/tel:(?:0047|\+47)?[\d\s.-]{8,}/gi) ?? [];
+  for (const match of matches) {
+    const digits = match.replace(/\D/g, "");
+    const national = digits.startsWith("0047")
+      ? digits.slice(4)
+      : digits.startsWith("47") && digits.length === 10
+        ? digits.slice(2)
+        : digits;
+    if (/^\d{8}$/.test(national) && national !== orgNumber) return `+47${national}`;
+  }
+  return null;
 }
 
 function decodeEntities(s: string): string {
