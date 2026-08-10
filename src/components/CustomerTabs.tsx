@@ -20,13 +20,14 @@ import ContractsPanel from "./ContractsPanel";
 import CustomerCustomInfo from "./CustomerCustomInfo";
 import CustomerFiles from "./CustomerFiles";
 
-type TabKey = "aktivitet" | "salg" | "info" | "filer";
+type TabKey = "aktivitet" | "salg" | "info" | "filer" | "transkripsjon";
 
 const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "aktivitet", label: "Aktivitet", icon: "dagsavis" },
   { key: "salg", label: "Salg", icon: "pipeline" },
   { key: "info", label: "Egendefinert info", icon: "building" },
   { key: "filer", label: "Filer", icon: "box" },
+  { key: "transkripsjon", label: "Transkripsjon", icon: "mic" },
 ];
 
 // Fanebasert høyrekolonne på kundekortet. Sekundært innhold (aktivitetslogg,
@@ -59,7 +60,7 @@ export default function CustomerTabs({
   const [deals, setDeals] = useState<Deal[]>(initialDeals);
 
   return (
-    <div className="overflow-hidden rounded-[1.6rem] border border-[#ddd1bd] bg-white/80 shadow-[0_18px_55px_rgba(62,45,27,0.09)]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/80">
       {/* Fanelinje */}
       <div className="flex gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
         {TABS.map((t) => {
@@ -104,51 +105,54 @@ export default function CustomerTabs({
       </div>
 
       {/* Faneinnhold */}
-      <div className={tab === "aktivitet" ? "" : "p-4 sm:p-5"}>
-      {tab === "aktivitet" && (
-        <div>
-          <NotesLog
+      <div
+        className={`min-h-0 flex-1 ${tab === "aktivitet" ? "" : "overflow-y-auto p-4 sm:p-5"}`}
+      >
+        {tab === "aktivitet" && (
+          <div className="h-full">
+            <NotesLog
+              customerId={customer.id}
+              initialNotes={notes}
+              deals={deals}
+              contracts={contracts}
+              calls={calls}
+              appointments={appointments}
+              reminders={reminders}
+              commissions={commissions}
+              nameMap={nameMap}
+            />
+          </div>
+        )}
+
+        {tab === "salg" && (
+          <div className="space-y-4">
+            <DealsPanel
+              customerId={customer.id}
+              deals={deals}
+              setDeals={setDeals}
+            />
+            <ContractsPanel customer={customer} initialContracts={contracts} />
+          </div>
+        )}
+
+        {tab === "info" && (
+          <CustomerCustomInfo
             customerId={customer.id}
-            initialNotes={notes}
-            deals={deals}
-            contracts={contracts}
-            calls={calls}
-            appointments={appointments}
-            reminders={reminders}
-            commissions={commissions}
+            initialFields={customer.custom_info ?? []}
+          />
+        )}
+
+        {tab === "filer" && (
+          <CustomerFiles
+            customerId={customer.id}
+            initialFiles={files}
             nameMap={nameMap}
           />
-          <div className="border-t border-[#e7ddcd] p-4">
-            <LiveTranscript customerId={customer.id} />
-          </div>
-        </div>
-      )}
+        )}
 
-      {tab === "salg" && (
-        <div className="space-y-4">
-          <DealsPanel
-            customerId={customer.id}
-            deals={deals}
-            setDeals={setDeals}
-          />
-          <ContractsPanel customer={customer} initialContracts={contracts} />
-        </div>
-      )}
-
-      {tab === "info" && (
-        <CustomerCustomInfo
-          customerId={customer.id}
-          initialFields={customer.custom_info ?? []}
-        />
-      )}
-
-      {tab === "filer" && (
-        <CustomerFiles
-          customerId={customer.id}
-          initialFiles={files}
-          nameMap={nameMap}
-        />
-      )}
+        {tab === "transkripsjon" && (
+          <LiveTranscript customerId={customer.id} />
+        )}
       </div>
     </div>
   );

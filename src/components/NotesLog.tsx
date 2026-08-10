@@ -173,7 +173,7 @@ export default function NotesLog({
   }
 
   return (
-    <section className="flex h-[calc(100dvh-12rem)] min-h-[650px] flex-col bg-[#fbfaf7] lg:h-[calc(100dvh-8rem)] lg:min-h-[720px]">
+    <section className="flex h-[calc(100dvh-12rem)] min-h-[650px] flex-col bg-[#fbfaf7] lg:h-full lg:min-h-0">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7ddcd] bg-white px-5 py-3">
         <div>
           <h2 className="text-base font-bold text-[#2b2118]">Aktivitetslogg</h2>

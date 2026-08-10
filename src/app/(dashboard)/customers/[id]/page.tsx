@@ -117,7 +117,7 @@ export default async function CustomerDetailPage({
   const ownerName = customer.owner_id ? nameMap.get(customer.owner_id) : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <Link
         href="/customers"
         className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-800"
@@ -125,81 +125,60 @@ export default async function CustomerDetailPage({
         ← Tilbake til kunder
       </Link>
 
-      {/* Kundekort-header: det viktigste øverst */}
-      <div className="card p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-bold text-white shadow-sm">
-              {customer.name.trim().charAt(0).toUpperCase() || "?"}
-            </span>
-            <div className="min-w-0">
-              <p className="label-eyebrow">Bedriftskunde</p>
-              <h1 className="truncate text-2xl font-bold text-slate-900">
-                {customer.name}
-              </h1>
-              <p className="text-sm text-slate-500">
-                Org.nr {formatOrgNumber(customer.org_number)}
-              </p>
-              {(() => {
-                const st = ((customerStatuses as CustomerStatus[]) ?? []).find(
-                  (s) => s.id === customer.status_id,
-                );
-                return st ? (
-                  <span
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    style={{ backgroundColor: `${st.color}22`, color: st.color }}
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: st.color }}
-                    />
-                    {st.name}
-                  </span>
-                ) : null;
-              })()}
+      <div className="overflow-hidden rounded-[1.65rem] border border-[#d8cdbb] bg-white shadow-[0_22px_65px_rgba(62,45,27,0.11)] lg:grid lg:h-[calc(100dvh-10.25rem)] lg:min-h-[720px] lg:grid-cols-[minmax(280px,32%)_minmax(0,68%)]">
+        <aside className="thin-scroll border-b border-[#ddd4c6] bg-[#fffdfa] lg:h-full lg:overflow-y-auto lg:border-b-0 lg:border-r">
+          <div className="border-b border-[#ebe3d7] px-6 pb-6 pt-7">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="label-eyebrow">Bedriftskunde</p>
+                <h1 className="mt-2 break-words font-display text-3xl font-bold leading-[1.05] text-[#251e18]">
+                  {customer.name}
+                </h1>
+                <p className="mt-2 text-sm font-medium text-[#8a8177]">
+                  Org.nr {formatOrgNumber(customer.org_number)}
+                </p>
+              </div>
+              {isManager && (
+                <DeleteCustomerButton
+                  customerId={customer.id}
+                  customerName={customer.name}
+                />
+              )}
             </div>
           </div>
-          {isManager && (
-            <DeleteCustomerButton
-              customerId={customer.id}
-              customerName={customer.name}
-            />
-          )}
-        </div>
-      </div>
 
-      {/* To kolonner: venstre = faste kundefakta, høyre = faner */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Venstre: Om kunden */}
-        <aside className="card h-fit p-5 lg:sticky lg:top-4">
-          <div className="mb-4">
-            <CustomerStatusControl
+          <div className="px-6 py-6">
+            <div className="mb-7">
+              <p className="mb-4 text-xs font-black uppercase tracking-[0.14em] text-[#53483e]">
+                Om kunden
+              </p>
+              <CustomerStatusControl
+                customerId={customer.id}
+                initialStatusId={customer.status_id}
+                statuses={(customerStatuses as CustomerStatus[]) ?? []}
+                isManager={isManager}
+              />
+            </div>
+            <CustomerContactInfo
               customerId={customer.id}
-              initialStatusId={customer.status_id}
-              statuses={(customerStatuses as CustomerStatus[]) ?? []}
-              isManager={isManager}
+              initial={{
+                contact_name: customer.contact_name,
+                email: customer.email,
+                phone: customer.phone,
+                address: customer.address,
+                postal_code: customer.postal_code,
+                city: customer.city,
+              }}
+              orgNumberDisplay={
+                customer.org_number ? formatOrgNumber(customer.org_number) : null
+              }
+              ownerName={ownerName ?? null}
+              createdDisplay={formatDate(customer.created_at)}
             />
           </div>
-          <CustomerContactInfo
-            customerId={customer.id}
-            initial={{
-              contact_name: customer.contact_name,
-              email: customer.email,
-              phone: customer.phone,
-              address: customer.address,
-              postal_code: customer.postal_code,
-              city: customer.city,
-            }}
-            orgNumberDisplay={
-              customer.org_number ? formatOrgNumber(customer.org_number) : null
-            }
-            ownerName={ownerName ?? null}
-            createdDisplay={formatDate(customer.created_at)}
-          />
         </aside>
 
-        {/* Høyre: fanebasert innhold */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:h-full">
           <CustomerTabs
             customer={customer}
             notes={(notes as Note[]) ?? []}

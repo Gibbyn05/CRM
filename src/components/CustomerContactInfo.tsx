@@ -78,8 +78,8 @@ export default function CustomerContactInfo({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="label-eyebrow">Om kunden</h2>
+      <div className="mb-4 flex items-center justify-between border-t border-[#ebe3d7] pt-5">
+        <h2 className="label-eyebrow">Kontaktinformasjon</h2>
         {savedAt ? (
           <span className="text-xs font-medium text-emerald-600">Lagret ✓</span>
         ) : !editing ? (
@@ -155,7 +155,7 @@ export default function CustomerContactInfo({
           </div>
         </div>
       ) : (
-        <dl className="space-y-4">
+        <dl className="space-y-5">
           <Fact label="Kontaktperson" value={values.contact_name} />
           <Fact label="E-post" value={values.email} breakAll />
           <Fact label="Telefon" value={values.phone} />
