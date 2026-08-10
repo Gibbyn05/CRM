@@ -233,8 +233,29 @@ export interface Contract {
   signer_email: string | null;
   signer_phone: string | null;
   signer_ip: string | null;
+  contract_template_id: string | null;
+  generation_data: Record<string, unknown>;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ContractTemplate {
+  id: string;
+  organization_id: number;
+  name: string;
+  description: string | null;
+  template_text: string;
+  source_file_name: string | null;
+  source_file_path: string | null;
+  source_mime_type: string | null;
+  is_active: boolean;
+  version: number;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  product_ids?: string[];
 }
 
 export interface Message {

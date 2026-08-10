@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .template-input {
+    @apply w-full rounded-xl border border-[#d8ccb9] bg-white/80 px-3.5 py-2.5 text-sm text-[#30271d] outline-none transition placeholder:text-[#aaa08f] focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;
+  }
+}
+
 :root {
   color-scheme: light;
   --reachr-kull: #171717;

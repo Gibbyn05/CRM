@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { BillingType, DealItem, Product } from "@/lib/types";
+import type { BillingType, ContractTemplate, DealItem, Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import Icon from "./Icon";
 import ContractDocument from "./ContractDocument";
@@ -26,6 +26,11 @@ export interface WizardOrg {
   address: string;
   logo_url: string | null;
 }
+
+export type WizardContractTemplate = Pick<
+  ContractTemplate,
+  "id" | "name" | "description" | "version"
+> & { product_ids: string[] };
 
 interface CartItem {
   key: string;
@@ -57,6 +62,7 @@ export default function SaleWizard({
   currentUserId,
   sellerName,
   org,
+  contractTemplates,
   preselectedCustomerId,
 }: {
   products: Product[];
@@ -64,6 +70,7 @@ export default function SaleWizard({
   currentUserId: string;
   sellerName: string;
   org: WizardOrg;
+  contractTemplates: WizardContractTemplate[];
   preselectedCustomerId: string | null;
 }) {
   const supabase = createClient();
@@ -82,6 +89,19 @@ export default function SaleWizard({
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [contract, setContract] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [contractDetails, setContractDetails] = useState({
+    agreement_period: "",
+    start_date: "",
+    payment_terms: "14 dager fra fakturadato",
+    invoice_address: "",
+    discount: "",
+    one_time_amount: "",
+    monthly_amount: "",
+  });
+  const [missingFields, setMissingFields] = useState<{ key: string; label: string }[]>([]);
+  const [usedFields, setUsedFields] = useState<{ key: string; label: string; value: unknown }[]>([]);
+  const [generationData, setGenerationData] = useState<Record<string, unknown>>({});
   const [generating, setGenerating] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -91,39 +111,39 @@ export default function SaleWizard({
     setGenerating(true);
     setError(null);
     try {
+      if (!templateId) throw new Error("Velg en kontraktsmal først.");
       const res = await fetch("/api/contracts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim() || cart[0]?.name,
-          seller: sellerName,
-          org,
-          customer: customer
-            ? {
-                name: customer.name,
-                org_number: customer.org_number,
-                contact_name: customer.contact_name,
-                address: [
-                  customer.address,
-                  [customer.postal_code, customer.city]
-                    .filter(Boolean)
-                    .join(" "),
-                ]
-                  .filter(Boolean)
-                  .join(", "),
-              }
-            : {},
+          customer_id: customerId,
+          template_id: templateId,
+          details: contractDetails,
           lines: cart.map((i) => ({
+            product_id: i.product_id,
             name: i.name,
+            description: i.description,
             quantity: i.quantity,
             unit_price: i.unit_price,
+            billing_type: i.billing_type,
+            agreement_start: i.agreement_start,
+            agreement_end: i.agreement_end,
           })),
         }),
       });
       const json = await res.json();
+      if (res.status === 422) {
+        setMissingFields(json.missing ?? []);
+        throw new Error("Fyll inn de manglende opplysningene før kontrakten genereres.");
+      }
+      if (!res.ok) throw new Error(json.error ?? "Kunne ikke generere kontrakt.");
       if (json.contract) setContract(json.contract);
-    } catch {
-      setError("Kunne ikke generere kontrakt.");
+      setMissingFields([]);
+      setUsedFields(json.used_fields ?? []);
+      setGenerationData(json.generation_data ?? {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke generere kontrakt.");
     } finally {
       setGenerating(false);
     }
@@ -174,7 +194,7 @@ export default function SaleWizard({
   const canNext =
     (step === 1 && cart.length > 0) ||
     (step === 2 && !!customerId) ||
-    (step === 3 && title.trim().length > 0) ||
+    (step === 3 && title.trim().length > 0 && !!templateId && contract.trim().length > 0) ||
     step === 4;
 
   async function checkout() {
@@ -199,6 +219,8 @@ export default function SaleWizard({
         offer_sent_at: new Date().toISOString(),
         lost_reason: note.trim() || null,
         contract_text: contract.trim() || null,
+        contract_template_id: templateId || null,
+        contract_generation_data: generationData,
       })
       .select("id")
       .single();
@@ -420,8 +442,7 @@ export default function SaleWizard({
             <div>
               <h2 className="text-lg font-bold text-slate-900">Kontrakt</h2>
               <p className="text-xs text-slate-400">
-                Lag et kontraktforslag med AI ut fra produkt, kunde og bedrift –
-                og rediger fritt før du sjekker ut.
+                Velg organisasjonens mal, kontroller manglende data og generer et redigerbart utkast.
               </p>
             </div>
             <button
@@ -437,6 +458,43 @@ export default function SaleWizard({
                   : "Generer kontrakt med AI"}
             </button>
           </div>
+
+          <label className="block text-sm font-medium text-slate-600">
+            Kontraktsmal
+            <select
+              value={templateId}
+              onChange={(e) => { setTemplateId(e.target.value); setContract(""); setUsedFields([]); }}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">Velg kontraktsmal</option>
+              {contractTemplates
+                .filter((template) => !template.product_ids.length || cart.some((item) => item.product_id && template.product_ids.includes(item.product_id)))
+                .map((template) => <option key={template.id} value={template.id}>{template.name} · v{template.version}</option>)}
+            </select>
+            {!contractTemplates.length && <span className="mt-1 block text-xs text-amber-700">Ingen aktive maler. En leder må opprette en under Organisasjon → Kontraktsmaler.</span>}
+          </label>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-800">Avtaledetaljer</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DetailField label="Avtaleperiode" value={contractDetails.agreement_period} placeholder="F.eks. 12 måneder" onChange={(value) => setContractDetails((d) => ({ ...d, agreement_period: value }))} />
+              <DetailField label="Oppstartsdato" value={contractDetails.start_date} type="date" onChange={(value) => setContractDetails((d) => ({ ...d, start_date: value }))} />
+              <DetailField label="Betalingsbetingelser" value={contractDetails.payment_terms} placeholder="14 dager fra fakturadato" onChange={(value) => setContractDetails((d) => ({ ...d, payment_terms: value }))} />
+              <DetailField label="Fakturaadresse" value={contractDetails.invoice_address} placeholder="Hentes fra kunden hvis feltet er tomt" onChange={(value) => setContractDetails((d) => ({ ...d, invoice_address: value }))} />
+              <DetailField label="Rabatt" value={contractDetails.discount} placeholder="Valgfritt" onChange={(value) => setContractDetails((d) => ({ ...d, discount: value }))} />
+              <DetailField label="Månedlig kostnad" value={contractDetails.monthly_amount} placeholder="Beregnes fra løpende produkter" onChange={(value) => setContractDetails((d) => ({ ...d, monthly_amount: value }))} />
+            </div>
+          </div>
+
+          {missingFields.length > 0 && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <p className="font-bold text-amber-900">Mangler informasjon</p>
+              <ul className="mt-2 grid list-inside list-disc gap-1 text-sm text-amber-800 sm:grid-cols-2">
+                {missingFields.map((field) => <li key={field.key}>{field.label}</li>)}
+              </ul>
+              <p className="mt-2 text-xs text-amber-700">Reachr genererer ikke kontrakten før disse verdiene finnes. Kundedata endres på kundekortet.</p>
+            </div>
+          )}
 
           <label className="block text-sm font-medium text-slate-600">
             Tilbudstittel
@@ -460,9 +518,17 @@ export default function SaleWizard({
           </label>
 
           <p className="text-xs text-slate-400">
-            Kontrakten lagres på tilbudet og brukes når du sender faktura til
-            Fiken.
+            AI-en får ikke lov til å finne på manglende data. Utkastet sendes aldri automatisk.
           </p>
+
+          {usedFields.length > 0 && (
+            <details className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <summary className="cursor-pointer text-sm font-bold text-emerald-900">Se {usedFields.length} opplysninger Reachr fylte inn</summary>
+              <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                {usedFields.map((field) => <div key={field.key}><dt className="font-semibold text-emerald-800">{field.label}</dt><dd className="truncate text-emerald-950">{String(field.value)}</dd></div>)}
+              </dl>
+            </details>
+          )}
         </div>
       )}
 
@@ -755,6 +821,33 @@ function Row({ label, value }: { label: string; value: string | null }) {
       <dt className="text-slate-400">{label}</dt>
       <dd className="text-right text-slate-700">{value || "—"}</dd>
     </div>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: "text" | "date";
+}) {
+  return (
+    <label className="text-xs font-semibold text-slate-600">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+      />
+    </label>
   );
 }
 

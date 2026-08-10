@@ -27,10 +27,12 @@ export async function generateOpenAIText({
   instructions,
   input,
   maxOutputTokens = 420,
+  model = OPENAI_DAGSAVIS_MODEL,
 }: {
   instructions: string;
   input: string;
   maxOutputTokens?: number;
+  model?: string;
 }): Promise<string> {
   const apiKey = getOpenAIKey();
   if (!apiKey) {
@@ -44,7 +46,7 @@ export async function generateOpenAIText({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: OPENAI_DAGSAVIS_MODEL,
+      model,
       instructions,
       input,
       max_output_tokens: maxOutputTokens,

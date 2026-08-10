@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, Organization, Product, Profile } from "@/lib/types";
 import SaleWizard, {
+  type WizardContractTemplate,
   type WizardCustomer,
   type WizardOrg,
 } from "@/components/SaleWizard";
@@ -20,7 +21,7 @@ export default async function NyttSalgPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: products }, { data: customers }, { data: org }, { data: me }] =
+  const [{ data: products }, { data: customers }, { data: org }, { data: me }, { data: templates }, { data: templateProducts }] =
     await Promise.all([
       supabase
         .from("products")
@@ -40,6 +41,12 @@ export default async function NyttSalgPage({
       supabase.from("profiles").select("full_name").eq("id", user.id).single<
         Pick<Profile, "full_name">
       >(),
+      supabase
+        .from("contract_templates")
+        .select("id, name, description, version")
+        .eq("is_active", true)
+        .order("name", { ascending: true }),
+      supabase.from("contract_template_products").select("template_id, product_id"),
     ]);
 
   const o = org as Pick<
@@ -54,6 +61,11 @@ export default async function NyttSalgPage({
       .join(", "),
     logo_url: o?.logo_url ?? null,
   };
+  const links = (templateProducts ?? []) as { template_id: string; product_id: string }[];
+  const contractTemplates = ((templates ?? []) as Omit<WizardContractTemplate, "product_ids">[]).map((template) => ({
+    ...template,
+    product_ids: links.filter((link) => link.template_id === template.id).map((link) => link.product_id),
+  }));
 
   return (
     <SaleWizard
@@ -62,6 +74,7 @@ export default async function NyttSalgPage({
       currentUserId={user.id}
       sellerName={me?.full_name ?? ""}
       org={wizardOrg}
+      contractTemplates={contractTemplates}
       preselectedCustomerId={searchParams.customer ?? null}
     />
   );

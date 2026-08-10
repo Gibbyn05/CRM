@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const { data: deal } = await admin
     .from("deals")
     .select(
-      "id, title, agent_id, customer_id, contract_text, customer:customers(name, email)",
+      "id, title, agent_id, customer_id, contract_text, contract_template_id, contract_generation_data, customer:customers(name, email)",
     )
     .eq("id", body.deal_id)
     .single();
@@ -106,6 +106,9 @@ export async function POST(req: NextRequest) {
       status: "draft",
       due_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       contract_text: contractText,
+      contract_template_id: deal.contract_template_id,
+      generation_data: deal.contract_generation_data ?? {},
+      approved_at: new Date().toISOString(),
     })
     .select("id, sign_token")
     .single();
