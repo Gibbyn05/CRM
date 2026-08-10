@@ -18,6 +18,13 @@ import { DEAL_STAGE_LABELS } from "@/lib/constants";
 import { formatCurrency, timeAgo } from "@/lib/format";
 import Icon, { type IconName } from "./Icon";
 import Avatar from "./Avatar";
+import DashboardWidgetSettings from "./DashboardWidgetSettings";
+import {
+  DASHBOARD_WIDGET_COLORS,
+  normalizeDashboardWidgets,
+  type DashboardWidgetId,
+  type DashboardWidgetPreference,
+} from "@/lib/dashboard-widgets";
 
 interface RecentCall {
   id: string;
@@ -117,11 +124,13 @@ export default function DashboardView({
   userId,
   agentNames,
   firstName,
+  initialWidgets,
 }: {
   isManager: boolean;
   userId: string;
   agentNames: Record<string, string>;
   firstName: string;
+  initialWidgets: DashboardWidgetPreference[];
 }) {
   const supabase = createClient();
   const [period, setPeriod] = useState<Period>("dag");
@@ -132,6 +141,12 @@ export default function DashboardView({
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [meetingsToday, setMeetingsToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [widgets, setWidgets] = useState(() => normalizeDashboardWidgets(initialWidgets));
+  const [editingWidgets, setEditingWidgets] = useState(false);
+  const [savingWidgets, setSavingWidgets] = useState(false);
+  const [widgetsSaved, setWidgetsSaved] = useState(false);
+  const [widgetSaveError, setWidgetSaveError] = useState("");
+  const widgetSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const now = new Date();
 
@@ -319,6 +334,43 @@ export default function DashboardView({
       .eq("id", id);
   }
 
+  function updateWidgets(next: DashboardWidgetPreference[]) {
+    const normalized = normalizeDashboardWidgets(next);
+    setWidgets(normalized);
+    setWidgetsSaved(false);
+    setWidgetSaveError("");
+    if (widgetSaveTimer.current) clearTimeout(widgetSaveTimer.current);
+    widgetSaveTimer.current = setTimeout(async () => {
+      setSavingWidgets(true);
+      const { error } = await supabase.from("dashboard_preferences").upsert({
+        user_id: userId,
+        widgets: normalized,
+      });
+      setSavingWidgets(false);
+      if (error) {
+        setWidgetSaveError("Kunne ikke lagre oppsettet.");
+        return;
+      }
+      setWidgetsSaved(true);
+      setTimeout(() => setWidgetsSaved(false), 1800);
+    }, 450);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (widgetSaveTimer.current) clearTimeout(widgetSaveTimer.current);
+    };
+  }, []);
+
+  const widgetById = Object.fromEntries(widgets.map((widget) => [widget.id, widget])) as Record<
+    DashboardWidgetId,
+    DashboardWidgetPreference
+  >;
+  const widgetOrder = Object.fromEntries(widgets.map((widget, index) => [widget.id, index + 10])) as Record<
+    DashboardWidgetId,
+    number
+  >;
+
   const maxCalls = Math.max(1, ...buckets.map((b) => b.calls));
   const pipelineValue = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
@@ -348,7 +400,7 @@ export default function DashboardView({
     .toUpperCase();
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Hilsen + dato + periodevelger */}
       <div className="rounded-[1.75rem] border border-[#d8c9b0] bg-[#fffaf0]/78 p-6 shadow-[0_24px_70px_rgba(61,44,24,0.08)] backdrop-blur">
         <div>
@@ -366,6 +418,16 @@ export default function DashboardView({
           <p className="text-sm font-medium text-[#6b6660]">
             {isManager ? "Teamkommando" : "Personlig kommandosenter"}
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+          {isManager && (
+            <button
+              type="button"
+              onClick={() => setEditingWidgets((value) => !value)}
+              className={`rounded-full border px-4 py-2 text-sm font-bold transition ${editingWidgets ? "border-[#2b2118] bg-[#2b2118] text-white" : "border-[#d8c9b0] bg-[#fffaf0] text-[#2b2118] hover:bg-[#efe3ce]"}`}
+            >
+              {editingWidgets ? "Lukk oppsett" : "Tilpass widgets"}
+            </button>
+          )}
           <div className="flex flex-wrap gap-1.5 rounded-full border border-[#d8c9b0] bg-[#efe3ce]/70 p-1">
             {PERIODS.map((p) => (
               <button
@@ -381,10 +443,23 @@ export default function DashboardView({
               </button>
             ))}
           </div>
+          </div>
         </div>
       </div>
 
+      {isManager && editingWidgets && (
+        <DashboardWidgetSettings
+          widgets={widgets}
+          saving={savingWidgets}
+          saved={widgetsSaved}
+          error={widgetSaveError}
+          onChange={updateWidgets}
+          onClose={() => setEditingWidgets(false)}
+        />
+      )}
+
       {/* Krever oppmerksomhet – handlingsorientert stripe øverst */}
+      <DashboardWidgetFrame preference={widgetById.attention} order={widgetOrder.attention}>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <ActionTile
           href="/reminders"
@@ -415,8 +490,10 @@ export default function DashboardView({
           tone={meetingsToday > 0 ? "good" : "calm"}
         />
       </div>
+      </DashboardWidgetFrame>
 
       {/* Nøkkeltall-stripe */}
+      <DashboardWidgetFrame preference={widgetById.stats} order={widgetOrder.stats}>
       <div
         className={`card grid grid-cols-2 divide-[#d8c9b0] overflow-hidden transition-opacity duration-300 sm:grid-cols-3 lg:grid-cols-5 lg:divide-x ${
           loading ? "opacity-60" : "opacity-100"
@@ -451,11 +528,10 @@ export default function DashboardView({
           sub={`${deals.length} aktive avtaler`}
         />
       </div>
+      </DashboardWidgetFrame>
 
-      {/* Kropp: venstre (aktivitet) + høyre (oppgaver) */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {/* Samtaler-graf */}
+      {/* Samtaler-graf */}
+      <DashboardWidgetFrame preference={widgetById.calls} order={widgetOrder.calls}>
           <div
             className={`card p-6 transition-opacity duration-300 ${
               loading ? "opacity-60" : "opacity-100"
@@ -503,8 +579,10 @@ export default function DashboardView({
               </div>
             </div>
           </div>
+      </DashboardWidgetFrame>
 
-          {/* Sist ringt */}
+      {/* Sist ringt */}
+      <DashboardWidgetFrame preference={widgetById.recent} order={widgetOrder.recent}>
           <div className="card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#d8c9b0] px-5 py-4">
               <div>
@@ -564,18 +642,20 @@ export default function DashboardView({
               )}
             </ul>
           </div>
-        </div>
+      </DashboardWidgetFrame>
 
-        {/* Oppgaver */}
+      {/* Oppgaver */}
+      <DashboardWidgetFrame preference={widgetById.tasks} order={widgetOrder.tasks}>
         <TasksCard
           reminders={reminders}
           now={now}
           onAdd={addTask}
           onComplete={completeTask}
         />
-      </div>
+      </DashboardWidgetFrame>
 
       {/* Aktive avtaler */}
+      <DashboardWidgetFrame preference={widgetById.deals} order={widgetOrder.deals}>
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#d8c9b0] px-5 py-4">
           <div>
@@ -657,7 +737,30 @@ export default function DashboardView({
           </table>
         </div>
       </div>
+      </DashboardWidgetFrame>
     </div>
+  );
+}
+
+function DashboardWidgetFrame({
+  preference,
+  order,
+  children,
+}: {
+  preference: DashboardWidgetPreference;
+  order: number;
+  children: React.ReactNode;
+}) {
+  if (!preference.visible) return null;
+  const color = DASHBOARD_WIDGET_COLORS[preference.color];
+  return (
+    <section
+      className="rounded-[2rem] border p-2 shadow-[0_16px_48px_rgba(61,44,24,0.06)] transition-colors duration-300 [&>.card]:!border-0 [&>.card]:!bg-transparent [&>.card]:!shadow-none"
+      style={{ order, backgroundColor: color.background, borderColor: color.border }}
+      data-widget={preference.id}
+    >
+      {children}
+    </section>
   );
 }
 
@@ -784,7 +887,7 @@ function TasksCard({
   }
 
   return (
-    <div className="card flex h-fit flex-col p-5 lg:sticky lg:top-4">
+    <div className="card flex h-fit flex-col p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-3xl font-bold leading-none text-[#2b2118]">Oppgaver</h2>
         <Link
