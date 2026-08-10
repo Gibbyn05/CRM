@@ -159,29 +159,22 @@ export default function DagsavisModal({
         <div className={styles.sheetInner}>
           <header className={styles.masthead}>
             <div className={styles.editionBar}>
-              <span>Salgssentralen</span>
-              <span>Utgave {data?.report_date ?? "i dag"}</span>
-              <span>{editionDate}</span>
+              <span className={styles.editionBadge}>Dagens<br />resultater</span>
+              <span className={styles.newspaperName}>Dagsavisen</span>
+              <span className={styles.editionBadge}>Spesial<br />utgave</span>
             </div>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className={styles.subtitle}>Daglig salgsrapport</p>
-                <h2 className={styles.newspaperName}>Dagsavisen</h2>
-                <h3 className={styles.headline}>{reportTitle}</h3>
-                <p className={styles.deck}>
-                  En kort, lesbar morgenutgave med nøkkeltall, samtaler, salg,
-                  omsetning, møter og utvikling. Rapporten hentes fra dagens
-                  aktivitets- og salgsdata.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                aria-label="Lukk dagsavis"
-                className={styles.closeButton}
-              >
-                <Icon name="close" size={18} />
-              </button>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label="Lukk dagsavis"
+              className={styles.closeButton}
+            >
+              <Icon name="close" size={18} />
+            </button>
+            <div className={styles.heroHeadline}>
+              <p className={styles.subtitle}>{reportTitle} · {editionDate}</p>
+              <h2 className={styles.headline}>DU HAR DETTE!</h2>
+              <p className={styles.deck}>Fortsett å bygge gode samtaler, ett tydelig neste steg av gangen</p>
             </div>
 
             <div className={styles.controls}>

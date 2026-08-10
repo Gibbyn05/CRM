@@ -62,6 +62,24 @@ interface DagsavisResponse {
   quote_of_the_day: string;
 }
 
+function sellerFallbackSummary(metrics: DagsavisMetrics): string {
+  const activity = metrics.calls_count > 0
+    ? `Dagen endte med ${metrics.calls_count} samtaler og ${metrics.booked_meetings_count} bookede møter.`
+    : "Det er foreløpig ikke registrert samtaleaktivitet for denne dagen.";
+  const result = metrics.sales_count > 0
+    ? `${metrics.sales_count} salg ga en omsetning på ${formatReportMoney(metrics.revenue_amount)}.`
+    : "Ingen salg er registrert ennå, så neste relevante kundeoppfølging bør prioriteres.";
+  return `${activity} ${result} Start med de varmeste kundene og avklar neste steg i hver dialog.`;
+}
+
+function teamFallbackSummary(metrics: DagsavisMetrics, sellerRows: ManagerSellerSummary[]): string {
+  const leader = sellerRows.find((row) => row.sales_count > 0 || row.calls_count > 0);
+  const leaderText = leader
+    ? ` ${leader.full_name} har høyest synlig aktivitet med ${leader.calls_count} samtaler og ${leader.sales_count} salg.`
+    : "";
+  return `Teamet har registrert ${metrics.calls_count} samtaler, ${metrics.sales_count} salg og ${formatReportMoney(metrics.revenue_amount)} i omsetning.${leaderText} Følg opp åpne tilbud og avtal ett tydelig neste steg per kunde.`;
+}
+
 function makeFallbackSellerReport(
   agentId: string,
   dateISO: string,
@@ -264,7 +282,11 @@ async function upsertSellerReport(
       .eq("agent_id", agentId)
       .eq("report_date", dateISO)
       .maybeSingle<DailyReport>();
-    if (!existingError && existing?.summary_text) return existing;
+    if (
+      !existingError &&
+      existing?.summary_text &&
+      !existing.summary_text.toLowerCase().startsWith("kunne ikke generere")
+    ) return existing;
   }
 
   const metrics = await computeMetrics(admin, agentId, dateISO);
@@ -283,7 +305,7 @@ async function upsertSellerReport(
     );
   } catch (error) {
     console.error("Dagsavis seller summary failed:", error);
-    summaryText = "Kunne ikke generere oppsummering akkurat nå.";
+    summaryText = sellerFallbackSummary(metrics);
   }
 
   const { data: report, error } = await admin
@@ -313,7 +335,11 @@ async function upsertTeamReport(
       .select("*")
       .eq("report_date", dateISO)
       .maybeSingle<DailyTeamReport>();
-    if (!existingError && existing?.summary_text) return existing;
+    if (
+      !existingError &&
+      existing?.summary_text &&
+      !existing.summary_text.toLowerCase().startsWith("kunne ikke generere")
+    ) return existing;
   }
 
   const bounds = dayBounds(dateISO);
@@ -326,7 +352,7 @@ async function upsertTeamReport(
     summaryText = await generateTeamSummary(dateISO, metrics, sellerRows);
   } catch (error) {
     console.error("Dagsavis team summary failed:", error);
-    summaryText = "Kunne ikke generere teamoppsummering akkurat nå.";
+    summaryText = teamFallbackSummary(metrics, sellerRows);
   }
 
   const { data: report, error } = await admin
