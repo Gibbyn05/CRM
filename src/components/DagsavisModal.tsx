@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { Profile } from "@/lib/types";
 import { formatDate } from "@/lib/format";
@@ -467,17 +468,22 @@ function NewspaperIllustration({
   variant: "desk" | "phone";
   dayVariant: number;
 }) {
+  const imageNumber = String((dayVariant % 7) + 1).padStart(2, "0");
+  const subject = variant === "desk"
+    ? "Salgsteam i fokusert arbeid"
+    : "Selger i en aktiv kundesamtale";
   return (
     <figure
-      className={`${styles.illustration} ${styles[variant]} ${styles[`day${dayVariant}`]}`}
-      aria-label={`Dagens motiv, variant ${dayVariant + 1}`}
+      className={`${styles.illustration} ${styles[variant]}`}
     >
-      <span className={styles.sun} />
-      <span className={styles.frameLine} />
-      <span className={styles.personHead} />
-      <span className={styles.personBody} />
-      <span className={styles.objectOne} />
-      <span className={styles.objectTwo} />
+      <Image
+        src={`/dagsavis/sales-${imageNumber}.jpg`}
+        alt={subject}
+        fill
+        sizes={variant === "desk" ? "(max-width: 600px) 90vw, 36vw" : "(max-width: 900px) 90vw, 28vw"}
+        className={styles.salesPhoto}
+      />
+      <span className={styles.photoGrain} aria-hidden="true" />
     </figure>
   );
 }
