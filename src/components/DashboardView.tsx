@@ -140,6 +140,7 @@ export default function DashboardView({
   const [deals, setDeals] = useState<ActiveDeal[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [meetingsToday, setMeetingsToday] = useState(0);
+  const [unfollowedMeetings, setUnfollowedMeetings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [widgets, setWidgets] = useState(() => normalizeDashboardWidgets(initialWidgets));
   const [editingWidgets, setEditingWidgets] = useState(false);
@@ -269,12 +270,22 @@ export default function DashboardView({
     t0.setHours(0, 0, 0, 0);
     const t1 = new Date();
     t1.setHours(23, 59, 59, 999);
-    supabase
-      .from("appointments")
-      .select("id", { count: "exact", head: true })
-      .gte("starts_at", t0.toISOString())
-      .lte("starts_at", t1.toISOString())
-      .then(({ count }) => setMeetingsToday(count ?? 0));
+    Promise.all([
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .gte("starts_at", t0.toISOString())
+        .lte("starts_at", t1.toISOString())
+        .neq("status", "avlyst"),
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .lt("starts_at", new Date().toISOString())
+        .in("status", ["planlagt", "bekreftet"]),
+    ]).then(([todayResult, unfollowedResult]) => {
+      setMeetingsToday(todayResult.count ?? 0);
+      setUnfollowedMeetings(unfollowedResult.count ?? 0);
+    });
   }, [supabase, userId]);
 
   // Realtime for samtaler.
@@ -386,17 +397,11 @@ export default function DashboardView({
   sot.setHours(0, 0, 0, 0);
   const eot = new Date(now);
   eot.setHours(23, 59, 59, 999);
-  const staleMs = 7 * 24 * 60 * 60 * 1000;
   const overdueCount = reminders.filter((r) => new Date(r.due_at) < sot).length;
   const followUpTodayCount = reminders.filter((r) => {
     const d = new Date(r.due_at);
     return d >= sot && d <= eot;
   }).length;
-  const staleCount = deals.filter(
-    (d) =>
-      (d.stage === "ringt" || d.stage === "tilbud_sendt") &&
-      now.getTime() - new Date(d.updated_at).getTime() > staleMs,
-  ).length;
   const dateLine = now
     .toLocaleDateString("nb-NO", {
       weekday: "long",
@@ -471,28 +476,28 @@ export default function DashboardView({
           label="Forfalt"
           count={overdueCount}
           hint="oppgaver over frist"
-          tone={overdueCount > 0 ? "danger" : "calm"}
+          tone="danger"
         />
         <ActionTile
           href="/reminders"
           label="Frist i dag"
           count={followUpTodayCount}
           hint="oppgaver med frist i dag"
-          tone={followUpTodayCount > 0 ? "warn" : "calm"}
+          tone="warn"
         />
         <ActionTile
-          href="/pipeline"
-          label="Stale avtaler"
-          count={staleCount}
-          hint="ingen aktivitet på 7+ dager"
-          tone={staleCount > 0 ? "warn" : "calm"}
+          href="/calendar"
+          label="Møter som ikke er fulgt opp"
+          count={unfollowedMeetings}
+          hint="møter som har passert uten ny status"
+          tone="info"
         />
         <ActionTile
           href="/calendar"
           label="Møter i dag"
           count={meetingsToday}
           hint="i kalenderen"
-          tone={meetingsToday > 0 ? "good" : "calm"}
+          tone="good"
         />
       </div>
       </DashboardWidgetFrame>
@@ -781,9 +786,8 @@ function ActionTile({
   label: string;
   count: number;
   hint: string;
-  tone: "danger" | "warn" | "good" | "calm";
+  tone: "danger" | "warn" | "good" | "info" | "calm";
 }) {
-  const active = count > 0;
   const toneStyle =
     tone === "danger"
       ? "border-[#f0b3a1] bg-[#fff0ea]"
@@ -791,6 +795,8 @@ function ActionTile({
         ? "border-[#e8cf8f] bg-[#fff7e6]"
         : tone === "good"
           ? "border-[#9fe6c4] bg-[#eafff5]"
+          : tone === "info"
+            ? "border-[#a9c9e8] bg-[#edf6ff]"
           : "border-[#d8c9b0] bg-[#fffaf0]";
   const numStyle =
     tone === "danger"
@@ -799,13 +805,13 @@ function ActionTile({
         ? "text-[#a9720a]"
         : tone === "good"
           ? "text-[#008f52]"
+          : tone === "info"
+            ? "text-[#176aa6]"
           : "text-[#8d806e]";
   return (
     <Link
       href={href}
-      className={`group rounded-2xl border p-4 shadow-[0_10px_30px_rgba(61,44,24,0.05)] transition hover:shadow-[0_14px_36px_rgba(61,44,24,0.10)] ${toneStyle} ${
-        active ? "" : "opacity-75"
-      }`}
+      className={`group rounded-2xl border p-4 shadow-[0_10px_30px_rgba(61,44,24,0.05)] transition hover:shadow-[0_14px_36px_rgba(61,44,24,0.10)] ${toneStyle}`}
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="label-eyebrow">{label}</span>
