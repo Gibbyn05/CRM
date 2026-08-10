@@ -62,7 +62,7 @@ export default function CustomerTabs({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/80">
       {/* Fanelinje */}
-      <div className="flex gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
+      <div className="flex shrink-0 gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
         {TABS.map((t) => {
           const active = tab === t.key;
           const count =
@@ -106,10 +106,10 @@ export default function CustomerTabs({
 
       {/* Faneinnhold */}
       <div
-        className={`min-h-0 flex-1 ${tab === "aktivitet" ? "" : "overflow-y-auto p-4 sm:p-5"}`}
+        className={`min-h-0 flex-1 ${tab === "aktivitet" ? "overflow-hidden" : "overflow-y-auto p-4 sm:p-5"}`}
       >
         {tab === "aktivitet" && (
-          <div className="h-full">
+          <div className="h-full min-h-0 overflow-hidden">
             <NotesLog
               customerId={customer.id}
               initialNotes={notes}
