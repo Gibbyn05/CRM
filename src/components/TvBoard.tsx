@@ -14,7 +14,7 @@ const STATUS_ORDER: Record<string, number> = {
   offline: 3,
 };
 
-// TV-tavle med automatisk oppdatering (polling hvert 5. sekund). Designet for
+// TV-tavle med automatisk oppdatering (polling hvert 2,5. sekund). Designet for
 // storskjerm: store kort, høy kontrast. Ingen innlogging.
 interface SaleEvent {
   id: string;
@@ -27,6 +27,8 @@ interface SaleEvent {
 export default function TvBoard() {
   const [agents, setAgents] = useState<LiveAgentRow[]>([]);
   const [now, setNow] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   // Salgsfeiring + lyd (kun på TV-en). Autoplay krever at noen aktiverer lyden
   // én gang (kiosk-mus/-fjernkontroll), ellers blokkerer nettleseren lyd.
@@ -138,20 +140,32 @@ export default function TvBoard() {
     async function load() {
       try {
         const res = await fetch("/api/live-board", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Live-status svarte ${res.status}`);
         const json = await res.json();
-        if (active) setAgents(json.agents ?? []);
+        if (active) {
+          setAgents(json.agents ?? []);
+          setLastUpdated(new Date());
+          setLoadError(false);
+        }
       } catch {
-        // ignorer transiente feil; prøver igjen ved neste intervall
+        if (active) setLoadError(true);
       }
     }
 
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
     load();
-    const dataTimer = setInterval(load, 5_000);
+    const dataTimer = setInterval(load, 2_500);
     const clockTimer = setInterval(() => setNow(new Date()), 1_000);
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       active = false;
       clearInterval(dataTimer);
       clearInterval(clockTimer);
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 
@@ -216,7 +230,23 @@ export default function TvBoard() {
         <div>
           <h1 className="text-4xl font-bold">Salgssentral – Live</h1>
           <p className="text-xl text-slate-400">
-            {inCall} i samtale nå · {agents.length} agenter
+            {inCall} i samtale nå · {agents.length} aktive brukere
+          </p>
+          <p
+            className={`mt-2 inline-flex items-center gap-2 rounded-full bg-slate-950/60 px-3 py-1 text-sm font-semibold ${
+              loadError ? "text-red-300" : "text-emerald-300"
+            }`}
+          >
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                loadError ? "bg-red-400" : "bg-emerald-400"
+              }`}
+            />
+            {loadError
+              ? "Tilkobling brutt, prøver igjen"
+              : lastUpdated
+                ? "Live · oppdatert nå"
+                : "Kobler til …"}
           </p>
         </div>
         <div className="text-right">

@@ -32,11 +32,19 @@ const AgentCard = forwardRef<
       ref={ref}
       className={`card animate-card-in flex items-center justify-between gap-3 transition hover:shadow-pop ${
         big ? "p-6" : "p-4"
-      } ${isInCall ? "border-2 border-status-incall shadow-pop" : ""}`}
+      } ${
+        isInCall
+          ? "scale-[1.02] border-2 border-status-incall bg-emerald-50 shadow-pop ring-4 ring-emerald-400/30"
+          : ""
+      }`}
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative shrink-0">
-          <Avatar name={agent.full_name || "Ukjent"} size={big ? 52 : 42} />
+          <Avatar
+            name={agent.full_name || "Ukjent"}
+            url={agent.avatar_url}
+            size={big ? 64 : 42}
+          />
           <span
             className={`absolute -bottom-0.5 -right-0.5 rounded-full transition-colors duration-300 ${color} ring-2 ring-white ${
               big ? "h-4 w-4" : "h-3.5 w-3.5"

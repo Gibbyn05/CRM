@@ -4,7 +4,7 @@ import type { AgentState, LiveAgentRow, Profile } from "./types";
 // slik at den kan brukes både fra server-komponenter (/live, /api/live-board)
 // og klient-komponenter uten at Next gjør den om til en klient-referanse.
 export function toLiveRows(
-  profiles: Pick<Profile, "id" | "full_name">[],
+  profiles: Pick<Profile, "id" | "full_name" | "avatar_url">[],
   states: AgentState[],
 ): LiveAgentRow[] {
   const stateMap = new Map(states.map((s) => [s.agent_id, s]));
@@ -13,6 +13,7 @@ export function toLiveRows(
     return {
       agent_id: p.id,
       full_name: p.full_name,
+      avatar_url: p.avatar_url,
       status: s?.status ?? "offline",
       last_call_started_at: s?.last_call_started_at ?? null,
       last_call_ended_at: s?.last_call_ended_at ?? null,

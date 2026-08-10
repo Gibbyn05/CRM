@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AgentState, AgentStatus } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
@@ -35,9 +35,11 @@ const OPTIONS: {
 ];
 
 export default function StatusBar() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [saving, setSaving] = useState<AgentStatus | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -81,36 +83,56 @@ export default function StatusBar() {
   }, [supabase]);
 
   async function choose(value: AgentStatus) {
-    if (!userId) return;
-    setStatus(value); // optimistisk
-    await supabase.rpc("set_agent_status", { p_status: value });
+    if (!userId || saving) return;
+    const previous = status;
+    setError("");
+    setSaving(value);
+    setStatus(value);
+
+    const { error: rpcError } = await supabase.rpc("set_agent_status", {
+      p_status: value,
+    });
+
+    if (rpcError) {
+      setStatus(previous);
+      setError("Statusen ble ikke lagret. Prøv igjen.");
+    }
+    setSaving(null);
   }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur transition-[left] sm:px-3 sm:py-2.5 lg:left-[var(--sidebar-w,16rem)]">
-      <div className="mx-auto flex max-w-2xl items-center justify-center gap-2">
-        <span className="hidden text-xs font-medium text-slate-400 sm:inline">
-          Min status
-        </span>
-        <div className="flex min-w-0 flex-1 items-center gap-1 rounded-2xl bg-slate-100 p-1 sm:flex-none sm:gap-1.5">
-          {OPTIONS.map((o) => {
-            const isActive = status === o.value;
-            return (
-              <button
-                key={o.value}
-                onClick={() => choose(o.value)}
-                aria-pressed={isActive}
-                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
-                  isActive
-                    ? o.active
-                    : "text-slate-500 hover:bg-white hover:text-slate-700"
-                }`}
-              >
-                <Icon name={o.icon} size={16} />
-                <span>{o.label}</span>
-              </button>
-            );
-          })}
+      <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-1">
+        {error && (
+          <p className="text-xs font-medium text-red-600" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="flex w-full items-center justify-center gap-2">
+          <span className="hidden text-xs font-medium text-slate-400 sm:inline">
+            Min status
+          </span>
+          <div className="flex min-w-0 flex-1 items-center gap-1 rounded-2xl bg-slate-100 p-1 sm:flex-none sm:gap-1.5">
+            {OPTIONS.map((o) => {
+              const isActive = status === o.value;
+              return (
+                <button
+                  key={o.value}
+                  onClick={() => choose(o.value)}
+                  aria-pressed={isActive}
+                  disabled={saving !== null}
+                  className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition sm:flex-none sm:gap-2 sm:px-3 sm:text-sm ${
+                    isActive
+                      ? o.active
+                      : "text-slate-500 hover:bg-white hover:text-slate-700"
+                  }`}
+                >
+                  <Icon name={o.icon} size={16} />
+                  <span>{o.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

@@ -20,19 +20,35 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const [{ data: profiles }, { data: states }] = await Promise.all([
+  const [profilesResult, statesResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name")
-      .eq("role", "agent")
+      .select("id, full_name, avatar_url")
       .eq("is_active", true),
     supabase.from("agent_states").select("*"),
   ]);
 
+  if (profilesResult.error || statesResult.error) {
+    console.error("Kunne ikke laste TV-status", {
+      profiles: profilesResult.error?.message,
+      states: statesResult.error?.message,
+    });
+    return NextResponse.json(
+      { error: "Kunne ikke laste live-status" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const rows = toLiveRows(
-    (profiles as Pick<Profile, "id" | "full_name">[]) ?? [],
-    (states as AgentState[]) ?? [],
+    (profilesResult.data as Pick<
+      Profile,
+      "id" | "full_name" | "avatar_url"
+    >[]) ?? [],
+    (statesResult.data as AgentState[]) ?? [],
   );
 
-  return NextResponse.json({ agents: rows });
+  return NextResponse.json(
+    { agents: rows, generated_at: new Date().toISOString() },
+    { headers: { "Cache-Control": "no-store, max-age=0" } },
+  );
 }

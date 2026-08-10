@@ -491,6 +491,7 @@ export interface LeaderboardRow {
 export interface LiveAgentRow {
   agent_id: string;
   full_name: string;
+  avatar_url: string | null;
   status: AgentStatus;
   last_call_started_at: string | null;
   last_call_ended_at: string | null;
