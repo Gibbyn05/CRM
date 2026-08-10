@@ -4,6 +4,10 @@ import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ContractTemplate, Product } from "@/lib/types";
 import Icon from "./Icon";
+import {
+  CONTRACT_PLACEHOLDERS,
+  placeholderToken,
+} from "@/lib/contract-placeholders";
 
 type TemplateRow = ContractTemplate & { product_ids: string[] };
 
@@ -28,6 +32,7 @@ export default function ContractTemplatesAdmin({
 }) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const [templates, setTemplates] = useState(initialTemplates);
   const [draft, setDraft] = useState(EMPTY);
   const [file, setFile] = useState<File | null>(null);
@@ -172,6 +177,25 @@ export default function ContractTemplatesAdmin({
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
+  function insertPlaceholder(key: string) {
+    const token = placeholderToken(key);
+    const textarea = textRef.current;
+    const start = textarea?.selectionStart ?? draft.template_text.length;
+    const end = textarea?.selectionEnd ?? draft.template_text.length;
+    setDraft((current) => ({
+      ...current,
+      template_text:
+        current.template_text.slice(0, start) +
+        token +
+        current.template_text.slice(end),
+    }));
+    setMessage(`${token} er satt inn i kontraktsteksten.`);
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
   return (
     <section className="overflow-hidden rounded-[28px] border border-[#ded2bf] bg-[#fbf7ef] shadow-[0_20px_60px_rgba(62,45,22,0.08)]">
       <div className="grid border-b border-[#ded2bf] lg:grid-cols-[1fr_auto]">
@@ -202,7 +226,11 @@ export default function ContractTemplatesAdmin({
                     <span className="block truncate font-semibold text-[#2c241b]">{template.name}</span>
                     <span className="mt-1 block text-xs text-[#8a7e6e]">Versjon {template.version} · {template.product_ids.length ? `${template.product_ids.length} produktkoblinger` : "Alle produkter"}</span>
                   </button>
-                  <button onClick={() => toggle(template)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${template.is_active ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                  <button
+                    onClick={() => toggle(template)}
+                    data-active={template.is_active}
+                    className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide data-[active=false]:bg-[#e7e1d8] data-[active=false]:text-[#594e40] data-[active=true]:bg-emerald-100 data-[active=true]:text-emerald-800"
+                  >
                     {template.is_active ? "Aktiv" : "Av"}
                   </button>
                 </div>
@@ -247,10 +275,48 @@ export default function ContractTemplatesAdmin({
             </div>
             <p className="mt-1 text-xs text-[#938673]">Ingen valg betyr at malen kan brukes for alle produkter.</p>
           </Field>
-          <Field label="Kontraktstekst som AI skal fylle ut">
-            <textarea value={draft.template_text} onChange={(e) => setDraft((d) => ({ ...d, template_text: e.target.value }))} rows={14} placeholder="Lim inn den juridiske originalteksten her. Tekstfiler leses automatisk ved opplasting." className="template-input resize-y font-mono text-[12px] leading-5" />
+          <div className="rounded-2xl border border-[#d8ccb9] bg-white/60 p-4">
+            <div className="mb-3">
+              <h4 className="text-sm font-bold text-[#3c3023]">Dynamiske kontraktsfelt</h4>
+              <p className="mt-1 text-xs leading-5 text-[#776b5c]">
+                Plasser markøren i kontrakten og velg et felt. Reachr erstatter feltet med faktiske CRM-data før AI-en ferdigstiller dokumentet.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {(["Kunde", "Avtale", "Selger", "Organisasjon"] as const).map((group) => (
+                <div key={group}>
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8a7b65]">{group}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {CONTRACT_PLACEHOLDERS.filter((item) => item.group === group).map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        title={`${placeholderToken(item.key)} · Eksempel: ${item.example}`}
+                        onClick={() => insertPlaceholder(item.key)}
+                        className="min-h-9 rounded-lg border border-[#d8ccb9] bg-[#fffdf9] px-2.5 py-1.5 text-left text-xs font-semibold text-[#5f503d] transition hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Field label="Kontraktstekst">
+            <textarea
+              ref={textRef}
+              value={draft.template_text}
+              onChange={(e) => setDraft((d) => ({ ...d, template_text: e.target.value }))}
+              rows={18}
+              placeholder={'Eksempel: Avtalen er bindende når {{organization.name}} har mottatt kontrakten signert av {{customer.name}}.'}
+              className="template-input resize-y font-mono text-[12px] leading-5"
+            />
           </Field>
-          {message && <p className={`text-sm ${/(lagret|hentet)/i.test(message) ? "text-emerald-700" : "text-red-600"}`}>{message}</p>}
+          <div className="rounded-xl bg-[#eee7da] px-4 py-3 text-xs leading-5 text-[#665946]">
+            <strong>Slik fungerer det:</strong> Skriv for eksempel <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-emerald-800">{'{{customer.name}}'}</code>. I den ferdige kontrakten blir dette erstattet med navnet fra kundekortet. Ukjente eller tomme felt stopper genereringen.
+          </div>
+          {message && <p className={`text-sm ${/(lagret|hentet|satt inn)/i.test(message) ? "text-emerald-700" : "text-red-600"}`}>{message}</p>}
           <div className="flex justify-end gap-3">
             {draft.id && <button onClick={reset} className="rounded-xl border border-[#cfc1aa] px-4 py-2.5 text-sm font-semibold text-[#6f624f]">Avbryt</button>}
             <button onClick={save} disabled={saving || extracting} className="rounded-xl bg-[#1b5f44] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#134b35] disabled:opacity-50">{saving ? "Lagrer …" : "Lagre kontraktsmal"}</button>

@@ -100,6 +100,7 @@ export default function SaleWizard({
     monthly_amount: "",
   });
   const [missingFields, setMissingFields] = useState<{ key: string; label: string }[]>([]);
+  const [generationIssue, setGenerationIssue] = useState("Mangler informasjon");
   const [usedFields, setUsedFields] = useState<{ key: string; label: string; value: unknown }[]>([]);
   const [generationData, setGenerationData] = useState<Record<string, unknown>>({});
   const [generating, setGenerating] = useState(false);
@@ -134,8 +135,9 @@ export default function SaleWizard({
       });
       const json = await res.json();
       if (res.status === 422) {
-        setMissingFields(json.missing ?? []);
-        throw new Error("Fyll inn de manglende opplysningene før kontrakten genereres.");
+        setGenerationIssue(json.error ?? "Mangler informasjon");
+        setMissingFields([...(json.missing ?? []), ...(json.unknown ?? [])]);
+        throw new Error(json.error ?? "Kontroller kontraktsmalen og manglende opplysninger.");
       }
       if (!res.ok) throw new Error(json.error ?? "Kunne ikke generere kontrakt.");
       if (json.contract) setContract(json.contract);
@@ -488,11 +490,11 @@ export default function SaleWizard({
 
           {missingFields.length > 0 && (
             <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-              <p className="font-bold text-amber-900">Mangler informasjon</p>
+              <p className="font-bold text-amber-900">{generationIssue}</p>
               <ul className="mt-2 grid list-inside list-disc gap-1 text-sm text-amber-800 sm:grid-cols-2">
                 {missingFields.map((field) => <li key={field.key}>{field.label}</li>)}
               </ul>
-              <p className="mt-2 text-xs text-amber-700">Reachr genererer ikke kontrakten før disse verdiene finnes. Kundedata endres på kundekortet.</p>
+              <p className="mt-2 text-xs text-amber-700">Reachr genererer ikke kontrakten før feltene er gyldige og nødvendige CRM-data finnes.</p>
             </div>
           )}
 

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { generateOpenAIText } from "@/lib/openai";
+import {
+  CONTRACT_PLACEHOLDERS,
+  fillContractPlaceholders,
+} from "@/lib/contract-placeholders";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -49,6 +53,11 @@ const FIELD_LABELS: Record<string, string> = {
 
 function money(value: number) {
   return new Intl.NumberFormat("nb-NO", { style: "currency", currency: "NOK" }).format(value);
+}
+
+function date(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return new Intl.DateTimeFormat("nb-NO").format(new Date(`${value}T12:00:00`));
 }
 
 export async function POST(req: NextRequest) {
@@ -129,10 +138,7 @@ export async function POST(req: NextRequest) {
     discount: details.discount?.trim() || "Ingen rabatt",
   };
 
-  const requiredKeys = [
-    "customer_name", "organization_number", "contact_name", "email", "phone",
-    "invoice_address", "product", "price", "agreement_period", "start_date", "payment_terms",
-  ];
+  const requiredKeys = ["customer_name", "organization_number", "product", "price"];
   const missing = requiredKeys.filter((key) => !values[key as keyof typeof values]);
   if (missing.length) {
     return NextResponse.json({
@@ -152,30 +158,73 @@ export async function POST(req: NextRequest) {
     agreement_start: line.agreement_start || null,
     agreement_end: line.agreement_end || null,
   }));
-  const snapshot = { template_id: template.id, template_name: template.name, values, lines, generated_by: user.id };
+  const productLines = lines
+    .map((line) => `${line.quantity} × ${line.name || "Produkt"} – ${money(line.line_total)}`)
+    .join("\n");
+  const placeholderValues: Record<string, string> = {
+    "customer.name": values.customer_name,
+    "customer.org_number": values.organization_number,
+    "customer.contact_name": values.contact_name,
+    "customer.email": values.email,
+    "customer.phone": values.phone,
+    "customer.address": values.invoice_address,
+    "contract.title": values.contract_title,
+    "products.names": values.product,
+    "products.lines": productLines,
+    "price.total": values.price,
+    "price.one_time": values.one_time_amount,
+    "price.monthly": values.monthly_amount,
+    "agreement.start_date": date(values.start_date),
+    "agreement.period": values.agreement_period,
+    "agreement.payment_terms": values.payment_terms,
+    "agreement.discount": values.discount,
+    "seller.name": values.seller_name,
+    "seller.email": values.seller_email,
+    "seller.phone": values.seller_phone,
+    "organization.name": values.supplier_name,
+    "organization.org_number": values.supplier_org_number,
+    "organization.email": org?.email?.trim() || "",
+    "organization.phone": org?.phone?.trim() || "",
+    "organization.address": [org?.address, [org?.postal_code, org?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+  };
+  const filled = fillContractPlaceholders(template.template_text, placeholderValues);
+  const placeholderLabels = new Map(CONTRACT_PLACEHOLDERS.map((item) => [item.key, item.label]));
+  if (filled.unknown.length || filled.missing.length) {
+    return NextResponse.json({
+      error: filled.unknown.length ? "Ukjente plassholdere i kontraktsmalen" : "Mangler informasjon",
+      missing: filled.missing.map((key) => ({ key, label: placeholderLabels.get(key) ?? key })),
+      unknown: filled.unknown.map((key) => ({ key, label: `{{${key}}}` })),
+      values: placeholderValues,
+    }, { status: 422 });
+  }
+  const snapshot = {
+    template_id: template.id,
+    template_name: template.name,
+    values: placeholderValues,
+    used_placeholders: filled.used,
+    lines,
+    generated_by: user.id,
+  };
 
-  let contract = template.template_text;
+  let contract = filled.text;
   let ai = false;
   try {
     contract = await generateOpenAIText({
-      instructions: `Du fyller ut en eksisterende norsk B2B-kontraktsmal. Bevar struktur, klausuler, nummerering og juridisk innhold. Erstatt bare felter som kan fylles fra DATA. Ikke gjett, ikke legg til fakta og ikke fjern vilkår. Dersom malen har plassholdere, erstatt dem. Returner hele ferdige kontrakten som ren tekst uten markdown eller forklaring.`,
-      input: `MAL:\n${template.template_text}\n\nDATA (den eneste tillatte faktakilden):\n${JSON.stringify({ ...values, products: lines }, null, 2)}`,
+      instructions: `Du ferdigstiller en norsk B2B-kontrakt etter at alle eksplisitte {{plassholdere}} allerede er fylt deterministisk av Reachr. Bevar struktur, klausuler, nummerering, juridisk innhold og alle utfylte verdier. Du kan bare gjøre grammatisk nødvendige bøyninger og formatere produktlinjene lesbart. Ikke gjett, legg til fakta, endre priser eller fjern vilkår. Returner hele kontrakten som ren tekst uten markdown eller forklaring.`,
+      input: `UTFYLT MAL:\n${filled.text}\n\nKONTROLLDATA:\n${JSON.stringify({ placeholders: placeholderValues, products: lines }, null, 2)}`,
       maxOutputTokens: 6000,
       model: process.env.OPENAI_CONTRACT_MODEL ?? "gpt-5.6-luna",
     });
     ai = Boolean(contract.trim());
   } catch {
-    for (const [key, value] of Object.entries(values)) {
-      contract = contract.replaceAll(`{{${key}}}`, String(value));
-      contract = contract.replaceAll(`[[${key}]]`, String(value));
-    }
+    contract = filled.text;
   }
 
   return NextResponse.json({
     contract,
     ai,
     template: { id: template.id, name: template.name },
-    used_fields: Object.entries(values).map(([key, value]) => ({ key, label: FIELD_LABELS[key] ?? key, value })),
+    used_fields: filled.used.map((key) => ({ key, label: placeholderLabels.get(key) ?? key, value: placeholderValues[key] })),
     generation_data: snapshot,
   });
 }
