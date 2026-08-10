@@ -23,6 +23,11 @@ const PALETTE = [
   "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#64748b",
 ];
 const FALLBACK_COLOR = "#94a3b8";
+const TASK_COLOR = "#2563eb";
+
+function appointmentColor(appointment: Appointment, eventType?: EventType): string {
+  return appointment.reminder_id ? TASK_COLOR : (eventType?.color ?? FALLBACK_COLOR);
+}
 
 // Ukevisning: tidsrutenett fra 07 til 20.
 const START_HOUR = 7;
@@ -350,7 +355,7 @@ export default function CalendarView({
                         const t = a.event_type_id
                           ? typeById.get(a.event_type_id)
                           : undefined;
-                        const color = t?.color ?? FALLBACK_COLOR;
+                        const color = appointmentColor(a, t);
                         return (
                           <span
                             key={a.id}
@@ -446,7 +451,7 @@ export default function CalendarView({
                       const t = a.event_type_id
                         ? typeById.get(a.event_type_id)
                         : undefined;
-                      const color = t?.color ?? FALLBACK_COLOR;
+                      const color = appointmentColor(a, t);
                       const s = new Date(a.starts_at);
                       const e = a.ends_at
                         ? new Date(a.ends_at)
@@ -823,7 +828,7 @@ function DetailModal({
 }) {
   const supabase = createClient();
   const [busy, setBusy] = useState(false);
-  const color = eventType?.color ?? FALLBACK_COLOR;
+  const color = appointmentColor(appointment, eventType);
   const start = new Date(appointment.starts_at);
 
   async function setStatus(status: AppointmentStatus) {
@@ -858,7 +863,7 @@ function DetailModal({
             style={{ backgroundColor: color }}
           />
           <span className="text-sm font-medium text-slate-500">
-            {eventType?.name ?? "Ingen type"}
+            {appointment.reminder_id ? "Oppgave" : (eventType?.name ?? "Ingen type")}
           </span>
         </div>
         <h3 className="text-lg font-bold text-slate-900">{appointment.title}</h3>
@@ -875,6 +880,11 @@ function DetailModal({
           <p className="text-sm text-slate-600">📍 {appointment.location}</p>
         )}
         <p className="text-sm text-slate-500">Ansvarlig: {agentName}</p>
+        {appointment.reminder_id && (
+          <Link href="/reminders" className="text-sm font-semibold text-blue-600 hover:underline">
+            Åpne i oppgaver
+          </Link>
+        )}
         <AppointmentReminderStatus appointmentId={appointment.id} />
         {appointment.customer_id && (
           <Link
@@ -1039,10 +1049,12 @@ function MiniMonth({
           const events = inMonth ? eventsByDay.get(key) ?? [] : [];
           const isToday = key === todayKey;
           const first = events[0];
-          const dotColor =
-            (first?.event_type_id
-              ? typeById.get(first.event_type_id)?.color
-              : undefined) ?? FALLBACK_COLOR;
+          const dotColor = first
+            ? appointmentColor(
+                first,
+                first.event_type_id ? typeById.get(first.event_type_id) : undefined,
+              )
+            : FALLBACK_COLOR;
           return (
             <div
               key={i}

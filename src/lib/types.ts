@@ -188,6 +188,7 @@ export interface Deal {
 
 export interface Appointment {
   id: string;
+  reminder_id: string | null;
   agent_id: string;
   customer_id: string | null;
   title: string;
