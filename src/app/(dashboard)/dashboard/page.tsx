@@ -24,16 +24,12 @@ export default async function DashboardPage() {
 
   const isManager = me?.role === "manager";
   const firstName = (me?.full_name || "").split(/\s+/)[0] ?? "";
-  let initialWidgets = normalizeDashboardWidgets(null);
-
-  if (isManager) {
-    const { data: preference } = await supabase
-      .from("dashboard_preferences")
-      .select("widgets")
-      .eq("user_id", user.id)
-      .maybeSingle<{ widgets: unknown }>();
-    initialWidgets = normalizeDashboardWidgets(preference?.widgets);
-  }
+  const { data: preference } = await supabase
+    .from("dashboard_preferences")
+    .select("widgets")
+    .eq("user_id", user.id)
+    .maybeSingle<{ widgets: unknown }>();
+  const initialWidgets = normalizeDashboardWidgets(preference?.widgets);
 
   // Ledere trenger navn på selgerne for "Sist ringt"-lista.
   let agentNames: Record<string, string> = {};

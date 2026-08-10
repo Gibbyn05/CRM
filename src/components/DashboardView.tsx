@@ -419,15 +419,13 @@ export default function DashboardView({
             {isManager ? "Teamkommando" : "Personlig kommandosenter"}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-          {isManager && (
-            <button
-              type="button"
-              onClick={() => setEditingWidgets((value) => !value)}
-              className={`rounded-full border px-4 py-2 text-sm font-bold transition ${editingWidgets ? "border-[#2b2118] bg-[#2b2118] text-white" : "border-[#d8c9b0] bg-[#fffaf0] text-[#2b2118] hover:bg-[#efe3ce]"}`}
-            >
-              {editingWidgets ? "Lukk oppsett" : "Tilpass widgets"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setEditingWidgets((value) => !value)}
+            className={`rounded-full border px-4 py-2 text-sm font-bold transition ${editingWidgets ? "border-[#2b2118] bg-[#2b2118] text-white" : "border-[#d8c9b0] bg-[#fffaf0] text-[#2b2118] hover:bg-[#efe3ce]"}`}
+          >
+            {editingWidgets ? "Lukk oppsett" : "Tilpass widgets"}
+          </button>
           <div className="flex flex-wrap gap-1.5 rounded-full border border-[#d8c9b0] bg-[#efe3ce]/70 p-1">
             {PERIODS.map((p) => (
               <button
@@ -447,7 +445,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {isManager && editingWidgets && (
+      {editingWidgets && (
         <DashboardWidgetSettings
           widgets={widgets}
           saving={savingWidgets}

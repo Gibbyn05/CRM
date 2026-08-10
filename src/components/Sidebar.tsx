@@ -2,23 +2,31 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 import DagsavisModal from "./DagsavisModal";
 import Icon, { type IconName } from "./Icon";
 import NotificationBell from "./NotificationBell";
+import SidebarMenuSettings from "./SidebarMenuSettings";
+import {
+  normalizeSidebarNavigation,
+  type SidebarGroupId,
+  type SidebarGroupPreference,
+} from "@/lib/sidebar-navigation";
 
 type NavItem = {
   href: string;
   label: string;
   icon: IconName;
   managerOnly?: boolean;
+  external?: boolean;
 };
 
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+const NAV_GROUPS: { id: SidebarGroupId; title: string; items: NavItem[] }[] = [
   {
+    id: "overview",
     title: "Oversikt",
     items: [
       { href: "/dashboard", label: "Dashbord", icon: "dashboard" },
@@ -27,6 +35,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
+    id: "sales",
     title: "Salg",
     items: [
       { href: "/customers", label: "Kunder", icon: "customers" },
@@ -50,6 +59,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
+    id: "account",
     title: "Konto",
     items: [
       { href: "/profile", label: "Min profil", icon: "profile" },
@@ -78,6 +88,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         icon: "customers",
         managerOnly: true,
       },
+      { href: "/tv", label: "TV-visning", icon: "tv", managerOnly: true, external: true },
     ],
   },
 ];
@@ -89,6 +100,15 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [dagsavisOpen, setDagsavisOpen] = useState(false);
+  const [menuSettingsOpen, setMenuSettingsOpen] = useState(false);
+  const [navigation, setNavigation] = useState<SidebarGroupPreference[]>(() =>
+    normalizeSidebarNavigation(null),
+  );
+  const [savingNavigation, setSavingNavigation] = useState(false);
+  const [navigationSaved, setNavigationSaved] = useState(false);
+  const [navigationError, setNavigationError] = useState("");
+  const navigationSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isManager = profile?.role === "manager";
 
   // Husk komprimert tilstand, og eksponer bredden som CSS-variabel slik at den
   // faste statuslinja nederst kan justere seg (--sidebar-w).
@@ -117,6 +137,22 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
     setDagsavisOpen(true);
   }, [profile?.id]);
 
+  useEffect(() => {
+    if (!profile?.id) return;
+    supabase
+      .from("dashboard_preferences")
+      .select("navigation")
+      .eq("user_id", profile.id)
+      .maybeSingle<{ navigation: unknown }>()
+      .then(({ data }) => setNavigation(normalizeSidebarNavigation(data?.navigation)));
+    // Supabase-klienten er en singleton; kjør kun når bruker/rolle endres.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
+  useEffect(() => () => {
+    if (navigationSaveTimer.current) clearTimeout(navigationSaveTimer.current);
+  }, []);
+
   function toggleCollapsed() {
     setCollapsed((c) => {
       const next = !c;
@@ -131,8 +167,44 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
     router.refresh();
   }
 
-  const isManager = profile?.role === "manager";
+  function updateNavigation(next: SidebarGroupPreference[]) {
+    if (!profile?.id) return;
+    const normalized = normalizeSidebarNavigation(next);
+    setNavigation(normalized);
+    setNavigationSaved(false);
+    setNavigationError("");
+    if (navigationSaveTimer.current) clearTimeout(navigationSaveTimer.current);
+    navigationSaveTimer.current = setTimeout(async () => {
+      setSavingNavigation(true);
+      const { error } = await supabase.from("dashboard_preferences").upsert({
+        user_id: profile.id,
+        navigation: normalized,
+      });
+      setSavingNavigation(false);
+      if (error) {
+        setNavigationError("Kunne ikke lagre menyen.");
+        return;
+      }
+      setNavigationSaved(true);
+      setTimeout(() => setNavigationSaved(false), 1800);
+    }, 450);
+  }
+
   const hide = collapsed ? "lg:hidden" : "";
+  const navGroupsById = new Map(NAV_GROUPS.map((group) => [group.id, group]));
+  const visibleGroups = navigation.flatMap((preference) => {
+    const group = navGroupsById.get(preference.id);
+    if (!group || !preference.visible) return [];
+    const itemsByHref = new Map(group.items.map((item) => [item.href, item]));
+    const items = preference.items.flatMap((itemPreference) => {
+      const item = itemsByHref.get(itemPreference.href);
+      return itemPreference.visible && item && (!item.managerOnly || isManager) ? [item] : [];
+    });
+    return items.length ? [{ ...group, items }] : [];
+  });
+  const navLabels = Object.fromEntries(
+    NAV_GROUPS.flatMap((group) => group.items.map((item) => [item.href, item.label])),
+  );
 
   return (
     <>
@@ -201,15 +273,13 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
               : "overflow-y-auto px-3"
           }`}
         >
-          {NAV_GROUPS.map((group) => (
-            <div key={group.title}>
+          {visibleGroups.map((group) => (
+            <div key={group.id}>
               <p className={`label-eyebrow px-3 pb-2 ${hide}`}>
                 {group.title}
               </p>
               <div className="space-y-1">
-                {group.items
-                  .filter((item) => !item.managerOnly || isManager)
-                  .map((item) => (
+                {group.items.map((item) => (
                       <NavLink
                         key={item.href}
                         item={item}
@@ -219,35 +289,27 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
                         onOpenDagsavis={() => setDagsavisOpen(true)}
                       />
                     ))}
-                {group.title === "Konto" && isManager && (
-                  <Link
-                    href="/tv"
-                    target="_blank"
-                    onClick={() => setOpen(false)}
-                    aria-label="TV-visning"
-                    className={`group relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium text-[#fffaf0]/60 transition hover:bg-white/10 hover:text-[#fffaf0] active:scale-[0.98] ${
-                      collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"
-                    }`}
-                  >
-                    <Icon
-                      name="tv"
-                      size={18}
-                      className={`text-[#d9bd8f]/50 transition-transform duration-150 ${
-                        collapsed ? "lg:group-hover:scale-110" : ""
-                      }`}
-                    />
-                    <span className={hide}>TV-visning</span>
-                    {collapsed && <RailTooltip label="TV-visning" />}
-                  </Link>
-                )}
               </div>
             </div>
           ))}
+          {profile?.id && (
+            <button
+              type="button"
+              onClick={() => setMenuSettingsOpen(true)}
+              className={`group relative flex w-full items-center gap-3 rounded-xl border border-white/10 py-2.5 text-left text-sm font-semibold text-[#d9bd8f] transition hover:border-white/20 hover:bg-white/10 hover:text-[#fffaf0] ${collapsed ? "lg:justify-center lg:gap-0 lg:px-2" : "px-3"}`}
+            >
+              <Icon name="settings" size={18} />
+              <span className={hide}>Tilpass meny</span>
+              {collapsed && <RailTooltip label="Tilpass meny" />}
+            </button>
+          )}
         </nav>
 
         {/* Bruker + logg ut */}
         <div className="mt-auto border-t border-white/10 p-3">
-          <div
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
             className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
               collapsed ? "lg:justify-center lg:px-0" : ""
             }`}
@@ -263,7 +325,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
               </p>
               <p className="truncate text-xs text-[#d9bd8f]/55">{profile?.email}</p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={signOut}
             aria-label="Logg ut"
@@ -289,6 +351,17 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
         onOpenChange={setDagsavisOpen}
         profile={profile}
       />
+      {profile?.id && menuSettingsOpen && (
+        <SidebarMenuSettings
+          groups={navigation}
+          labels={navLabels}
+          saving={savingNavigation}
+          saved={navigationSaved}
+          error={navigationError}
+          onChange={updateNavigation}
+          onClose={() => setMenuSettingsOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -334,6 +407,8 @@ function NavLink({
   return (
     <Link
       href={item.href}
+      target={item.external ? "_blank" : undefined}
+      rel={item.external ? "noreferrer" : undefined}
       onClick={onClick}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}

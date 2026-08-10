@@ -1600,17 +1600,25 @@ create trigger dashboard_preferences_set_updated_at
 
 alter table public.dashboard_preferences enable row level security;
 
-create policy dashboard_preferences_select_own_manager
+create policy dashboard_preferences_select_own
   on public.dashboard_preferences for select to authenticated
-  using ((select auth.uid()) = user_id and (select public.is_manager()));
+  using ((select auth.uid()) = user_id);
 
-create policy dashboard_preferences_insert_own_manager
+create policy dashboard_preferences_insert_own
   on public.dashboard_preferences for insert to authenticated
-  with check ((select auth.uid()) = user_id and (select public.is_manager()));
+  with check ((select auth.uid()) = user_id);
 
-create policy dashboard_preferences_update_own_manager
+create policy dashboard_preferences_update_own
   on public.dashboard_preferences for update to authenticated
-  using ((select auth.uid()) = user_id and (select public.is_manager()))
-  with check ((select auth.uid()) = user_id and (select public.is_manager()));
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 grant select, insert, update on table public.dashboard_preferences to authenticated;
+
+alter table public.dashboard_preferences
+  add column navigation jsonb not null default '[]'::jsonb,
+  add constraint dashboard_preferences_navigation_array
+    check (jsonb_typeof(navigation) = 'array');
+
+comment on column public.dashboard_preferences.navigation is
+  'Personlig rekkefølge og synlighet for sidebar-kategorier og menypunkter.';
