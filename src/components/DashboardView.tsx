@@ -371,7 +371,14 @@ export default function DashboardView({
     number
   >;
 
-  const maxCalls = Math.max(1, ...buckets.map((b) => b.calls));
+  const visibleBuckets =
+    period === "dag"
+      ? buckets.filter((bucket) => {
+          const hour = new Date(bucket.bucket).getHours();
+          return hour >= 8 && hour < 20;
+        })
+      : buckets;
+  const maxCalls = Math.max(1, ...visibleBuckets.map((bucket) => bucket.calls));
   const pipelineValue = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
 
   // «Krever oppmerksomhet»-tall (svarer på «hva bør jeg gjøre nå?»).
@@ -549,12 +556,12 @@ export default function DashboardView({
             </div>
             <div className="mt-4 overflow-x-auto thin-scroll">
               <div className="flex h-40 items-end gap-1.5">
-                {buckets.length === 0 && (
+                {visibleBuckets.length === 0 && (
                   <p className="m-auto text-sm text-[#8d806e]">
                     Ingen samtaledata for perioden.
                   </p>
                 )}
-                {buckets.map((b) => {
+                {visibleBuckets.map((b) => {
                   const h = Math.round((b.calls / maxCalls) * 100);
                   return (
                     <div
