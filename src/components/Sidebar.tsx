@@ -33,7 +33,6 @@ const NAV_GROUPS: { id: SidebarGroupId; title: string; items: NavItem[] }[] = [
       { href: "/team-analysis", label: "Teamanalyse", icon: "live", managerOnly: true },
       { href: "/leaderboard", label: "Ledertavle", icon: "leaderboard" },
       { href: "/dagsavis", label: "Dagsavis", icon: "dagsavis" },
-      { href: "/oppdateringer", label: "Oppdateringer", icon: "clock" },
     ],
   },
   {

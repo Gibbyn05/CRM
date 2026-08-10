@@ -26,6 +26,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
   const boxRef = useRef<HTMLDivElement>(null);
 
   const firstName = (profile?.full_name || "").split(/\s+/)[0];
+  const updatesMatch = /oppdater|endringslogg|hva er nytt|nytt i reachr/i.test(q.trim());
 
   // Live-søk (debounced) mot kundebasen.
   useEffect(() => {
@@ -96,14 +97,19 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
     }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => Math.min(i + 1, hits.length - 1));
+      setActive((i) => Math.min(i + 1, hits.length + (updatesMatch ? 1 : 0) - 1));
       setOpen(true);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (active >= 0 && hits[active]) goToCustomer(hits[active].id);
+      if (updatesMatch && active === 0) {
+        setOpen(false);
+        router.push("/oppdateringer");
+      } else if (active >= 0 && hits[active - (updatesMatch ? 1 : 0)]) {
+        goToCustomer(hits[active - (updatesMatch ? 1 : 0)].id);
+      }
       else goToList();
     }
   }
@@ -140,7 +146,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          placeholder="Søk etter kunde …"
+          placeholder="Søk etter kunde eller side …"
           className="w-full rounded-2xl border border-[#d8c9b0] bg-[#fbf7ed] py-2.5 pl-10 pr-4 text-sm text-[#2b2118] placeholder:text-[#8d806e] transition focus:border-[#09fe94]/70 focus:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-[#09fe94]/15"
         />
 
@@ -149,7 +155,26 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
             {loading && hits.length === 0 && (
               <p className="px-4 py-3 text-sm text-slate-400">Søker …</p>
             )}
-            {!loading && hits.length === 0 && (
+            {updatesMatch && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setQ("");
+                  router.push("/oppdateringer");
+                }}
+                onMouseEnter={() => setActive(0)}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${active === 0 ? "bg-[#eafff5]" : "hover:bg-[#fbf7ed]"}`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#171717] text-[#09fe94]">
+                  <Icon name="clock" size={16} />
+                </span>
+                <span>
+                  <span className="block text-sm font-bold text-[#2b2118]">Oppdateringer</span>
+                  <span className="block text-xs text-[#8d806e]">Se hva som er nytt i Reachr</span>
+                </span>
+              </button>
+            )}
+            {!loading && hits.length === 0 && !updatesMatch && (
               <p className="px-4 py-3 text-sm text-slate-400">
                 Ingen kunder matcher «{q.trim()}».
               </p>
@@ -158,9 +183,9 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
               <button
                 key={h.id}
                 onClick={() => goToCustomer(h.id)}
-                onMouseEnter={() => setActive(i)}
+                onMouseEnter={() => setActive(i + (updatesMatch ? 1 : 0))}
                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
-                  i === active ? "bg-[#eafff5]" : "hover:bg-[#fbf7ed]"
+                  i + (updatesMatch ? 1 : 0) === active ? "bg-[#eafff5]" : "hover:bg-[#fbf7ed]"
                 }`}
               >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#09fe94] text-xs font-bold text-[#171717]">

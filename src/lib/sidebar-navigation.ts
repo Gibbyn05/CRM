@@ -22,7 +22,7 @@ export const DEFAULT_SIDEBAR_NAVIGATION: SidebarGroupPreference[] = [
   {
     id: "overview",
     visible: true,
-    items: ["/dashboard", "/team-analysis", "/leaderboard", "/dagsavis", "/oppdateringer"].map((href) => ({ href, visible: true })),
+    items: ["/dashboard", "/team-analysis", "/leaderboard", "/dagsavis"].map((href) => ({ href, visible: true })),
   },
   {
     id: "sales",
