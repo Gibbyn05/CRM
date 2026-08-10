@@ -205,7 +205,13 @@ export default function TvBoard() {
   const inCall = agents.filter((a) => a.status === "in_call").length;
 
   return (
-    <div className="min-h-screen bg-slate-900 p-8 text-white">
+    <div
+      className="min-h-screen bg-slate-950 bg-cover bg-fixed bg-[center_24%] p-8 text-white"
+      style={{
+        backgroundImage:
+          "linear-gradient(180deg, rgba(5,8,12,.76) 0%, rgba(5,8,12,.60) 38%, rgba(5,8,12,.84) 100%), url('/tv/sales-background.jpg')",
+      }}
+    >
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold">Salgssentral – Live</h1>
