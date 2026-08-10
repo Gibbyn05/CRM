@@ -173,8 +173,8 @@ export default function NotesLog({
   }
 
   return (
-    <section className="flex h-[calc(100dvh-12rem)] min-h-[650px] flex-col overflow-hidden bg-[#fbfaf7] lg:h-full lg:min-h-0">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e7ddcd] bg-white px-5 py-3">
+    <section className="grid h-[calc(100dvh-12rem)] min-h-[650px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#fbfaf7] lg:h-full lg:min-h-0">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7ddcd] bg-white px-5 py-3">
         <div>
           <h2 className="text-base font-bold text-[#2b2118]">Aktivitetslogg</h2>
           <p className="mt-0.5 text-xs text-[#8a8177]">Hele kundehistorikken, eldste til nyeste</p>
@@ -208,7 +208,7 @@ export default function NotesLog({
         )}
       </div>
 
-      <footer className="shrink-0 border-t border-[#ddd1bd] bg-white p-3 sm:p-4">
+      <footer className="border-t border-[#ddd1bd] bg-white p-3 sm:p-4">
         <div className="rounded-2xl border border-[#b8dcca] bg-white p-2 shadow-[0_8px_24px_rgba(39,73,55,0.08)] focus-within:border-[#00a965] focus-within:ring-2 focus-within:ring-[#00a965]/10">
           <textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); addNote(); } }} rows={2} placeholder="Skriv et notat og trykk Enter for å lagre" className="max-h-32 min-h-[3.25rem] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm text-[#2b2118] outline-none placeholder:text-[#a49c92]" />
           <div className="flex items-center justify-between gap-2 border-t border-[#eee7dc] pt-2">

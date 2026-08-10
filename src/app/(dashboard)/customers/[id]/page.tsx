@@ -178,7 +178,7 @@ export default async function CustomerDetailPage({
           </div>
         </aside>
 
-        <div className="min-w-0 lg:h-full">
+        <div className="min-h-0 min-w-0 overflow-hidden lg:h-full">
           <CustomerTabs
             customer={customer}
             notes={(notes as Note[]) ?? []}
