@@ -230,6 +230,8 @@ export interface Contract {
   sign_token: string;
   contract_text: string | null;
   signer_name: string | null;
+  signer_email: string | null;
+  signer_phone: string | null;
   signer_ip: string | null;
   created_at: string;
   updated_at: string;

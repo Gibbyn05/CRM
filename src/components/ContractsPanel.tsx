@@ -136,18 +136,39 @@ export default function ContractsPanel({
         {contracts.map((c) => (
           <li
             key={c.id}
-            className="flex items-center justify-between rounded-lg border border-slate-200 p-2 text-sm"
+            className="rounded-lg border border-slate-200 p-3 text-sm"
           >
-            <div>
-              <span className="font-medium text-slate-700">
-                {c.channel === "email" ? "E-post" : "SMS"}
-              </span>{" "}
-              <span className="text-slate-500">{c.recipient}</span>
-              <div className="text-xs text-slate-400">
-                {formatDateTime(c.sent_at ?? c.created_at)}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="font-medium text-slate-700">
+                  {c.channel === "email" ? "E-post" : "SMS"}
+                </span>{" "}
+                <span className="text-slate-500">{c.recipient}</span>
+                <div className="text-xs text-slate-400">
+                  {formatDateTime(c.sent_at ?? c.created_at)}
+                </div>
               </div>
+              <StatusBadge status={c.status} />
             </div>
-            <StatusBadge status={c.status} />
+            {c.status === "signed" && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                <div>
+                  <span className="font-semibold text-slate-800">
+                    {c.signer_name || "Signatør ikke registrert"}
+                  </span>
+                  {c.signer_email && <span> · {c.signer_email}</span>}
+                  {c.signer_phone && <span> · {c.signer_phone}</span>}
+                </div>
+                <a
+                  href={`/signer/${c.sign_token}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-emerald-700 hover:underline"
+                >
+                  Åpne signert dokument
+                </a>
+              </div>
+            )}
           </li>
         ))}
         {contracts.length === 0 && (

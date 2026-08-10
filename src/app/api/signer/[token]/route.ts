@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 // ============================================================================
-//  POST /api/signer/<token>   body: { name }
+//  POST /api/signer/<token>   body: { name, email, phone }
 //
 //  OFFENTLIG (ingen innlogging). Kunden signerer avtalen: vi registrerer
 //  navn, tidspunkt og IP-adresse og setter contracts.status = «signed».
@@ -30,16 +30,34 @@ export async function POST(
   if (limited) return limited;
 
   let name = "";
+  let email = "";
+  let phone = "";
   try {
-    const body = (await req.json()) as { name?: string };
+    const body = (await req.json()) as { name?: string; email?: string; phone?: string };
     name = body.name ?? "";
+    email = body.email ?? "";
+    phone = body.phone ?? "";
   } catch {
     return NextResponse.json({ error: "Ugyldig JSON" }, { status: 400 });
   }
   name = name.trim();
+  email = email.trim().toLowerCase();
+  phone = phone.trim();
   if (name.length < 2) {
     return NextResponse.json(
       { error: "Skriv inn fullt navn for å signere." },
+      { status: 400 },
+    );
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "Skriv inn en gyldig e-postadresse." },
+      { status: 400 },
+    );
+  }
+  if (phone.replace(/\D/g, "").length < 8) {
+    return NextResponse.json(
+      { error: "Skriv inn et gyldig telefonnummer." },
       { status: 400 },
     );
   }
@@ -47,7 +65,7 @@ export async function POST(
   const admin = createAdminClient();
   const { data: contract } = await admin
     .from("contracts")
-    .select("id, status, signed_at, signer_name, opened_at")
+    .select("id, status, signed_at, signer_name, signer_email, signer_phone, opened_at")
     .eq("sign_token", params.token)
     .maybeSingle();
 
@@ -59,6 +77,8 @@ export async function POST(
       ok: true,
       already: true,
       signer_name: contract.signer_name,
+      signer_email: contract.signer_email,
+      signer_phone: contract.signer_phone,
       signed_at: contract.signed_at,
     });
   }
@@ -68,21 +88,31 @@ export async function POST(
     status: "signed",
     signed_at: now,
     signer_name: name,
+    signer_email: email,
+    signer_phone: phone,
     signer_ip: clientIp(req),
   };
   if (!contract.opened_at) patch.opened_at = now;
 
-  const { error: updErr } = await admin
+  const { data: signedContract, error: updErr } = await admin
     .from("contracts")
     .update(patch)
     .eq("id", contract.id)
-    .neq("status", "signed");
-  if (updErr) {
+    .neq("status", "signed")
+    .select("signer_name, signer_email, signer_phone, signed_at")
+    .maybeSingle();
+  if (updErr || !signedContract) {
     return NextResponse.json(
       { error: "Kunne ikke registrere signeringen. Prøv igjen." },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ ok: true, signer_name: name, signed_at: now });
+  return NextResponse.json({
+    ok: true,
+    signer_name: signedContract.signer_name,
+    signer_email: signedContract.signer_email,
+    signer_phone: signedContract.signer_phone,
+    signed_at: signedContract.signed_at,
+  });
 }

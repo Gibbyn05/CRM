@@ -15,7 +15,7 @@ export default async function SignerPage({
   const { data: contract } = await admin
     .from("contracts")
     .select(
-      "id, status, contract_text, signer_name, signed_at, opened_at, customer:customers(name)",
+      "id, status, contract_text, signer_name, signer_email, signer_phone, signed_at, opened_at, recipient, customer:customers(name)",
     )
     .eq("sign_token", params.token)
     .maybeSingle();
@@ -80,7 +80,10 @@ export default async function SignerPage({
           token={params.token}
           alreadySigned={alreadySigned}
           initialSignerName={contract.signer_name}
+          initialSignerEmail={contract.signer_email ?? contract.recipient}
+          initialSignerPhone={contract.signer_phone}
           initialSignedAt={contract.signed_at}
+          contractId={contract.id}
         />
       </div>
 
