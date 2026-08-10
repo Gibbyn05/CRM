@@ -3,67 +3,68 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Customer } from "@/lib/types";
-import { formatOrgNumber } from "@/lib/format";
+import { formatOrgNumber, timeAgo } from "@/lib/format";
 import NewCustomerButton from "./NewCustomerButton";
 import Icon from "./Icon";
+
+type CustomerSort = "created" | "name" | "last_activity" | "status" | "seller" | "city" | "org_number";
+
+interface CustomerListRow {
+  id: string;
+  name: string;
+  org_number: string | null;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  status_id: string | null;
+  status_name: string | null;
+  status_color: string | null;
+  owner_id: string | null;
+  seller_name: string;
+  customer_since: string | null;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+  total_count: number;
+}
 
 // Søkbar kundeliste. Søker på navn (ILIKE) og org.nr. RLS sørger for at
 // selgere primært ser sine egne + ikke-tildelte kunder.
 export default function CustomerSearch({
   initialQuery = "",
   canCreate = true,
+  isManager = false,
 }: {
   initialQuery?: string;
   canCreate?: boolean;
+  isManager?: boolean;
 }) {
   const supabase = createClient();
   const [query, setQuery] = useState(initialQuery);
   const [tab, setTab] = useState<"kunder" | "potensielle">("kunder");
-  const [sort, setSort] = useState<"updated" | "name" | "created">("updated");
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [sort, setSort] = useState<CustomerSort>("last_activity");
+  const [ascending, setAscending] = useState(false);
+  const [customers, setCustomers] = useState<CustomerListRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  // Faller tilbake til «ingen fane-filtrering» hvis customer_since-kolonnen
-  // ikke finnes ennå (før migrasjon 0030 er kjørt), så lista ikke krasjer.
-  const [tabSupported, setTabSupported] = useState(true);
-
   const PAGE_SIZE = 50;
 
   // Bygger spørringen for et gitt vindu (paginering via range). Henter kun de
   // kolonnene lista viser – ikke select("*") – for raskere last.
   const buildQuery = useCallback(
-    (from: number, to: number, useTab: boolean) => {
-      let q = supabase
-        .from("customers")
-        .select(
-          "id, name, org_number, contact_name, email, phone, city, status_id, updated_at, created_at",
-        );
-
-      // Fane: faktiske kunder (har customer_since) vs potensielle (mangler den).
-      if (useTab) {
-        if (tab === "kunder") q = q.not("customer_since", "is", null);
-        else q = q.is("customer_since", null);
-      }
-
-      const trimmed = query.trim();
-      if (trimmed) {
-        const digits = trimmed.replace(/\D/g, "");
-        if (digits.length > 0 && /^[\d\s+()./-]+$/.test(trimmed)) {
-          q = q.or(`phone_digits.ilike.*${digits}*,org_number.ilike.${digits}*`);
-        } else {
-          q = q.ilike("name", `%${trimmed}%`);
-        }
-      }
-
-      if (sort === "name") q = q.order("name", { ascending: true });
-      else if (sort === "created") q = q.order("created_at", { ascending: false });
-      else q = q.order("updated_at", { ascending: false });
-
-      return q.range(from, to);
+    (from: number) => {
+      return supabase.rpc("get_customers_sorted", {
+        p_query: query.trim(),
+        p_kind: tab,
+        p_sort: sort,
+        p_ascending: ascending,
+        p_offset: from,
+        p_limit: PAGE_SIZE,
+      });
     },
-    [query, sort, tab, supabase],
+    [query, sort, ascending, tab, supabase],
   );
 
   // Første side (debounced) når søk/sortering/fane endres.
@@ -71,16 +72,9 @@ export default function CustomerSearch({
     let active = true;
     const handle = setTimeout(async () => {
       setLoading(true);
-      let useTab = tabSupported;
-      let { data, error } = await buildQuery(0, PAGE_SIZE - 1, useTab);
-      if (error && useTab) {
-        // Kolonnen finnes ikke ennå → prøv uten fane-filter.
-        setTabSupported(false);
-        useTab = false;
-        ({ data } = await buildQuery(0, PAGE_SIZE - 1, false));
-      }
+      const { data } = await buildQuery(0);
       if (active) {
-        const rows = (data as Customer[]) ?? [];
+        const rows = (data as CustomerListRow[]) ?? [];
         setCustomers(rows);
         setHasMore(rows.length === PAGE_SIZE);
         setLoading(false);
@@ -90,13 +84,13 @@ export default function CustomerSearch({
       active = false;
       clearTimeout(handle);
     };
-  }, [buildQuery, tabSupported]);
+  }, [buildQuery]);
 
   async function loadMore() {
     setLoadingMore(true);
     const from = customers.length;
-    const { data } = await buildQuery(from, from + PAGE_SIZE - 1, tabSupported);
-    const rows = (data as Customer[]) ?? [];
+    const { data } = await buildQuery(from);
+    const rows = (data as CustomerListRow[]) ?? [];
     setCustomers((c) => [...c, ...rows]);
     setHasMore(rows.length === PAGE_SIZE);
     setLoadingMore(false);
@@ -143,10 +137,24 @@ export default function CustomerSearch({
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           title="Sortering"
         >
-          <option value="updated">Sist aktiv</option>
-          <option value="created">Nyeste</option>
-          <option value="name">Navn (A–Å)</option>
+          <option value="last_activity">Siste aktivitet</option>
+          <option value="created">Dato opprettet</option>
+          <option value="name">Navn</option>
+          <option value="status">Status</option>
+          {isManager && <option value="seller">Selger</option>}
+          <option value="city">Sted</option>
+          <option value="org_number">Organisasjonsnummer</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setAscending((value) => !value)}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-[#bda98b] hover:bg-[#fbf7ed]"
+          aria-label={ascending ? "Sorter synkende" : "Sorter stigende"}
+          title="Bytt sorteringsretning"
+        >
+          <span aria-hidden="true" className="text-base">{ascending ? "↑" : "↓"}</span>
+          {ascending ? "Stigende" : "Synkende"}
+        </button>
         {canCreate && <NewCustomerButton />}
       </div>
 
@@ -160,6 +168,9 @@ export default function CustomerSearch({
                 <MobileFact label="Sted" value={c.city ?? "–"} />
                 <MobileFact label="Kontakt" value={c.contact_name ?? "–"} />
                 <MobileFact label="Telefon" value={c.phone ?? "–"} />
+                <MobileFact label="Status" value={c.status_name ?? "Ingen status"} />
+                <MobileFact label="Siste aktivitet" value={timeAgo(c.last_activity_at)} />
+                {isManager && <MobileFact label="Selger" value={c.seller_name} />}
               </div>
             </Link>
           ))}
@@ -175,6 +186,9 @@ export default function CustomerSearch({
               <th className="hidden px-4 py-3 sm:table-cell">Org.nr</th>
               <th className="hidden px-4 py-3 md:table-cell">Kontakt</th>
               <th className="hidden px-4 py-3 md:table-cell">Sted</th>
+              <th className="hidden px-4 py-3 lg:table-cell">Status</th>
+              {isManager && <th className="hidden px-4 py-3 lg:table-cell">Selger</th>}
+              <th className="px-4 py-3 text-right">Siste aktivitet</th>
             </tr>
           </thead>
           <tbody>
@@ -197,11 +211,21 @@ export default function CustomerSearch({
                 <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
                   {c.city ?? "–"}
                 </td>
+                <td className="hidden px-4 py-3 lg:table-cell">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[#d8c9b0] bg-[#fbf7ed] px-2.5 py-1 text-xs font-bold text-[#5f5549]">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.status_color ?? "#bda98b" }} />
+                    {c.status_name ?? "Ingen status"}
+                  </span>
+                </td>
+                {isManager && (
+                  <td className="hidden px-4 py-3 font-medium text-slate-700 lg:table-cell">{c.seller_name}</td>
+                )}
+                <td className="px-4 py-3 text-right text-xs font-medium text-slate-600">{timeAgo(c.last_activity_at)}</td>
               </tr>
             ))}
             {!loading && customers.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={isManager ? 7 : 6} className="px-4 py-6 text-center text-slate-500">
                   Ingen kunder funnet.
                 </td>
               </tr>
