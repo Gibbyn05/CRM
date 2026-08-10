@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SIDEBAR_NAVIGATION,
   normalizeSidebarNavigation,
+  sidebarNavigationForRole,
 } from "@/lib/sidebar-navigation";
 
 describe("normalizeSidebarNavigation", () => {
@@ -56,5 +57,29 @@ describe("normalizeSidebarNavigation", () => {
 
     const account = result.find((group) => group.id === "account");
     expect(account?.items.some((item) => item.href === "/innstillinger/kommunikasjon")).toBe(false);
+  });
+
+  it("skjuler lederfaner fra selgerens menyinnstillinger", () => {
+    const sellerNavigation = sidebarNavigationForRole(
+      normalizeSidebarNavigation(null),
+      false,
+    );
+    const hrefs = sellerNavigation.flatMap((group) =>
+      group.items.map((item) => item.href),
+    );
+
+    expect(hrefs).not.toContain("/team-analysis");
+    expect(hrefs).not.toContain("/produkter");
+    expect(hrefs).not.toContain("/regnskap");
+    expect(hrefs).not.toContain("/organization");
+    expect(hrefs).not.toContain("/users");
+    expect(hrefs).not.toContain("/tv");
+    expect(hrefs).toContain("/dashboard");
+    expect(hrefs).toContain("/customers");
+  });
+
+  it("beholder lederfaner for ledere", () => {
+    const navigation = normalizeSidebarNavigation(null);
+    expect(sidebarNavigationForRole(navigation, true)).toBe(navigation);
   });
 });

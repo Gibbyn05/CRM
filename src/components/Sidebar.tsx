@@ -12,6 +12,7 @@ import NotificationBell from "./NotificationBell";
 import SidebarMenuSettings from "./SidebarMenuSettings";
 import {
   normalizeSidebarNavigation,
+  sidebarNavigationForRole,
   type SidebarGroupId,
   type SidebarGroupPreference,
 } from "@/lib/sidebar-navigation";
@@ -347,7 +348,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       />
       {profile?.id && menuSettingsOpen && (
         <SidebarMenuSettings
-          groups={navigation}
+          groups={sidebarNavigationForRole(navigation, isManager)}
           labels={navLabels}
           saving={savingNavigation}
           saved={navigationSaved}

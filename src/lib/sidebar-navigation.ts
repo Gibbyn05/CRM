@@ -18,6 +18,15 @@ export const SIDEBAR_GROUP_LABELS: Record<SidebarGroupId, string> = {
   account: "Konto",
 };
 
+export const MANAGER_ONLY_SIDEBAR_HREFS = new Set([
+  "/team-analysis",
+  "/produkter",
+  "/regnskap",
+  "/organization",
+  "/users",
+  "/tv",
+]);
+
 export const DEFAULT_SIDEBAR_NAVIGATION: SidebarGroupPreference[] = [
   {
     id: "overview",
@@ -78,6 +87,17 @@ export function normalizeSidebarNavigation(value: unknown): SidebarGroupPreferen
     }
   }
   return result;
+}
+
+export function sidebarNavigationForRole(
+  groups: SidebarGroupPreference[],
+  isManager: boolean,
+): SidebarGroupPreference[] {
+  if (isManager) return groups;
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !MANAGER_ONLY_SIDEBAR_HREFS.has(item.href)),
+  }));
 }
 
 function normalizeItems(value: unknown, defaults: SidebarItemPreference[]): SidebarItemPreference[] {
