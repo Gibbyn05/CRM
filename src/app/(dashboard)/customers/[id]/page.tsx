@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  Appointment,
+  CallLog,
+  Commission,
   Contract,
   Customer,
   CustomerFile,
@@ -9,6 +12,7 @@ import type {
   Deal,
   Note,
   Profile,
+  Reminder,
 } from "@/lib/types";
 import { formatDate, formatOrgNumber } from "@/lib/format";
 import DeleteCustomerButton from "@/components/DeleteCustomerButton";
@@ -44,7 +48,16 @@ export default async function CustomerDetailPage({
     .single<Pick<Profile, "role">>();
   const isManager = me?.role === "manager";
 
-  const [{ data: notes }, { data: deals }, { data: contracts }, { data: profiles }] =
+  const [
+    { data: notes },
+    { data: deals },
+    { data: contracts },
+    { data: profiles },
+    { data: calls },
+    { data: appointments },
+    { data: reminders },
+    { data: commissions },
+  ] =
     await Promise.all([
       supabase
         .from("notes")
@@ -62,6 +75,26 @@ export default async function CustomerDetailPage({
         .eq("customer_id", params.id)
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, full_name"),
+      supabase
+        .from("call_logs")
+        .select("*")
+        .eq("customer_id", params.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("appointments")
+        .select("*")
+        .eq("customer_id", params.id)
+        .order("starts_at", { ascending: false }),
+      supabase
+        .from("reminders")
+        .select("*")
+        .eq("customer_id", params.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("commissions")
+        .select("*")
+        .eq("customer_id", params.id)
+        .order("created_at", { ascending: false }),
     ]);
 
   const { data: files } = await supabase
@@ -172,6 +205,10 @@ export default async function CustomerDetailPage({
             notes={(notes as Note[]) ?? []}
             deals={(deals as Deal[]) ?? []}
             contracts={(contracts as Contract[]) ?? []}
+            calls={(calls as CallLog[]) ?? []}
+            appointments={(appointments as Appointment[]) ?? []}
+            reminders={(reminders as Reminder[]) ?? []}
+            commissions={(commissions as Commission[]) ?? []}
             files={(files as CustomerFile[]) ?? []}
             nameMap={Object.fromEntries(nameMap)}
           />

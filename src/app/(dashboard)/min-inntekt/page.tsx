@@ -43,6 +43,7 @@ export default async function MinInntektPage() {
     status: r.status,
     invoiced_at: r.invoiced_at,
     paid_at: r.paid_at,
+    due_at: r.due_at,
     created_at: r.created_at,
     customer_name: r.customer?.name ?? null,
     agent_name: r.agent?.full_name ?? null,

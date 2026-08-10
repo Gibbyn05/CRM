@@ -432,6 +432,7 @@ export interface Commission {
   fiken_draft_uuid: string | null;
   invoiced_at: string | null;
   paid_at: string | null;
+  due_at: string | null;
   created_at: string;
   updated_at: string;
 }

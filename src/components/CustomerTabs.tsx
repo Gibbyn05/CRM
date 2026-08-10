@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import type {
+  Appointment,
+  CallLog,
+  Commission,
   Contract,
   Customer,
   CustomerFile,
   Deal,
   Note,
+  Reminder,
 } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
@@ -32,6 +36,10 @@ export default function CustomerTabs({
   notes,
   deals: initialDeals,
   contracts,
+  calls,
+  appointments,
+  reminders,
+  commissions,
   files,
   nameMap,
 }: {
@@ -39,6 +47,10 @@ export default function CustomerTabs({
   notes: Note[];
   deals: Deal[];
   contracts: Contract[];
+  calls: CallLog[];
+  appointments: Appointment[];
+  reminders: Reminder[];
+  commissions: Commission[];
   files: CustomerFile[];
   nameMap: Record<string, string>;
 }) {
@@ -47,9 +59,9 @@ export default function CustomerTabs({
   const [deals, setDeals] = useState<Deal[]>(initialDeals);
 
   return (
-    <div className="space-y-4">
+    <div className="overflow-hidden rounded-[1.6rem] border border-[#ddd1bd] bg-white/80 shadow-[0_18px_55px_rgba(62,45,27,0.09)]">
       {/* Fanelinje */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-white p-1 shadow-card ring-1 ring-slate-200/70 thin-scroll">
+      <div className="flex gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
         {TABS.map((t) => {
           const active = tab === t.key;
           const count =
@@ -63,10 +75,10 @@ export default function CustomerTabs({
               key={t.key}
               onClick={() => setTab(t.key)}
               aria-current={active ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className={`relative flex shrink-0 items-center gap-2 px-1 py-4 text-sm font-semibold transition ${
                 active
-                  ? "bg-brand-50 text-brand-700"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  ? "text-[#087a4b] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#00a965]"
+                  : "text-[#756d64] hover:text-[#2b2118]"
               }`}
             >
               <Icon
@@ -92,16 +104,23 @@ export default function CustomerTabs({
       </div>
 
       {/* Faneinnhold */}
+      <div className={tab === "aktivitet" ? "" : "p-4 sm:p-5"}>
       {tab === "aktivitet" && (
-        <div className="space-y-4">
+        <div>
           <NotesLog
             customerId={customer.id}
             initialNotes={notes}
             deals={deals}
             contracts={contracts}
+            calls={calls}
+            appointments={appointments}
+            reminders={reminders}
+            commissions={commissions}
             nameMap={nameMap}
           />
-          <LiveTranscript customerId={customer.id} />
+          <div className="border-t border-[#e7ddcd] p-4">
+            <LiveTranscript customerId={customer.id} />
+          </div>
         </div>
       )}
 
@@ -130,6 +149,7 @@ export default function CustomerTabs({
           nameMap={nameMap}
         />
       )}
+      </div>
     </div>
   );
 }

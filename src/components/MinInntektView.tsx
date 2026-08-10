@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { CommissionStatus } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  getPaymentStatus,
+  type PaymentStatus,
+} from "@/lib/payment-status";
 
 export interface IncomeRow {
   id: string;
@@ -15,22 +19,44 @@ export interface IncomeRow {
   status: CommissionStatus;
   invoiced_at: string | null;
   paid_at: string | null;
+  due_at: string | null;
   created_at: string;
   customer_name: string | null;
   agent_name: string | null;
 }
 
-const STATUS_META: Record<CommissionStatus, { label: string; badge: string }> =
+const PAYMENT_META: Record<
+  PaymentStatus,
   {
-    ikke_fakturert: {
-      label: "Ikke fakturert",
-      badge: "bg-slate-100 text-slate-600",
-    },
-    fakturert: { label: "Fakturert", badge: "bg-amber-100 text-amber-700" },
-    betalt: { label: "Betalt", badge: "bg-emerald-100 text-emerald-700" },
-    forfalt: { label: "Forfalt", badge: "bg-red-100 text-red-700" },
-    avskrevet: { label: "Avskrevet", badge: "bg-slate-200 text-slate-500" },
-  };
+    label: string;
+    description: string;
+    badge: string;
+    row: string;
+    dot: string;
+  }
+> = {
+  paid: {
+    label: "Betalt",
+    description: "Betalingen er registrert",
+    badge: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    row: "border-l-emerald-500 bg-emerald-50/30",
+    dot: "bg-emerald-500",
+  },
+  unpaid: {
+    label: "Ikke betalt",
+    description: "Betaling mangler",
+    badge: "border-amber-200 bg-amber-50 text-amber-800",
+    row: "border-l-amber-400 bg-amber-50/20",
+    dot: "bg-amber-500",
+  },
+  overdue: {
+    label: "Over forfall",
+    description: "Fristen er passert",
+    badge: "border-red-200 bg-red-50 text-red-800",
+    row: "border-l-red-500 bg-red-50/30",
+    dot: "bg-red-500",
+  },
+};
 
 export default function MinInntektView({
   rows,
@@ -42,6 +68,9 @@ export default function MinInntektView({
   currentUserId: string;
 }) {
   const [period, setPeriod] = useState<"maaned" | "totalt">("totalt");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | "all">(
+    "all",
+  );
   // Ledere kan velge selger; selgere ser bare egne (RLS gir uansett kun egne).
   const [sellerFilter, setSellerFilter] = useState<string>(
     isManager ? "alle" : currentUserId,
@@ -58,7 +87,7 @@ export default function MinInntektView({
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
-  const filtered = useMemo(() => {
+  const periodRows = useMemo(() => {
     return rows.filter((r) => {
       if (isManager && sellerFilter !== "alle" && r.agent_id !== sellerFilter)
         return false;
@@ -70,16 +99,30 @@ export default function MinInntektView({
     });
   }, [rows, isManager, sellerFilter, period, monthStart]);
 
+  const filtered = useMemo(
+    () =>
+      periodRows.filter(
+        (row) =>
+          paymentFilter === "all" || getPaymentStatus(row) === paymentFilter,
+      ),
+    [periodRows, paymentFilter],
+  );
+
   // Nøkkeltall på PROVISJON (det selgeren faktisk tjener).
   const kpis = useMemo(() => {
-    const sum = (pred: (r: IncomeRow) => boolean) =>
-      filtered.filter(pred).reduce((s, r) => s + r.commission_amount, 0);
-    return {
-      opptjent: sum((r) => r.status === "betalt"),
-      venter: sum((r) => r.status === "fakturert" || r.status === "forfalt"),
-      ikkeFakturert: sum((r) => r.status === "ikke_fakturert"),
+    const bucket = (status: PaymentStatus) => {
+      const matches = periodRows.filter((row) => getPaymentStatus(row) === status);
+      return {
+        amount: matches.reduce((sum, row) => sum + row.commission_amount, 0),
+        count: matches.length,
+      };
     };
-  }, [filtered]);
+    return {
+      paid: bucket("paid"),
+      unpaid: bucket("unpaid"),
+      overdue: bucket("overdue"),
+    };
+  }, [periodRows]);
 
   return (
     <div className="space-y-5">
@@ -126,32 +169,46 @@ export default function MinInntektView({
         )}
       </div>
 
-      {/* KPI-kort (provisjon) */}
+      {/* Betalingsoversikt. Kortene fungerer også som raske filtre. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi
-          label="Opptjent"
-          value={kpis.opptjent}
-          accent="text-emerald-600"
-          hint="Kunden har betalt"
+          status="paid"
+          value={kpis.paid.amount}
+          count={kpis.paid.count}
+          active={paymentFilter === "paid"}
+          onClick={() => setPaymentFilter((value) => (value === "paid" ? "all" : "paid"))}
         />
         <Kpi
-          label="Venter på betaling"
-          value={kpis.venter}
-          accent="text-amber-600"
-          hint="Fakturert, ikke betalt"
+          status="unpaid"
+          value={kpis.unpaid.amount}
+          count={kpis.unpaid.count}
+          active={paymentFilter === "unpaid"}
+          onClick={() => setPaymentFilter((value) => (value === "unpaid" ? "all" : "unpaid"))}
         />
         <Kpi
-          label="Ikke fakturert"
-          value={kpis.ikkeFakturert}
-          accent="text-slate-700"
-          hint="Vunnet, ikke fakturert"
+          status="overdue"
+          value={kpis.overdue.amount}
+          count={kpis.overdue.count}
+          active={paymentFilter === "overdue"}
+          onClick={() => setPaymentFilter((value) => (value === "overdue" ? "all" : "overdue"))}
         />
       </div>
 
-      <p className="text-xs text-slate-400">
-        Provisjon utbetales når kunden har betalt. «Opptjent» er derfor det som
-        er reelt tjent.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-500">
+          Beløpene viser provisjon. Bare betalinger registrert som betalt regnes
+          som gjennomført.
+        </p>
+        {paymentFilter !== "all" && (
+          <button
+            type="button"
+            onClick={() => setPaymentFilter("all")}
+            className="text-xs font-semibold text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900"
+          >
+            Vis alle betalinger
+          </button>
+        )}
+      </div>
 
       {/* Tabell */}
       <div className="card overflow-x-auto p-0 thin-scroll">
@@ -186,13 +243,12 @@ export default function MinInntektView({
               </tr>
             ) : (
               filtered.map((r) => {
-                const paid = r.status === "betalt";
+                const paymentStatus = getPaymentStatus(r);
+                const meta = PAYMENT_META[paymentStatus];
                 return (
                   <tr
                     key={r.id}
-                    className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/60 ${
-                      paid ? "bg-emerald-50/40" : ""
-                    }`}
+                    className={`border-b border-l-[3px] border-b-slate-100 last:border-b-0 hover:brightness-[0.985] ${meta.row}`}
                   >
                     <td className="px-4 py-2.5">
                       {r.customer_id ? (
@@ -218,20 +274,28 @@ export default function MinInntektView({
                     </td>
                     <td
                       className={`px-4 py-2.5 text-right font-semibold ${
-                        paid ? "text-emerald-700" : "text-slate-800"
+                        paymentStatus === "paid"
+                          ? "text-emerald-700"
+                          : paymentStatus === "overdue"
+                            ? "text-red-700"
+                            : "text-slate-800"
                       }`}
                     >
                       {formatCurrency(r.commission_amount)}
                     </td>
                     <td className="px-4 py-2.5">
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-2xs font-semibold ${STATUS_META[r.status].badge}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-bold ${meta.badge}`}
                       >
-                        {STATUS_META[r.status].label}
+                        <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                        {meta.label}
                       </span>
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        {meta.description}
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-slate-500">
-                      {formatDate(r.paid_at ?? r.invoiced_at ?? r.created_at)}
+                      <PaymentDate row={r} status={paymentStatus} />
                     </td>
                   </tr>
                 );
@@ -245,23 +309,82 @@ export default function MinInntektView({
 }
 
 function Kpi({
-  label,
+  status,
   value,
-  accent,
-  hint,
+  count,
+  active,
+  onClick,
 }: {
-  label: string;
+  status: PaymentStatus;
   value: number;
-  accent: string;
-  hint: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
 }) {
+  const meta = PAYMENT_META[status];
+  const tones: Record<PaymentStatus, string> = {
+    paid: "border-emerald-200 bg-emerald-50/60 text-emerald-900",
+    unpaid: "border-amber-200 bg-amber-50/60 text-amber-950",
+    overdue: "border-red-200 bg-red-50/60 text-red-950",
+  };
   return (
-    <div className="card p-4">
-      <p className="label-eyebrow">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${accent}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tones[status]} ${
+        active ? "ring-2 ring-current ring-offset-2" : ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.14em]">
+          {meta.label}
+        </p>
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold">
+          {count}
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-bold tabular-nums">
         {formatCurrency(value)}
       </p>
-      <p className="text-xs text-slate-400">{hint}</p>
-    </div>
+      <p className="mt-0.5 text-xs opacity-70">{meta.description}</p>
+    </button>
+  );
+}
+
+function PaymentDate({
+  row,
+  status,
+}: {
+  row: IncomeRow;
+  status: PaymentStatus;
+}) {
+  if (status === "paid") {
+    return (
+      <>
+        <div className="font-medium text-emerald-800">
+          {formatDate(row.paid_at)}
+        </div>
+        <div className="text-[11px] text-slate-400">Betalingsdato</div>
+      </>
+    );
+  }
+  if (row.due_at) {
+    return (
+      <>
+        <div className={status === "overdue" ? "font-semibold text-red-700" : "font-medium"}>
+          {formatDate(row.due_at)}
+        </div>
+        <div className="text-[11px] text-slate-400">Betalingsfrist</div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div>{formatDate(row.invoiced_at ?? row.created_at)}</div>
+      <div className="text-[11px] text-slate-400">
+        {row.invoiced_at ? "Fakturert" : "Registrert"}
+      </div>
+    </>
   );
 }

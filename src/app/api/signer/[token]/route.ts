@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { sendSignedContractCopies } from "@/lib/contract-signing-email";
 
 // ============================================================================
 //  POST /api/signer/<token>   body: { name, email, phone }
@@ -65,7 +66,7 @@ export async function POST(
   const admin = createAdminClient();
   const { data: contract } = await admin
     .from("contracts")
-    .select("id, status, signed_at, signer_name, signer_email, signer_phone, opened_at")
+    .select("id, status, signed_at, signer_name, signer_email, signer_phone, opened_at, agent_id, contract_text, sign_token, customer:customers(name)")
     .eq("sign_token", params.token)
     .maybeSingle();
 
@@ -107,6 +108,22 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  const customer = (Array.isArray(contract.customer)
+    ? contract.customer[0]
+    : contract.customer) as { name: string | null } | null;
+
+  await sendSignedContractCopies(admin, {
+    id: contract.id,
+    agent_id: contract.agent_id,
+    contract_text: contract.contract_text,
+    sign_token: contract.sign_token,
+    signer_name: signedContract.signer_name,
+    signer_email: signedContract.signer_email,
+    signer_phone: signedContract.signer_phone,
+    signed_at: signedContract.signed_at,
+    customer_name: customer?.name?.trim() || "kunde",
+  });
 
   return NextResponse.json({
     ok: true,
