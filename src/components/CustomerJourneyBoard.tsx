@@ -3,14 +3,23 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { CustomerStatus } from "@/lib/types";
 import Icon from "./Icon";
+
+export interface JourneyStage {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface JourneyCustomer {
   id: string;
   name: string;
   org_number: string | null;
-  status_id: string | null;
+  journey_stage_id: string | null;
   owner_name: string | null;
 }
 
@@ -21,21 +30,21 @@ const PALETTE = [
 const NONE_COLOR = "#94a3b8";
 
 type Column = {
-  id: string | null; // null = «Ingen status»
+  id: string | null;
   name: string;
   color: string;
   fixed: boolean;
 };
 
-// Kanban som pipelinen, men kolonnene er lederens egne customer_statuses.
-// Kunder dras/flyttes mellom stegene, og lederen kan legge til / endre / slette
-// / omorganisere statusene selv.
+// Personlig kundereise. Hver bruker har egne steg og egne kundeplasseringer.
 export default function CustomerJourneyBoard({
   initialCustomers,
   initialStatuses,
+  userId,
 }: {
   initialCustomers: JourneyCustomer[];
-  initialStatuses: CustomerStatus[];
+  initialStatuses: JourneyStage[];
+  userId: string;
 }) {
   const supabase = createClient();
   const [customers, setCustomers] = useState(initialCustomers);
@@ -52,7 +61,7 @@ export default function CustomerJourneyBoard({
 
   const columns: Column[] = useMemo(
     () => [
-      { id: null, name: "Ingen status", color: NONE_COLOR, fixed: true },
+      { id: null, name: "Ikke plassert", color: NONE_COLOR, fixed: true },
       ...statuses.map((s) => ({
         id: s.id,
         name: s.name,
@@ -64,17 +73,19 @@ export default function CustomerJourneyBoard({
   );
 
   function customersIn(colId: string | null) {
-    return customers.filter((c) => c.status_id === colId);
+    return customers.filter((c) => c.journey_stage_id === colId);
   }
 
   async function moveCustomer(customerId: string, statusId: string | null) {
     setCustomers((prev) =>
-      prev.map((c) => (c.id === customerId ? { ...c, status_id: statusId } : c)),
+      prev.map((c) => (c.id === customerId ? { ...c, journey_stage_id: statusId } : c)),
     );
-    await supabase
-      .from("customers")
-      .update({ status_id: statusId })
-      .eq("id", customerId);
+    await supabase.from("customer_journey_positions").upsert({
+      user_id: userId,
+      customer_id: customerId,
+      stage_id: statusId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,customer_id" });
   }
 
   function onDrop(colId: string | null) {
@@ -86,21 +97,18 @@ export default function CustomerJourneyBoard({
 
   // ── Kolonne-administrasjon ──
   async function addStatus(name: string, color: string) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
     const maxOrder = statuses.reduce((m, s) => Math.max(m, s.sort_order), 0);
     const { data } = await supabase
-      .from("customer_statuses")
+      .from("customer_journey_stages")
       .insert({
+        user_id: userId,
         name: name.trim(),
         color,
         sort_order: maxOrder + 10,
-        created_by: user?.id ?? null,
       })
       .select("*")
       .single();
-    if (data) setStatuses((prev) => [...prev, data as CustomerStatus]);
+    if (data) setStatuses((prev) => [...prev, data as JourneyStage]);
     setAddingCol(false);
   }
 
@@ -110,18 +118,18 @@ export default function CustomerJourneyBoard({
     );
     setEditingCol(null);
     await supabase
-      .from("customer_statuses")
-      .update({ name: name.trim(), color })
+      .from("customer_journey_stages")
+      .update({ name: name.trim(), color, updated_at: new Date().toISOString() })
       .eq("id", id);
   }
 
   async function deleteStatus(id: string) {
-    if (!confirm("Slette denne statusen? Kunder her mister statusen.")) return;
+    if (!confirm("Slette dette steget? Kundene flyttes til Ikke plassert.")) return;
     setStatuses((prev) => prev.filter((s) => s.id !== id));
     setCustomers((prev) =>
-      prev.map((c) => (c.status_id === id ? { ...c, status_id: null } : c)),
+      prev.map((c) => (c.journey_stage_id === id ? { ...c, journey_stage_id: null } : c)),
     );
-    await supabase.from("customer_statuses").delete().eq("id", id);
+    await supabase.from("customer_journey_stages").delete().eq("id", id);
   }
 
   async function reorderStatus(id: string, dir: -1 | 1) {
@@ -137,12 +145,12 @@ export default function CustomerJourneyBoard({
     setStatuses(next);
     await Promise.all([
       supabase
-        .from("customer_statuses")
-        .update({ sort_order: b.sort_order })
+        .from("customer_journey_stages")
+        .update({ sort_order: b.sort_order, updated_at: new Date().toISOString() })
         .eq("id", a.id),
       supabase
-        .from("customer_statuses")
-        .update({ sort_order: a.sort_order })
+        .from("customer_journey_stages")
+        .update({ sort_order: a.sort_order, updated_at: new Date().toISOString() })
         .eq("id", b.id),
     ]);
   }
@@ -308,7 +316,7 @@ export default function CustomerJourneyBoard({
             className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-300 py-3 text-sm font-medium text-slate-500 hover:border-brand-400 hover:text-brand-600"
           >
             <Icon name="plus" size={16} />
-            Ny status
+            Nytt steg
           </button>
         )}
       </div>
@@ -333,7 +341,7 @@ function ColumnEditor({
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Navn på status"
+        placeholder="Navn på steg"
         className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
       />
       <div className="mt-2 flex flex-wrap gap-1.5">

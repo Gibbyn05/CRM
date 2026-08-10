@@ -47,7 +47,6 @@ const NAV_GROUPS: { id: SidebarGroupId; title: string; items: NavItem[] }[] = [
         href: "/kundereise",
         label: "Kundereise",
         icon: "route",
-        managerOnly: true,
       },
       {
         href: "/produkter",
