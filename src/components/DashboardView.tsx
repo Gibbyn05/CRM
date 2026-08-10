@@ -3,14 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { CallDirection, CallStatus, Reminder } from "@/lib/types";
+import type { Reminder } from "@/lib/types";
 import { PERIODS, PERIOD_LABELS, periodRange, type Period } from "@/lib/periods";
 import {
   PERIOD_TRUNC,
   bucketLabel,
-  CALL_STATUS_LABELS,
-  CALL_STATUS_STYLES,
-  CALL_DIRECTION_LABELS,
   type AgentStats,
   type CallBucket,
 } from "@/lib/dashboard";
@@ -25,16 +22,19 @@ import {
   type DashboardWidgetPreference,
 } from "@/lib/dashboard-widgets";
 
-interface RecentCall {
-  id: string;
+type ActivityType = "call" | "email" | "meeting" | "note" | "task" | "status" | "offer" | "signature" | "payment";
+
+interface RecentActivity {
+  activity_id: string;
+  activity_type: ActivityType;
+  customer_id: string;
+  customer_name: string;
   agent_id: string | null;
-  customer_id: string | null;
-  phone_number: string | null;
-  direction: CallDirection;
-  status: CallStatus;
-  started_at: string | null;
-  duration_seconds: number | null;
-  customers: { name: string } | null;
+  agent_name: string;
+  title: string;
+  summary: string;
+  occurred_at: string;
+  details: Record<string, string>;
 }
 
 type AgreementStatus = "tilbud_sendt" | "signert" | "betalt";
@@ -120,13 +120,11 @@ function bucketCalls(
 export default function DashboardView({
   isManager,
   userId,
-  agentNames,
   firstName,
   initialWidgets,
 }: {
   isManager: boolean;
   userId: string;
-  agentNames: Record<string, string>;
   firstName: string;
   initialWidgets: DashboardWidgetPreference[];
 }) {
@@ -134,7 +132,8 @@ export default function DashboardView({
   const [period, setPeriod] = useState<Period>("dag");
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [buckets, setBuckets] = useState<CallBucket[]>([]);
-  const [recent, setRecent] = useState<RecentCall[]>([]);
+  const [recent, setRecent] = useState<RecentActivity[]>([]);
+  const [selectedActivity, setSelectedActivity] = useState<RecentActivity | null>(null);
   const [agreements, setAgreements] = useState<ActiveAgreement[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [meetingsToday, setMeetingsToday] = useState(0);
@@ -170,13 +169,7 @@ export default function DashboardView({
         p_end: end.toISOString(),
         p_trunc: trunc,
       }),
-      supabase
-        .from("call_logs")
-        .select(
-          "id, agent_id, customer_id, phone_number, direction, status, started_at, duration_seconds, customers(name)",
-        )
-        .order("started_at", { ascending: false, nullsFirst: false })
-        .limit(8),
+      supabase.rpc("get_recent_customer_activities", { p_limit: 12 }),
     ]);
 
     let nextStats = (statsRes.data as AgentStats[] | null)?.[0] ?? null;
@@ -235,7 +228,7 @@ export default function DashboardView({
     };
     setStats(s);
     setBuckets(nextBuckets ?? []);
-    setRecent((recentRes.data as unknown as RecentCall[]) ?? []);
+    setRecent((recentRes.data as RecentActivity[] | null) ?? []);
     setLoading(false);
   }, [supabase]);
 
@@ -586,68 +579,72 @@ export default function DashboardView({
           </div>
       </DashboardWidgetFrame>
 
-      {/* Sist ringt */}
+      {/* Siste aktivitet */}
       <DashboardWidgetFrame preference={widgetById.recent} order={widgetOrder.recent}>
           <div className="card overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#d8c9b0] px-5 py-4">
               <div>
-                <h2 className="font-display text-3xl font-bold leading-none text-[#2b2118]">Sist ringt</h2>
+                <h2 className="font-display text-3xl font-bold leading-none text-[#2b2118]">Siste aktivitet</h2>
                 <p className="mt-1 text-sm text-[#6b6660]">
-                  Oppdateres automatisk når nye samtaler kommer inn
+                  Siste bevegelse på {isManager ? "teamets kunder" : "dine kunder og salg"}
                 </p>
               </div>
               <span className="flex items-center gap-1.5 rounded-full border border-[#d8c9b0] bg-[#eafff5] px-3 py-1 text-xs font-bold text-[#008f52]">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#09fe94]" />
-                Sanntid
+                Oppdatert
               </span>
             </div>
             <ul className="divide-y divide-[#d8c9b0]/70">
-              {recent.map((c) => (
+              {recent.map((activity) => (
                 <li
-                  key={c.id}
-                  className="animate-row-flash flex items-center gap-3 px-5 py-3 hover:bg-[#fbf7ed]"
+                  key={activity.activity_id}
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#efe3ce] text-[#6f4d2e]">
-                    <Icon name="phone" size={16} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {c.customer_id && c.customers?.name ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedActivity(activity)}
+                    className="group flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-[#fbf7ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#09c977]"
+                  >
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${activityStyle(activity.activity_type).icon}`}>
+                      <Icon name={activityStyle(activity.activity_type).iconName} size={17} />
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <Link
-                        href={`/customers/${c.customer_id}`}
+                        href={`/customers/${activity.customer_id}`}
+                        onClick={(event) => event.stopPropagation()}
                         className="truncate font-semibold text-[#2b2118] hover:text-[#008f52] hover:underline"
                       >
-                        {c.customers.name}
+                        {activity.customer_name}
                       </Link>
-                    ) : (
-                      <span className="truncate font-semibold text-[#2b2118] tabular-nums">
-                        {c.phone_number ?? "Ukjent"}
-                      </span>
-                    )}
-                    <p className="truncate text-xs text-[#8d806e]">
-                      {CALL_DIRECTION_LABELS[c.direction]}
-                      {isManager && c.agent_id && agentNames[c.agent_id]
-                        ? ` · ${agentNames[c.agent_id]}`
-                        : ""}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${CALL_STATUS_STYLES[c.status]}`}
-                  >
-                    {CALL_STATUS_LABELS[c.status]}
-                  </span>
-                  <span className="hidden shrink-0 text-right text-xs text-[#8d806e] sm:block">
-                    {c.started_at ? timeAgo(c.started_at) : "–"}
-                  </span>
+                      <p className="truncate text-xs text-[#8d806e]">
+                        {activity.summary}{isManager ? ` · ${activity.agent_name}` : ""}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.09em] ${activityStyle(activity.activity_type).badge}`}>
+                      {activity.title}
+                    </span>
+                    <span className="hidden min-w-20 shrink-0 text-right text-xs text-[#8d806e] sm:block">
+                      {timeAgo(activity.occurred_at)}
+                    </span>
+                    <Icon name="chevron-right" size={15} className="shrink-0 text-[#b4a48e] transition-transform group-hover:translate-x-0.5" />
+                  </button>
                 </li>
               ))}
               {!loading && recent.length === 0 && (
                 <li className="px-5 py-10 text-center text-sm text-[#6b6660]">
-                  Ingen samtaler ennå. Så snart telefonen ringer, dukker de opp her.
+                  Ingen kundeaktivitet ennå.
                 </li>
               )}
             </ul>
           </div>
       </DashboardWidgetFrame>
+
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          isManager={isManager}
+          onClose={() => setSelectedActivity(null)}
+        />
+      )}
 
       {/* Oppgaver */}
       <DashboardWidgetFrame preference={widgetById.tasks} order={widgetOrder.tasks}>
@@ -733,6 +730,116 @@ export default function DashboardView({
         </div>
       </div>
       </DashboardWidgetFrame>
+    </div>
+  );
+}
+
+const ACTIVITY_STYLES: Record<
+  ActivityType,
+  { iconName: IconName; icon: string; badge: string }
+> = {
+  call: { iconName: "phone", icon: "bg-[#e8f7ef] text-[#087a4b]", badge: "bg-[#e8f7ef] text-[#087a4b]" },
+  email: { iconName: "mail", icon: "bg-[#e9f2fb] text-[#296a9b]", badge: "bg-[#e9f2fb] text-[#296a9b]" },
+  meeting: { iconName: "calendar", icon: "bg-[#f1ebfa] text-[#765098]", badge: "bg-[#f1ebfa] text-[#765098]" },
+  note: { iconName: "receipt", icon: "bg-[#fff1db] text-[#9b641b]", badge: "bg-[#fff1db] text-[#9b641b]" },
+  task: { iconName: "check", icon: "bg-[#e8f7ef] text-[#087a4b]", badge: "bg-[#e8f7ef] text-[#087a4b]" },
+  status: { iconName: "route", icon: "bg-[#f3eee5] text-[#725b3f]", badge: "bg-[#f3eee5] text-[#725b3f]" },
+  offer: { iconName: "pipeline", icon: "bg-[#fff0e9] text-[#aa4c2e]", badge: "bg-[#fff0e9] text-[#aa4c2e]" },
+  signature: { iconName: "receipt", icon: "bg-[#e8f7ef] text-[#087a4b]", badge: "bg-[#e8f7ef] text-[#087a4b]" },
+  payment: { iconName: "wallet", icon: "bg-[#e7f6f4] text-[#167c73]", badge: "bg-[#e7f6f4] text-[#167c73]" },
+};
+
+function activityStyle(type: ActivityType) {
+  return ACTIVITY_STYLES[type] ?? ACTIVITY_STYLES.status;
+}
+
+function ActivityDetailModal({
+  activity,
+  isManager,
+  onClose,
+}: {
+  activity: RecentActivity;
+  isManager: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const style = activityStyle(activity.activity_type);
+  const occurredAt = new Date(activity.occurred_at);
+
+  return (
+    <div
+      className="animate-overlay-in fixed inset-0 z-[90] flex items-center justify-center bg-[#17120d]/45 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="activity-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="animate-panel-in w-full max-w-lg overflow-hidden rounded-[1.75rem] border border-[#d8c9b0] bg-[#fffaf0] shadow-[0_28px_90px_rgba(38,28,18,0.28)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="relative border-b border-[#d8c9b0] px-6 pb-5 pt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Lukk"
+            className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-[#d8c9b0] text-[#6b6660] transition hover:bg-white hover:text-[#2b2118]"
+          >
+            <Icon name="close" size={16} />
+          </button>
+          <div className="flex items-center gap-3 pr-12">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${style.icon}`}>
+              <Icon name={style.iconName} size={20} />
+            </span>
+            <div>
+              <p className="label-eyebrow">{activity.title}</p>
+              <h2 id="activity-modal-title" className="mt-1 font-display text-3xl font-bold leading-none text-[#2b2118]">
+                {activity.customer_name}
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-5 px-6 py-6">
+          <p className="text-base font-semibold leading-relaxed text-[#3d342b]">{activity.summary}</p>
+
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-[#e5d8c1] bg-white/60 p-4">
+            <div>
+              <dt className="label-eyebrow">Tidspunkt</dt>
+              <dd className="mt-1 text-sm font-semibold text-[#2b2118]">
+                {occurredAt.toLocaleDateString("nb-NO")} kl. {occurredAt.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}
+              </dd>
+            </div>
+            {(isManager || activity.agent_name !== "Ukjent") && (
+              <div>
+                <dt className="label-eyebrow">Selger</dt>
+                <dd className="mt-1 text-sm font-semibold text-[#2b2118]">{activity.agent_name}</dd>
+              </div>
+            )}
+            {Object.entries(activity.details ?? {}).map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="label-eyebrow">{label}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold capitalize text-[#2b2118]">{value || "–"}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <Link
+            href={`/customers/${activity.customer_id}`}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#171717] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#008f52]"
+          >
+            Åpne kundekort
+            <Icon name="chevron-right" size={15} />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

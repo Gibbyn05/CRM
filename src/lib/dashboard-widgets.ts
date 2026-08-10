@@ -21,7 +21,7 @@ export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   stats: "Nøkkeltall",
   calls: "Samtaler",
   tasks: "Oppgaver",
-  recent: "Sist ringt",
+  recent: "Siste aktivitet",
   deals: "Aktive avtaler",
 };
 
