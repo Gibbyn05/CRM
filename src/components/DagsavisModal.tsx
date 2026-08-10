@@ -144,6 +144,7 @@ export default function DagsavisModal({
   }, [agentId, data, profile?.full_name, report, scope]);
 
   const editionDate = formatDate(data?.report_date ?? new Date().toISOString());
+  const dailyVisual = dailyVisualIndex(data?.report_date);
 
   if (!open) return null;
 
@@ -332,7 +333,7 @@ export default function DagsavisModal({
                           rask oversikt.
                         </p>
                       </div>
-                      <NewspaperIllustration variant="desk" />
+                      <NewspaperIllustration variant="desk" dayVariant={dailyVisual} />
                     </section>
                   </>
                 )}
@@ -341,9 +342,9 @@ export default function DagsavisModal({
 
             <aside className={`${styles.aside} ${styles.rightPage}`}>
               <section className={`${styles.newspaperCard} ${styles.quoteBox}`}>
-                <p className={styles.cardTitle}>Quote of the day</p>
+                <p className={styles.cardTitle}>Dagens motivasjon</p>
                 <blockquote>
-                  “{data?.quote_of_the_day || "Kunden kjøper ikke press. Kunden kjøper klarhet."}”
+                  “{data?.quote_of_the_day || "Den neste samtalen kan være dagens beste. Ring den med fullt nærvær."}”
                 </blockquote>
               </section>
 
@@ -352,7 +353,7 @@ export default function DagsavisModal({
                   <p className={styles.cardTitle}>Dagens bilde</p>
                   <h3 className={styles.sideTitle}>Aktivitet ved pulten</h3>
                 </div>
-                <NewspaperIllustration variant="phone" />
+                <NewspaperIllustration variant="phone" dayVariant={(dailyVisual + 3) % 7} />
               </section>
 
               {isManager && (
@@ -452,9 +453,25 @@ export default function DagsavisModal({
   );
 }
 
-function NewspaperIllustration({ variant }: { variant: "desk" | "phone" }) {
+function dailyVisualIndex(dateISO?: string): number {
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateISO ?? "")
+    ? `${dateISO}T12:00:00Z`
+    : new Date().toISOString();
+  return Math.floor(new Date(safeDate).getTime() / 86_400_000) % 7;
+}
+
+function NewspaperIllustration({
+  variant,
+  dayVariant,
+}: {
+  variant: "desk" | "phone";
+  dayVariant: number;
+}) {
   return (
-    <figure className={`${styles.illustration} ${styles[variant]}`} aria-hidden="true">
+    <figure
+      className={`${styles.illustration} ${styles[variant]} ${styles[`day${dayVariant}`]}`}
+      aria-label={`Dagens motiv, variant ${dayVariant + 1}`}
+    >
       <span className={styles.sun} />
       <span className={styles.frameLine} />
       <span className={styles.personHead} />

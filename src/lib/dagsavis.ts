@@ -30,19 +30,25 @@ export interface DagsavisSection {
 
 export function getQuoteOfTheDay(dateISO = todayISO()): string {
   const quotes = [
-    "Den beste salgssamtalen starter med presist lyttende stillhet.",
-    "Aktivitet gir signaler. Oppfølging gjør signalene om til salg.",
-    "Et nei er data. Et tydelig neste steg er fremdrift.",
-    "Tempo uten presisjon skaper støy. Presisjon med tempo skaper omsetning.",
-    "Dagens viktigste tall er det neste konkrete steget.",
-    "Kunden kjøper ikke press. Kunden kjøper klarhet.",
-    "Stabilt volum vinner flere dager enn tilfeldige topper.",
+    "Den neste samtalen kan være dagens beste. Ring den med fullt nærvær.",
+    "Mot kommer før resultatet. Løft røret og skap muligheten.",
+    "Hvert nei bringer teamet nærmere det riktige ja-et.",
+    "God energi høres gjennom telefonen. Ta den med inn i første setning.",
+    "Du trenger ikke vinne hele dagen nå. Vinn den neste samtalen.",
+    "Spør godt, lytt skarpt og gjør neste steg enkelt for kunden.",
+    "Tempo skaper muligheter. Kvalitet gjør mulighetene til salg.",
+    "En tydelig samtale kan snu både kundens dag og din egen.",
+    "Resultater bygges én oppringning, én oppfølging og ett ja av gangen.",
+    "Tro på verdien du tilbyr. Kunden merker forskjellen.",
+    "Dagens mål starter ikke i rapporten. Det starter med neste nummer.",
+    "Hold laget høyt, hold aktiviteten oppe og feir fremgangen underveis.",
+    "Nysgjerrighet åpner døren. Gode spørsmål holder samtalen i gang.",
+    "Vær den selgeren som følger opp én gang til når andre gir seg.",
   ];
-  const hash = Array.from(dateISO).reduce(
-    (sum, char) => sum + char.charCodeAt(0),
-    0,
+  const dayNumber = Math.floor(
+    new Date(`${dateISO}T12:00:00Z`).getTime() / 86_400_000,
   );
-  return quotes[hash % quotes.length];
+  return quotes[Math.abs(dayNumber) % quotes.length];
 }
 
 export interface DagsavisSeriesPoint {
