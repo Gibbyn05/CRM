@@ -69,6 +69,7 @@ describe("normalizeSidebarNavigation", () => {
     );
 
     expect(hrefs).not.toContain("/team-analysis");
+    expect(hrefs).not.toContain("/kundereise");
     expect(hrefs).not.toContain("/produkter");
     expect(hrefs).not.toContain("/regnskap");
     expect(hrefs).not.toContain("/organization");

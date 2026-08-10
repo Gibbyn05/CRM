@@ -20,6 +20,7 @@ export const SIDEBAR_GROUP_LABELS: Record<SidebarGroupId, string> = {
 
 export const MANAGER_ONLY_SIDEBAR_HREFS = new Set([
   "/team-analysis",
+  "/kundereise",
   "/produkter",
   "/regnskap",
   "/organization",
