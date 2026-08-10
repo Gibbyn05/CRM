@@ -11,6 +11,8 @@ type ReleaseNote = {
   sha: string;
   url: string;
   title: string;
+  description: string;
+  impact: string;
   area: string;
   author: string;
   date: Date;
@@ -18,6 +20,42 @@ type ReleaseNote = {
 
 const REPOSITORY = "Gibbyn05/CRM";
 const BRANCH = "claude/sales-dashboard-callcenter-22x5kt";
+
+const CUSTOMER_DETAILS: Array<{
+  match: RegExp;
+  title: string;
+  description: string;
+  impact: string;
+}> = [
+  { match: /editorial photos|dagsavis placeholders/i, title: "Nye bilder i Dagsavis", description: "De enkle plassholderillustrasjonene er erstattet med sju profesjonelle svart-hvitt-bilder som viser ekte situasjoner fra salgshverdagen.", impact: "Dagsavis oppleves mer gjennomarbeidet og motiverende, samtidig som et nytt motiv vises automatisk hver dag." },
+  { match: /customer notes across tab/i, title: "Notater forsvinner ikke ved fanebytte", description: "Aktivitetsloggen henter nå alltid den nyeste versjonen fra databasen når fanen åpnes, og bekrefter lagring før skrivefeltet tømmes.", impact: "Notater blir liggende på kunden og er tilgjengelige igjen med én gang, også etter at du har byttet fane." },
+  { match: /customer journey to managers/i, title: "Kundereise er begrenset til ledere", description: "Kundereise og tilhørende menyvalg vises nå bare for lederprofiler.", impact: "Selgere får en enklere meny, mens ledere beholder verktøyene de trenger for å administrere kundereisen." },
+  { match: /manager tabs from seller/i, title: "Lederfaner er skjult for selgere", description: "Menyinnstillingene filtrerer nå bort sider som bare ledere har tilgang til, i stedet for å vise utilgjengelige valg.", impact: "Hver bruker ser bare relevante sider for sin rolle, både i menyen og når menyen tilpasses." },
+  { match: /automate product update log/i, title: "Oppdateringsloggen oppdateres automatisk", description: "Denne siden henter nå de siste endringene direkte fra Reachr sin utviklingshistorikk og organiserer dem etter dato og produktområde.", impact: "Kunder kan følge utviklingen fortløpende uten at endringsloggen må oppdateres manuelt." },
+  { match: /product updates page/i, title: "Ny side for produktoppdateringer", description: "Det er opprettet en egen oversikt som samler de siste forbedringene i Reachr på ett sted.", impact: "Det blir enklere å se hva som er levert, når det ble levert og hvilken del av løsningen som er forbedret." },
+  { match: /realtime customer subscriptions/i, title: "Mer stabil live-oppdatering", description: "Live-abonnementene for kundedata og filer bruker nå en stabil tilkobling gjennom hele sidevisningen.", impact: "Endringer fra kollegaer dukker opp raskere og mer pålitelig uten at siden må lastes inn på nytt." },
+  { match: /live customer updates and lead reservations/i, title: "Live kundedata og tryggere leadfordeling", description: "Filer og kundeinformasjon synkroniseres mellom brukere, samtidig som Reachr reserverer et lead når en selger legger det til.", impact: "Kollegaer ser oppdateringer fortløpende, og risikoen for at to selgere tar samme lead blir redusert." },
+  { match: /contract template placeholders/i, title: "Dynamiske felter i kontraktsmaler", description: "Kontraktsmaler kan inneholde felter som kundenavn, organisasjonsnummer, produkt, pris og dato. Reachr fyller inn verdiene fra CRM-dataene.", impact: "Selgere bruker mindre tid på manuell utfylling og får mer konsistente kontrakter." },
+  { match: /contract template workflow/i, title: "Ny arbeidsflyt for kontraktsmaler", description: "Organisasjonen kan administrere flere kontraktsmaler og bruke CRM-data til å lage et ferdig utkast for riktig kunde og produkt.", impact: "Veien fra vunnet salg til kontrollert kontrakt blir kortere og krever mindre dobbeltarbeid." },
+  { match: /legacy contract document layout/i, title: "Kontrakter følger kjent dokumentoppsett", description: "Kontraktsvisningen er bygget om med tydelig kundeinformasjon, produktlinjer, priser, vilkår og signeringsområde.", impact: "Både selger og kunde får et mer gjenkjennelig og profesjonelt kontraktsdokument." },
+  { match: /activity composer visible|reserve space for activity composer/i, title: "Skrivefeltet er alltid tilgjengelig", description: "Aktivitetsloggen reserverer nå fast plass til skrivefeltet nederst, uavhengig av hvor lang kundehistorikken er.", impact: "Du kan alltid skrive et nytt notat uten å lete etter feltet eller rulle til en bestemt posisjon." },
+  { match: /customer detail workspace layout/i, title: "Kundekortet har fått en tydeligere arbeidsflate", description: "Kontaktinformasjon og aktivitetslogg er samlet i én balansert visning, med mer plass til den kronologiske kundehistorikken.", impact: "Det blir raskere å orientere seg og jobbe med kunden uten unødvendige sideskift." },
+  { match: /customer activity and payment workflows/i, title: "Bedre oversikt over aktivitet og betaling", description: "Kundeaktivitet og betalingsstatus er tydeligere koblet til salg, avtaler og oppfølging.", impact: "Selgere ser raskere hva som har skjedd, hva som er betalt og hva som fortsatt krever oppfølging." },
+];
+
+function customerCopy(message: string, area: string) {
+  const rule = CUSTOMER_DETAILS.find((entry) => entry.match.test(message));
+  if (rule) return rule;
+
+  const lines = message.split("\n").map((line) => line.trim()).filter(Boolean);
+  const customerLine = lines.find((line) => /^kunde:/i.test(line));
+  const impactLine = lines.find((line) => /^effekt:/i.test(line));
+  const description = customerLine?.replace(/^kunde:\s*/i, "") ||
+    `Vi har forbedret ${area.toLowerCase()} for å gjøre arbeidsflyten tydeligere, mer stabil og enklere å bruke i det daglige.`;
+  const impact = impactLine?.replace(/^effekt:\s*/i, "") ||
+    "Endringen reduserer unødvendige steg og gir en mer forutsigbar opplevelse for brukerne.";
+  return { title: cleanTitle(message), description, impact };
+}
 
 function classify(message: string): string {
   const explicit = message.match(/^release\(([^)]+)\):/i)?.[1];
@@ -66,11 +104,15 @@ async function getRecentUpdates(): Promise<ReleaseNote[]> {
     return commits.flatMap((item) => {
       const date = item.commit.author?.date;
       if (!date || item.commit.message.startsWith("Merge ")) return [];
+      const area = classify(item.commit.message);
+      const copy = customerCopy(item.commit.message, area);
       return [{
         sha: item.sha.slice(0, 7),
         url: item.html_url,
-        title: cleanTitle(item.commit.message),
-        area: classify(item.commit.message),
+        title: copy.title,
+        description: copy.description,
+        impact: copy.impact,
+        area,
         author: item.commit.author?.name || "Reachr-teamet",
         date: new Date(date),
       }];
@@ -120,7 +162,7 @@ export default async function UpdatesPage() {
           </p>
           <h1 className="font-display text-5xl font-bold leading-[0.95] sm:text-7xl">Dette er nytt i Reachr</h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-[#d8d0c4] sm:text-lg">
-            Oppdateres automatisk fra GitHub etter hver push. Nyeste forbedringer står øverst.
+            Her kan dere følge hvordan Reachr utvikles fra uke til uke. Hvert punkt forklarer både hva vi har endret og hvilken praktisk verdi det gir dere.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
             <span className="rounded-full bg-[#09fe94] px-4 py-2 text-[#171717]">{updates.length} oppdateringer</span>
@@ -144,14 +186,19 @@ export default async function UpdatesPage() {
               </div>
               <div className="overflow-hidden rounded-[1.75rem] border border-[#dfd2bd] bg-[#fffaf0]/75 shadow-[0_20px_55px_rgba(43,33,24,0.06)]">
                 {notes.map((update, index) => (
-                  <a key={update.sha} href={update.url} target="_blank" rel="noreferrer" className="group grid gap-3 border-b border-[#e8dece] p-5 transition-colors last:border-b-0 hover:bg-[#f7ffe9] sm:grid-cols-[2.25rem_1fr_auto] sm:items-start sm:gap-4 sm:p-6">
+                  <article key={update.sha} className="group grid gap-3 border-b border-[#e8dece] p-5 transition-colors last:border-b-0 hover:bg-[#f7ffe9] sm:grid-cols-[2.25rem_1fr_auto] sm:items-start sm:gap-4 sm:p-7">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#cdbfa9] bg-white font-mono text-xs font-bold text-[#7a6b55] transition group-hover:border-[#09c97a] group-hover:bg-[#09fe94] group-hover:text-[#171717]">{String(index + 1).padStart(2, "0")}</span>
                     <div>
                       <h3 className="text-base font-bold text-[#2b2118] sm:text-lg">{update.title}</h3>
-                      <p className="mt-1 text-xs text-[#93887a]">{update.author} · {update.sha}</p>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-[#62594f]">{update.description}</p>
+                      <div className="mt-4 max-w-3xl border-l-2 border-[#09c97a] pl-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#087a4b]">Dette betyr for dere</p>
+                        <p className="mt-1 text-sm leading-6 text-[#756b60]">{update.impact}</p>
+                      </div>
+                      <a href={update.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-xs font-bold text-[#8a7961] underline decoration-[#cdbfa9] underline-offset-4 hover:text-[#087a4b]">Se teknisk endring</a>
                     </div>
                     <span className="w-fit rounded-full border border-[#dfd2bd] bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#85745e]">{update.area}</span>
-                  </a>
+                  </article>
                 ))}
               </div>
             </section>
