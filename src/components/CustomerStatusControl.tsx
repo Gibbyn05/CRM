@@ -36,6 +36,18 @@ export default function CustomerStatusControl({
 
   const current = statuses.find((s) => s.id === statusId) ?? null;
 
+  useEffect(() => {
+    const channel = supabase
+      .channel(`customer-status:${customerId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "customers", filter: `id=eq.${customerId}` },
+        (payload) => setStatusId((payload.new as { status_id: string | null }).status_id),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [customerId, supabase]);
+
   // Lukk ved klikk utenfor.
   useEffect(() => {
     function onDoc(e: MouseEvent) {

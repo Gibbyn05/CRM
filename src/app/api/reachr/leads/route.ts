@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
+  const userId = user.id;
 
   const body = (await req.json().catch(() => null)) as { company?: ReachrCompany; status?: ReachrLeadStatus } | null;
   const submittedCompany = body?.company;
@@ -39,11 +40,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mangler firmadata." }, { status: 400 });
   }
 
+  const orgNumber = submittedCompany.org_number.replace(/\D/g, "");
+  const { error: claimError } = await supabase
+    .from("reachr_lead_claims")
+    .insert({ org_number: orgNumber, owner_id: userId });
+  if (claimError) {
+    if (claimError.code === "23505") {
+      const { data: claim } = await supabase
+        .from("reachr_lead_claims")
+        .select("owner_id")
+        .eq("org_number", orgNumber)
+        .maybeSingle<{ owner_id: string }>();
+      const { data: owner } = claim?.owner_id
+        ? await supabase.from("profiles").select("name").eq("id", claim.owner_id).maybeSingle<{ name: string | null }>()
+        : { data: null };
+      return NextResponse.json(
+        { error: owner?.name ? `Leadet ble allerede tatt av ${owner.name}.` : "Leadet ble allerede tatt av en kollega." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: claimError.message }, { status: 500 });
+  }
+
+  async function releaseClaim() {
+    await supabase
+      .from("reachr_lead_claims")
+      .delete()
+      .eq("org_number", orgNumber)
+      .eq("owner_id", userId);
+  }
+
   // Never trust verification metadata submitted by the browser. Re-run the
   // provider lookup and contact policy on the server before a person/number is
   // persisted or copied to customers.
   const company = await enrichCompanyFromProviders(submittedCompany.org_number);
   if (!company) {
+    await releaseClaim();
     return NextResponse.json(
       { error: "Kunne ikke verifisere bedriften og kontaktinformasjonen akkurat nå." },
       { status: 502 },
@@ -84,6 +116,7 @@ export async function POST(req: NextRequest) {
       .single<{ id: string }>();
 
     if (customerError) {
+      await releaseClaim();
       return NextResponse.json({ error: customerError.message }, { status: 500 });
     }
     customerId = customer.id;
@@ -133,6 +166,9 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    await releaseClaim();
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ lead: leadRowToReachrLead(data as Record<string, unknown>) }, { status: 201 });
 }

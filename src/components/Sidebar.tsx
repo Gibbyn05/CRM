@@ -77,12 +77,6 @@ const NAV_GROUPS: { id: SidebarGroupId; title: string; items: NavItem[] }[] = [
         managerOnly: true,
       },
       {
-        href: "/innstillinger/kommunikasjon",
-        label: "Kommunikasjon",
-        icon: "mail",
-        managerOnly: true,
-      },
-      {
         href: "/users",
         label: "Brukere",
         icon: "customers",

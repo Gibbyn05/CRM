@@ -50,7 +50,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Uautorisert" }, { status: 401 });
 
+  const { data: lead } = await supabase
+    .from("reachr_leads")
+    .select("org_number")
+    .eq("id", params.id)
+    .maybeSingle<{ org_number: string }>();
   const { error } = await supabase.from("reachr_leads").delete().eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (lead?.org_number) {
+    await supabase.from("reachr_lead_claims").delete().eq("org_number", lead.org_number);
+  }
   return NextResponse.json({ ok: true });
 }

@@ -9,6 +9,7 @@ import {
   companySignals,
 } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
+import { createClient } from "@/lib/supabase/client";
 
 type SearchResponse = {
   results: ReachrCompany[];
@@ -36,6 +37,7 @@ const orgForms = [
 ];
 
 export default function LeadSearchView() {
+  const supabase = createClient();
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [industry, setIndustry] = useState("");
@@ -52,6 +54,7 @@ export default function LeadSearchView() {
   const [minResult, setMinResult] = useState("");
   const [results, setResults] = useState<ReachrCompany[]>([]);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [claimed, setClaimed] = useState<Set<string>>(new Set());
   const [finding, setFinding] = useState<Set<string>>(new Set());
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -67,6 +70,31 @@ export default function LeadSearchView() {
     // Last standardlisten én gang når fanen åpnes. Standardfilteret er B2B.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void supabase
+      .from("reachr_lead_claims")
+      .select("org_number")
+      .then(({ data }) => setClaimed(new Set((data ?? []).map((row) => row.org_number))));
+
+    const channel = supabase
+      .channel("reachr-lead-claims")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reachr_lead_claims" }, (payload) => {
+        const org = (payload.new as { org_number: string }).org_number;
+        setClaimed((current) => new Set(current).add(org));
+        setResults((current) => current.filter((company) => company.org_number !== org));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reachr_lead_claims" }, (payload) => {
+        const org = (payload.old as { org_number: string }).org_number;
+        setClaimed((current) => {
+          const next = new Set(current);
+          next.delete(org);
+          return next;
+        });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase]);
 
   const activeFilters = useMemo(
     () =>
@@ -198,6 +226,10 @@ export default function LeadSearchView() {
 
   // Enkelt-tillegg beriker med telefon (deep) før lagring.
   async function addLead(company: ReachrCompany) {
+    if (claimed.has(company.org_number)) {
+      setError("Leadet ble allerede tatt av en kollega.");
+      return;
+    }
     const enriched = await fetch(`/api/reachr/company?orgnr=${company.org_number}&deep=1`)
       .then((res) => res.json())
       .then((data: { company?: ReachrCompany }) => data.company ?? company)
@@ -420,7 +452,7 @@ export default function LeadSearchView() {
                 </span>
                 <button
                   type="button"
-                  disabled={added.has(company.org_number) || Boolean(company.in_crm)}
+                  disabled={added.has(company.org_number) || claimed.has(company.org_number) || Boolean(company.in_crm)}
                   onClick={(event) => {
                     event.stopPropagation();
                     addLead(company);
@@ -431,6 +463,8 @@ export default function LeadSearchView() {
                     ? company.in_crm === "customer"
                       ? "Er kunde"
                       : "Er lead"
+                    : claimed.has(company.org_number)
+                      ? "Tatt av kollega"
                     : added.has(company.org_number)
                       ? "Lagt til"
                       : "Legg til"}
@@ -558,7 +592,7 @@ export default function LeadSearchView() {
                   <td className="sticky right-0 z-10 bg-[#fffaf0] px-4 py-4 text-right shadow-[-10px_0_12px_-10px_rgba(43,33,24,0.12)] transition group-hover:bg-[#f7ffe9]">
                     <button
                       type="button"
-                      disabled={added.has(company.org_number) || Boolean(company.in_crm)}
+                      disabled={added.has(company.org_number) || claimed.has(company.org_number) || Boolean(company.in_crm)}
                       onClick={(event) => {
                         event.stopPropagation();
                         addLead(company);
@@ -569,6 +603,8 @@ export default function LeadSearchView() {
                         ? company.in_crm === "customer"
                           ? "Er kunde"
                           : "Er lead"
+                        : claimed.has(company.org_number)
+                          ? "Tatt av kollega"
                         : added.has(company.org_number)
                           ? "Lagt til"
                           : "Legg til"}
@@ -608,7 +644,7 @@ export default function LeadSearchView() {
         <ReachrCompanyDrawer
           open
           company={selected}
-          alreadyAdded={added.has(selected.org_number) || Boolean(selected.in_crm)}
+          alreadyAdded={added.has(selected.org_number) || claimed.has(selected.org_number) || Boolean(selected.in_crm)}
           onClose={() => setSelected(null)}
           onAdd={addLead}
           onEnriched={(company) => {

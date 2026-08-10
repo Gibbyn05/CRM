@@ -46,7 +46,6 @@ export const DEFAULT_SIDEBAR_NAVIGATION: SidebarGroupPreference[] = [
       "/min-inntekt",
       "/regnskap",
       "/organization",
-      "/innstillinger/kommunikasjon",
       "/users",
       "/tv",
     ].map((href) => ({ href, visible: true })),

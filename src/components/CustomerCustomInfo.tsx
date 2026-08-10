@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomField } from "@/lib/types";
 import Icon from "./Icon";
@@ -18,6 +18,21 @@ export default function CustomerCustomInfo({
   const [fields, setFields] = useState<CustomField[]>(initialFields);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`customer-custom-info:${customerId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "customers", filter: `id=eq.${customerId}` },
+        (payload) => {
+          const next = (payload.new as { custom_info?: CustomField[] | null }).custom_info;
+          setFields(next ?? []);
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [customerId, supabase]);
 
   function update(i: number, patch: Partial<CustomField>) {
     setFields((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));

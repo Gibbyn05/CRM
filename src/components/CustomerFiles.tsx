@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomerFile } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
@@ -30,6 +30,40 @@ export default function CustomerFiles({
   const [files, setFiles] = useState<CustomerFile[]>(initialFiles);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`customer-files:${customerId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "customer_files" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const file = payload.new as CustomerFile;
+            if (file.customer_id !== customerId) return;
+            setFiles((current) =>
+              current.some((item) => item.id === file.id)
+                ? current
+                : [file, ...current],
+            );
+          } else if (payload.eventType === "UPDATE") {
+            const file = payload.new as CustomerFile;
+            if (file.customer_id !== customerId) return;
+            setFiles((current) =>
+              current.map((item) => (item.id === file.id ? file : item)),
+            );
+          } else if (payload.eventType === "DELETE") {
+            const deleted = payload.old as Pick<CustomerFile, "id">;
+            setFiles((current) => current.filter((item) => item.id !== deleted.id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [customerId, supabase]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

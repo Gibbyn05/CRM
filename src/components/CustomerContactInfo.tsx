@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/lib/types";
 
@@ -32,6 +32,30 @@ export default function CustomerContactInfo({
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [values, setValues] = useState<Editable>(initial);
   const [draft, setDraft] = useState<Editable>(initial);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`customer-contact:${customerId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "customers", filter: `id=eq.${customerId}` },
+        (payload) => {
+          const row = payload.new as Customer;
+          const next: Editable = {
+            contact_name: row.contact_name,
+            email: row.email,
+            phone: row.phone,
+            address: row.address,
+            postal_code: row.postal_code,
+            city: row.city,
+          };
+          setValues(next);
+          setDraft((current) => (editing ? current : next));
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [customerId, editing, supabase]);
 
   function set(patch: Partial<Editable>) {
     setDraft((d) => ({ ...d, ...patch }));

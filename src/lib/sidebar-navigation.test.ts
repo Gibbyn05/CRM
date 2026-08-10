@@ -41,4 +41,20 @@ describe("normalizeSidebarNavigation", () => {
     expect(result[0].items.filter((item) => item.href === "/dashboard")).toHaveLength(1);
     expect(result[0].items.some((item) => item.href === "/admin")).toBe(false);
   });
+
+  it("fjerner det utgåtte kommunikasjonspunktet fra lagrede menyer", () => {
+    const result = normalizeSidebarNavigation([
+      {
+        id: "account",
+        visible: true,
+        items: [
+          { href: "/organization", visible: true },
+          { href: "/innstillinger/kommunikasjon", visible: true },
+        ],
+      },
+    ]);
+
+    const account = result.find((group) => group.id === "account");
+    expect(account?.items.some((item) => item.href === "/innstillinger/kommunikasjon")).toBe(false);
+  });
 });
