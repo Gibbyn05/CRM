@@ -223,6 +223,7 @@ export interface Contract {
   sent_at: string | null;
   opened_at: string | null;
   signed_at: string | null;
+  due_at: string | null;
   provider: string | null;
   provider_ref: string | null;
   document_url: string | null;

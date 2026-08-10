@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
       channel: "email",
       recipient,
       status: "draft",
+      due_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       contract_text: contractText,
     })
     .select("id, sign_token")

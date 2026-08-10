@@ -28,6 +28,7 @@ interface CommissionRow {
   fiken_invoice_id: number | null;
   status: string;
   paid_at: string | null;
+  due_at: string | null;
 }
 
 export async function syncCommissionsWithFiken(
@@ -40,7 +41,7 @@ export async function syncCommissionsWithFiken(
   // Alle rader som er fakturert (utkast eller ferdig) og ikke avskrevet.
   const { data } = await admin
     .from("commissions")
-    .select("id, deal_id, fiken_invoice_id, status, paid_at")
+    .select("id, deal_id, fiken_invoice_id, status, paid_at, due_at")
     .in("status", ["fakturert", "forfalt", "betalt"])
     .neq("status", "avskrevet");
 
@@ -84,6 +85,7 @@ export async function syncCommissionsWithFiken(
 
     let status = c.status;
     let paidAt = c.paid_at;
+    const dueAt = dueById.get(invoiceId) ?? c.due_at ?? null;
 
     if (settledIds.has(invoiceId)) {
       status = "betalt";
@@ -96,11 +98,12 @@ export async function syncCommissionsWithFiken(
     if (
       status !== c.status ||
       paidAt !== c.paid_at ||
+      dueAt !== c.due_at ||
       invoiceId !== c.fiken_invoice_id
     ) {
       await admin
         .from("commissions")
-        .update({ status, paid_at: paidAt, fiken_invoice_id: invoiceId })
+        .update({ status, paid_at: paidAt, due_at: dueAt, fiken_invoice_id: invoiceId })
         .eq("id", c.id);
       updated++;
     }

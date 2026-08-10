@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       channel: body.channel,
       recipient: body.recipient,
       status: "draft",
+      due_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       document_url: body.document_url ?? null,
     })
     .select("*")

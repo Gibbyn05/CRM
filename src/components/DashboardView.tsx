@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { CallDirection, CallStatus, DealStage, Reminder } from "@/lib/types";
+import type { CallDirection, CallStatus, Reminder } from "@/lib/types";
 import { PERIODS, PERIOD_LABELS, periodRange, type Period } from "@/lib/periods";
 import {
   PERIOD_TRUNC,
@@ -14,7 +14,6 @@ import {
   type AgentStats,
   type CallBucket,
 } from "@/lib/dashboard";
-import { DEAL_STAGE_LABELS } from "@/lib/constants";
 import { formatCurrency, timeAgo } from "@/lib/format";
 import Icon, { type IconName } from "./Icon";
 import Avatar from "./Avatar";
@@ -38,23 +37,22 @@ interface RecentCall {
   customers: { name: string } | null;
 }
 
-interface ActiveDeal {
-  id: string;
+type AgreementStatus = "tilbud_sendt" | "signert" | "betalt";
+
+interface ActiveAgreement {
+  deal_id: string;
+  agent_id: string | null;
+  agent_name: string;
+  customer_id: string;
+  customer_name: string;
   title: string;
-  stage: DealStage;
   amount: number | null;
   currency: string;
+  agreement_status: AgreementStatus;
+  due_at: string | null;
+  is_overdue: boolean;
   updated_at: string;
-  customer_id: string | null;
-  customers: { name: string } | null;
 }
-
-const DEAL_STAGE_STEP: Record<DealStage, number> = {
-  ringt: 1,
-  tilbud_sendt: 2,
-  akseptert: 3,
-  tapt: 0,
-};
 
 function greeting(d: Date): string {
   const h = d.getHours();
@@ -137,7 +135,7 @@ export default function DashboardView({
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [buckets, setBuckets] = useState<CallBucket[]>([]);
   const [recent, setRecent] = useState<RecentCall[]>([]);
-  const [deals, setDeals] = useState<ActiveDeal[]>([]);
+  const [agreements, setAgreements] = useState<ActiveAgreement[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [meetingsToday, setMeetingsToday] = useState(0);
   const [unfollowedMeetings, setUnfollowedMeetings] = useState(0);
@@ -249,12 +247,8 @@ export default function DashboardView({
   // Aktive avtaler + egne oppgaver hentes én gang (uavhengig av periode).
   useEffect(() => {
     supabase
-      .from("deals")
-      .select("id, title, stage, amount, currency, updated_at, customer_id, customers(name)")
-      .neq("stage", "tapt")
-      .order("updated_at", { ascending: false })
-      .limit(50)
-      .then(({ data }) => setDeals((data as unknown as ActiveDeal[]) ?? []));
+      .rpc("get_active_agreements")
+      .then(({ data }) => setAgreements((data as ActiveAgreement[] | null) ?? []));
 
     supabase
       .from("reminders")
@@ -390,7 +384,8 @@ export default function DashboardView({
         })
       : buckets;
   const maxCalls = Math.max(1, ...visibleBuckets.map((bucket) => bucket.calls));
-  const pipelineValue = deals.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+  const pipelineValue = agreements.reduce((sum, agreement) => sum + Number(agreement.amount ?? 0), 0);
+  const overdueAgreements = agreements.filter((agreement) => agreement.is_overdue);
 
   // «Krever oppmerksomhet»-tall (svarer på «hva bør jeg gjøre nå?»).
   const sot = new Date(now);
@@ -535,7 +530,7 @@ export default function DashboardView({
           label="Pipelineverdi"
           value={pipelineValue > 0 ? formatCurrency(pipelineValue) : "–"}
           icon="pipeline"
-          sub={`${deals.length} aktive avtaler`}
+          sub={`${agreements.length} aktive avtaler`}
         />
       </div>
       </DashboardWidgetFrame>
@@ -671,74 +666,64 @@ export default function DashboardView({
           <div>
             <h2 className="font-display text-3xl font-bold leading-none text-[#2b2118]">Aktive avtaler</h2>
             <p className="mt-1 text-sm text-[#6b6660]">
-              {deals.length} avtaler i pipeline
+              {agreements.length} avtaler med tilbud sendt
             </p>
           </div>
           <Link
-            href="/pipeline"
+            href={isManager && overdueAgreements.length > 0 ? "/regnskap" : "/pipeline"}
             className="text-sm font-bold text-[#008f52] hover:underline"
           >
-            Åpne pipeline →
+            {isManager && overdueAgreements.length > 0 ? "Se forfalte →" : "Åpne pipeline →"}
           </Link>
         </div>
+        {isManager && overdueAgreements.length > 0 && (
+          <div className="flex items-center justify-between gap-4 border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800">
+            <span><strong>{overdueAgreements.length} forfalt</strong> på tvers av selgerteamet</span>
+            <span className="text-xs font-bold uppercase tracking-[0.12em]">Krever oppfølging</span>
+          </div>
+        )}
         <div className="overflow-x-auto thin-scroll">
           <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="label-eyebrow border-b border-[#d8c9b0] bg-[#fbf7ed]">
               <tr>
                 <th className="px-5 py-3">Kunde</th>
+                {isManager && <th className="px-5 py-3">Selger</th>}
                 <th className="px-5 py-3">Avtale</th>
-                <th className="px-5 py-3">Steg</th>
+                <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 text-right">Verdi</th>
-                <th className="px-5 py-3 text-right">Oppdatert</th>
+                <th className="px-5 py-3 text-right">Frist</th>
               </tr>
             </thead>
             <tbody>
-              {deals.slice(0, 6).map((d) => (
+              {agreements.slice(0, 8).map((agreement) => (
                 <tr
-                  key={d.id}
-                  className="border-b border-[#d8c9b0]/60 hover:bg-[#fbf7ed]"
+                  key={agreement.deal_id}
+                  className={`border-b border-[#d8c9b0]/60 hover:bg-[#fbf7ed] ${agreement.is_overdue ? "bg-red-50/55" : ""}`}
                 >
                   <td className="px-5 py-3">
-                    {d.customer_id ? (
-                      <Link
-                        href={`/customers/${d.customer_id}`}
-                        className="font-semibold text-[#2b2118] hover:text-[#008f52] hover:underline"
-                      >
-                        {d.customers?.name ?? "Kunde"}
-                      </Link>
-                    ) : (
-                      <span className="font-semibold text-[#2b2118]">
-                        {d.customers?.name ?? "Kunde"}
-                      </span>
-                    )}
+                    <Link
+                      href={`/customers/${agreement.customer_id}`}
+                      className="font-semibold text-[#2b2118] hover:text-[#008f52] hover:underline"
+                    >
+                      {agreement.customer_name}
+                    </Link>
                   </td>
-                  <td className="px-5 py-3 text-[#6b6660]">{d.title}</td>
+                  {isManager && <td className="px-5 py-3 text-[#6b6660]">{agreement.agent_name}</td>}
+                  <td className="px-5 py-3 text-[#6b6660]">{agreement.title}</td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#efe3ce]">
-                        <div
-                          className="h-full rounded-full bg-[#09fe94]"
-                          style={{
-                            width: `${(DEAL_STAGE_STEP[d.stage] / 3) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="text-xs font-medium text-[#6b6660]">
-                        {DEAL_STAGE_LABELS[d.stage]}
-                      </span>
-                    </div>
+                    <AgreementProgress status={agreement.agreement_status} overdue={agreement.is_overdue} />
                   </td>
                   <td className="px-5 py-3 text-right font-semibold text-[#2b2118] tabular-nums">
-                    {d.amount ? formatCurrency(d.amount) : "–"}
+                    {agreement.amount ? formatCurrency(Number(agreement.amount)) : "–"}
                   </td>
-                  <td className="px-5 py-3 text-right text-[#8d806e]">
-                    {timeAgo(d.updated_at)}
+                  <td className={`px-5 py-3 text-right ${agreement.is_overdue ? "font-bold text-red-700" : "text-[#8d806e]"}`}>
+                    {agreement.due_at ? new Date(agreement.due_at).toLocaleDateString("nb-NO") : "–"}
                   </td>
                 </tr>
               ))}
-              {deals.length === 0 && (
+              {agreements.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-10 text-center text-[#6b6660]">
+                  <td colSpan={isManager ? 6 : 5} className="px-5 py-10 text-center text-[#6b6660]">
                     Ingen aktive avtaler ennå.
                   </td>
                 </tr>
@@ -748,6 +733,45 @@ export default function DashboardView({
         </div>
       </div>
       </DashboardWidgetFrame>
+    </div>
+  );
+}
+
+const AGREEMENT_STEPS: Array<{ id: AgreementStatus; label: string }> = [
+  { id: "tilbud_sendt", label: "Tilbud sendt" },
+  { id: "signert", label: "Signert" },
+  { id: "betalt", label: "Betalt" },
+];
+
+function AgreementProgress({ status, overdue }: { status: AgreementStatus; overdue: boolean }) {
+  const activeIndex = AGREEMENT_STEPS.findIndex((step) => step.id === status);
+  return (
+    <div className="min-w-56">
+      <div className="flex items-center">
+        {AGREEMENT_STEPS.map((step, index) => {
+          const complete = index <= activeIndex;
+          return (
+            <div key={step.id} className="flex flex-1 items-center last:flex-none">
+              <span
+                className={`h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-offset-2 ${
+                  complete ? "bg-[#09c977] ring-[#09c977]/35" : "bg-[#d8c9b0] ring-transparent"
+                }`}
+              />
+              {index < AGREEMENT_STEPS.length - 1 && (
+                <span className={`mx-1 h-px flex-1 ${index < activeIndex ? "bg-[#09c977]" : "bg-[#d8c9b0]"}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="text-xs font-bold text-[#2b2118]">{AGREEMENT_STEPS[activeIndex]?.label}</span>
+        {overdue && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-red-700">
+            Forfalt
+          </span>
+        )}
+      </div>
     </div>
   );
 }
