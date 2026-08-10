@@ -34,7 +34,7 @@ export default async function NyttSalgPage({
         .order("name", { ascending: true }),
       supabase
         .from("organization")
-        .select("name, org_number, address, postal_code, city")
+        .select("name, org_number, address, postal_code, city, logo_url")
         .eq("id", 1)
         .maybeSingle(),
       supabase.from("profiles").select("full_name").eq("id", user.id).single<
@@ -44,7 +44,7 @@ export default async function NyttSalgPage({
 
   const o = org as Pick<
     Organization,
-    "name" | "org_number" | "address" | "postal_code" | "city"
+    "name" | "org_number" | "address" | "postal_code" | "city" | "logo_url"
   > | null;
   const wizardOrg: WizardOrg = {
     name: o?.name ?? "",
@@ -52,6 +52,7 @@ export default async function NyttSalgPage({
     address: [o?.address, [o?.postal_code, o?.city].filter(Boolean).join(" ")]
       .filter(Boolean)
       .join(", "),
+    logo_url: o?.logo_url ?? null,
   };
 
   return (

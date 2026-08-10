@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { BillingType, Product } from "@/lib/types";
+import type { BillingType, DealItem, Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import Icon from "./Icon";
+import ContractDocument from "./ContractDocument";
 
 export interface WizardCustomer {
   id: string;
@@ -23,6 +24,7 @@ export interface WizardOrg {
   name: string;
   org_number: string | null;
   address: string;
+  logo_url: string | null;
 }
 
 interface CartItem {
@@ -466,43 +468,52 @@ export default function SaleWizard({
 
       {/* STEG 4: Oversikt */}
       {step === 4 && (
-        <div className="card mx-auto max-w-2xl space-y-4 p-6">
-          <h2 className="text-lg font-bold text-slate-900">Oversikt</h2>
-          <div>
-            <h3 className="label-eyebrow mb-1">Kunde</h3>
-            <p className="text-sm font-medium text-slate-800">
-              {customer?.name ?? "—"}
-            </p>
-          </div>
-          <div>
-            <h3 className="label-eyebrow mb-1">Tittel</h3>
-            <p className="text-sm text-slate-800">{title || "Tilbud"}</p>
-          </div>
-          <div>
-            <h3 className="label-eyebrow mb-2">Produkter</h3>
-            <ul className="divide-y divide-slate-100">
-              {cart.map((i) => (
-                <li
-                  key={i.key}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <span className="text-slate-700">
-                    {i.quantity} × {i.name}
-                  </span>
-                  <span className="font-medium text-slate-800">
-                    {formatCurrency(i.unit_price * i.quantity)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-            <span className="font-semibold text-slate-700">Totalt</span>
-            <span className="text-xl font-bold text-slate-900">
-              {formatCurrency(total)}
-            </span>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="overflow-hidden rounded-xl border border-[#dedede] bg-white shadow-sm">
+          <ContractDocument
+            contractId="FORHÅNDSVISNING"
+            preview
+            title={title || "Tilbud"}
+            customer={{
+              name: customer?.name ?? "Kunde",
+              orgNumber: customer?.org_number,
+              address: customer?.address,
+              postalCode: customer?.postal_code,
+              city: customer?.city,
+            }}
+            organization={{
+              name: org.name || "Leverandør",
+              orgNumber: org.org_number,
+              address: org.address,
+              logoUrl: org.logo_url,
+            }}
+            sellerName={sellerName}
+            items={cart.map(
+              (item): DealItem => ({
+                id: item.key,
+                deal_id: "",
+                product_id: item.product_id,
+                name: item.name,
+                description: item.description,
+                unit_price: item.unit_price,
+                quantity: item.quantity,
+                billing_type: item.billing_type,
+                agreement_start: item.agreement_start || null,
+                agreement_end: item.agreement_end || null,
+                line_total: item.unit_price * item.quantity,
+                created_at: "",
+              }),
+            )}
+            amount={total}
+            currency="NOK"
+            contractText={contract}
+            signingPanel={
+              <div className="flex items-center gap-3 text-sm text-[#777]">
+                <span className="h-9 w-9 shrink-0 rounded-full border border-[#e2e2e2]" />
+                <span>Venter på signatur</span>
+              </div>
+            }
+          />
+          {error && <p className="p-5 text-sm text-red-600">{error}</p>}
         </div>
       )}
 

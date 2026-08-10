@@ -232,3 +232,18 @@ video {
 
 /* Sørg for at Tailwind ikke purger de dynamiske statusfargene. */
 /* safelist: bg-status-incall bg-status-idle bg-status-notincall bg-status-offline */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  .contract-preview {
+    width: 100%;
+    box-shadow: none !important;
+  }
+
+  .contract-preview table {
+    break-inside: avoid;
+  }
+}
