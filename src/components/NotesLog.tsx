@@ -84,14 +84,16 @@ export default function NotesLog({
   commissions: Commission[];
   nameMap: Record<string, string>;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [body, setBody] = useState("");
   const [noteType, setNoteType] = useState<NoteType>("general");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let active = true;
     const channel = supabase
       .channel(`notes_${customerId}`)
       .on(
@@ -105,8 +107,24 @@ export default function NotesLog({
         },
       )
       .subscribe();
+
+    void supabase
+      .from("notes")
+      .select("*")
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (!active || !data) return;
+        setNotes((current) => {
+          const byId = new Map(current.map((note) => [note.id, note]));
+          for (const note of data as Note[]) byId.set(note.id, note);
+          return [...byId.values()];
+        });
+      });
+
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel);
     };
   }, [customerId, supabase]);
 
@@ -166,8 +184,26 @@ export default function NotesLog({
   async function addNote() {
     if (!body.trim() || saving) return;
     setSaving(true);
+    setSaveError("");
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("notes").insert({ customer_id: customerId, author_id: user?.id ?? null, note_type: noteType, body: body.trim() });
+    if (!user) {
+      setSaveError("Økten din har utløpt. Logg inn på nytt.");
+      setSaving(false);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("notes")
+      .insert({ customer_id: customerId, author_id: user.id, note_type: noteType, body: body.trim() })
+      .select("*")
+      .single<Note>();
+    if (error || !data) {
+      setSaveError("Notatet ble ikke lagret. Prøv igjen.");
+      setSaving(false);
+      return;
+    }
+    setNotes((current) =>
+      current.some((note) => note.id === data.id) ? current : [...current, data],
+    );
     setBody("");
     setSaving(false);
   }
@@ -209,6 +245,7 @@ export default function NotesLog({
       </div>
 
       <footer className="border-t border-[#ddd1bd] bg-white p-3 sm:p-4">
+        {saveError && <p className="mb-2 text-xs font-semibold text-red-600" role="alert">{saveError}</p>}
         <div className="rounded-2xl border border-[#b8dcca] bg-white p-2 shadow-[0_8px_24px_rgba(39,73,55,0.08)] focus-within:border-[#00a965] focus-within:ring-2 focus-within:ring-[#00a965]/10">
           <textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); addNote(); } }} rows={2} placeholder="Skriv et notat og trykk Enter for å lagre" className="max-h-32 min-h-[3.25rem] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm text-[#2b2118] outline-none placeholder:text-[#a49c92]" />
           <div className="flex items-center justify-between gap-2 border-t border-[#eee7dc] pt-2">
