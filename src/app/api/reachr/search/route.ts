@@ -62,8 +62,9 @@ export async function GET(req: NextRequest) {
   const size = Math.min(100, Math.max(10, parseInt(sp.get("size") ?? "50", 10) || 50));
 
   const params = new URLSearchParams();
+  const brregPageSize = Math.min(size + 75, 200);
   params.set("page", String(page));
-  params.set("size", String(Math.min(size + 75, 200)));
+  params.set("size", String(brregPageSize));
   params.set("konkurs", "false");
   if (query) params.set("navn", query);
   if (location) params.set("forretningsadresse.poststed", location.toUpperCase());
@@ -145,11 +146,17 @@ export async function GET(req: NextRequest) {
         .map((entry) => entry.company);
     }
 
+    const upstreamTotal = data.page?.totalElements ?? results.length;
+
     return NextResponse.json({
       results: results.slice(0, size),
-      total: data.page?.totalElements ?? results.length,
+      total: upstreamTotal,
       page,
-      has_more: results.length > size,
+      // Brønnøysund-totalen gjelder før Reachrs lokale filtre. Derfor må
+      // paginering styres av om kilden har flere sider, ikke av hvor mange
+      // treff som overlevde filtreringen på akkurat denne siden.
+      has_more:
+        results.length > size || (page + 1) * brregPageSize < upstreamTotal,
       sources: external.sources,
     });
   } catch (error) {

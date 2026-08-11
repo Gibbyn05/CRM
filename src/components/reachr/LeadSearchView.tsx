@@ -335,10 +335,19 @@ export default function LeadSearchView() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6f5a43]">
           <span>
-            {activeFilters} aktive filtre · {ringableCount} ringbare · ringbare leads sorteres først
+            {activeFilters} aktive filtre · {ringableCount} av {results.length} hentede er ringbare
           </span>
-          {total > 0 && <span>{visibleResults.length} vist av ca. {total.toLocaleString("nb-NO")}</span>}
+          {total > 0 && (
+            <span>
+              {visibleResults.length} vist · ca. {total.toLocaleString("nb-NO")} rå treff i Brønnøysund
+            </span>
+          )}
         </div>
+        {hasPhone && results.length > visibleResults.length && (
+          <p className="mt-2 text-xs font-medium text-[#8a6f4d]">
+            Telefon-filteret skjuler {results.length - visibleResults.length} hentede bedrifter uten kjent telefonnummer.
+          </p>
+        )}
       </section>
 
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
@@ -348,7 +357,9 @@ export default function LeadSearchView() {
           <div>
             <p className="label-eyebrow">Bedrifter tilgjengelig</p>
             <h2 className="font-display text-3xl font-black tracking-[-0.04em] text-[#2b2118]">
-              {loading && results.length === 0 ? "Laster bedrifter ..." : `${results.length} bedrifter`}
+              {loading && results.length === 0
+                ? "Laster bedrifter ..."
+                : `${visibleResults.length} bedrifter`}
             </h2>
           </div>
           <p className="hidden max-w-md text-right text-sm text-[#6f5a43] md:block">
