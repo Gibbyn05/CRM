@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { BillingType, ContractTemplate, DealItem, Product } from "@/lib/types";
@@ -107,6 +107,7 @@ export default function SaleWizard({
   const [generating, setGenerating] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   async function generateContract() {
@@ -201,11 +202,13 @@ export default function SaleWizard({
     step === 4;
 
   async function checkout() {
+    if (savingRef.current) return;
     if (!customerId) {
       setError("Velg en kunde.");
       setStep(2);
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
 
@@ -230,6 +233,7 @@ export default function SaleWizard({
       .single();
 
     if (dealErr || !deal) {
+      savingRef.current = false;
       setSaving(false);
       setError(dealErr?.message ?? "Kunne ikke opprette tilbudet.");
       return;
@@ -250,6 +254,7 @@ export default function SaleWizard({
     }));
     const { error: itemsErr } = await supabase.from("deal_items").insert(items);
 
+    savingRef.current = false;
     setSaving(false);
     if (itemsErr) {
       setError(

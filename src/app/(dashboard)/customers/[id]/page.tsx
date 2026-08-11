@@ -19,6 +19,7 @@ import DeleteCustomerButton from "@/components/DeleteCustomerButton";
 import CustomerTabs from "@/components/CustomerTabs";
 import CustomerStatusControl from "@/components/CustomerStatusControl";
 import CustomerContactInfo from "@/components/CustomerContactInfo";
+import { dedupeContracts, dedupeDeals } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -196,8 +197,8 @@ export default async function CustomerDetailPage({
           <CustomerTabs
             customer={customer}
             notes={(notes as Note[]) ?? []}
-            deals={(deals as Deal[]) ?? []}
-            contracts={(contracts as Contract[]) ?? []}
+            deals={dedupeDeals((deals as Deal[]) ?? [])}
+            contracts={dedupeContracts((contracts as Contract[]) ?? [])}
             calls={(calls as CallLog[]) ?? []}
             appointments={(appointments as Appointment[]) ?? []}
             reminders={(reminders as Reminder[]) ?? []}

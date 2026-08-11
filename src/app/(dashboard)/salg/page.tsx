@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { DealStage } from "@/lib/types";
 import Icon from "@/components/Icon";
 import OffersList, { type OfferRow } from "@/components/OffersList";
+import { dedupeDeals } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function SalgPage() {
   const one = <T,>(v: T | T[] | null): T | null =>
     Array.isArray(v) ? v[0] ?? null : v;
 
-  const rows: OfferRow[] = ((data ?? []) as Joined[]).map((d) => ({
+  const rows: OfferRow[] = dedupeDeals(((data ?? []) as Joined[]).map((d) => ({
     id: d.id,
     title: d.title,
     amount: d.amount != null ? Number(d.amount) : null,
@@ -50,7 +51,7 @@ export default async function SalgPage() {
     customer_name: one(d.customer)?.name ?? null,
     agent_name: one(d.agent)?.full_name ?? null,
     item_count: d.deal_items?.[0]?.count ?? 0,
-  }));
+  })));
 
   return (
     <div className="space-y-5">

@@ -5,6 +5,7 @@ import CustomerJourneyBoard, {
   type JourneyStage,
   type JourneyCustomer,
 } from "@/components/CustomerJourneyBoard";
+import { dedupeCustomers } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -69,14 +70,14 @@ export default async function KundereisePage() {
       .map((position) => [position.customer_id, position.stage_id]),
   );
 
-  const rows: JourneyCustomer[] = (
+  const rows: JourneyCustomer[] = dedupeCustomers((
     (customers as {
       id: string;
       name: string;
       org_number: string | null;
       owner_id: string | null;
     }[]) ?? []
-  ).map((c) => ({
+  ), null).map((c) => ({
     id: c.id,
     name: c.name,
     org_number: c.org_number,

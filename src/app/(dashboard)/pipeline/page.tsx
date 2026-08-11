@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Customer, Deal, Profile } from "@/lib/types";
 import PipelineBoard from "@/components/PipelineBoard";
+import { dedupeCustomers, dedupeDeals } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,11 @@ export default async function PipelinePage() {
   const [{ data: deals }, { data: customers }, { data: profiles }] =
     await Promise.all([
       supabase.from("deals").select("*").order("updated_at", { ascending: false }),
-      supabase.from("customers").select("id, name").order("name"),
+      supabase.from("customers").select("id, name, org_number").order("name"),
       supabase.from("profiles").select("id, full_name"),
     ]);
 
-  const customerList = (customers as Pick<Customer, "id" | "name">[]) ?? [];
+  const customerList = dedupeCustomers((customers as Pick<Customer, "id" | "name" | "org_number">[]) ?? []);
   const nameMap = new Map(customerList.map((c) => [c.id, c.name]));
   const ownerMap = new Map(
     ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
@@ -34,11 +35,11 @@ export default async function PipelinePage() {
     ]),
   );
 
-  const enriched: DealWithCustomer[] = ((deals as Deal[]) ?? []).map((d) => ({
+  const enriched: DealWithCustomer[] = dedupeDeals(((deals as Deal[]) ?? []).map((d) => ({
     ...d,
     customer_name: nameMap.get(d.customer_id) ?? "Ukjent kunde",
     owner_name: d.agent_id ? ownerMap.get(d.agent_id) ?? null : null,
-  }));
+  })));
 
   return (
     <PipelineBoard

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatOrgNumber, timeAgo } from "@/lib/format";
 import NewCustomerButton from "./NewCustomerButton";
 import Icon from "./Icon";
+import { dedupeCustomers } from "@/lib/dedupe";
 
 type CustomerSort = "created" | "name" | "last_activity" | "status" | "seller" | "city" | "org_number";
 
@@ -75,7 +76,7 @@ export default function CustomerSearch({
       const { data } = await buildQuery(0);
       if (active) {
         const rows = (data as CustomerListRow[]) ?? [];
-        setCustomers(rows);
+        setCustomers(dedupeCustomers(rows));
         setHasMore(rows.length === PAGE_SIZE);
         setLoading(false);
       }
@@ -91,7 +92,7 @@ export default function CustomerSearch({
     const from = customers.length;
     const { data } = await buildQuery(from);
     const rows = (data as CustomerListRow[]) ?? [];
-    setCustomers((c) => [...c, ...rows]);
+    setCustomers((current) => dedupeCustomers([...current, ...rows]));
     setHasMore(rows.length === PAGE_SIZE);
     setLoadingMore(false);
   }

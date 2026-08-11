@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { dedupeCustomers } from "@/lib/dedupe";
 import type { Customer, Profile } from "@/lib/types";
 import { formatOrgNumber } from "@/lib/format";
 import Avatar from "./Avatar";
@@ -55,7 +56,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
         : query.ilike("name", `%${trimmed}%`);
       const { data } = await query;
       if (!alive) return;
-      setHits((data as Hit[]) ?? []);
+      setHits(dedupeCustomers((data as Hit[]) ?? []));
       setActive(-1);
       setLoading(false);
     }, 200);

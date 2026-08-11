@@ -348,9 +348,11 @@ function CreateDealModal({
     amount: "",
   });
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
+    if (savingRef.current) return;
     if (!form.customer_id) {
       setError("Velg en kunde.");
       return;
@@ -359,6 +361,7 @@ function CreateDealModal({
       setError("Tittel er påkrevd.");
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     const amount = form.amount ? Number(form.amount.replace(/\s/g, "")) : null;
@@ -373,6 +376,7 @@ function CreateDealModal({
       })
       .select("*")
       .single();
+    savingRef.current = false;
     setSaving(false);
     if (err || !data) {
       setError(err?.message ?? "Kunne ikke opprette avtalen.");

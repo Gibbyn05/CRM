@@ -33,6 +33,7 @@ export default function NewCustomerButton() {
   const supabase = createClient();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function NewCustomerButton() {
   }
 
   async function save() {
+    if (savingRef.current) return;
     setError(null);
     if (!form.name.trim()) {
       setError("Navn er påkrevd.");
@@ -171,6 +173,7 @@ export default function NewCustomerButton() {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     const {
       data: { user },
@@ -191,6 +194,7 @@ export default function NewCustomerButton() {
       .select("id")
       .single();
 
+    savingRef.current = false;
     setSaving(false);
     if (insErr) {
       setError(insErr.message);

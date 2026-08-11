@@ -6,6 +6,7 @@ import SaleWizard, {
   type WizardCustomer,
   type WizardOrg,
 } from "@/components/SaleWizard";
+import { dedupeCustomers } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ export default async function NyttSalgPage({
   return (
     <SaleWizard
       products={(products as Product[]) ?? []}
-      customers={(customers as WizardCustomer[]) ?? []}
+      customers={dedupeCustomers((customers as WizardCustomer[]) ?? [], searchParams.customer)}
       currentUserId={user.id}
       sellerName={me?.full_name ?? ""}
       org={wizardOrg}

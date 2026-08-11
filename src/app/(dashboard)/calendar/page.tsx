@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Appointment, Customer, EventType, Profile } from "@/lib/types";
 import CalendarView from "@/components/CalendarView";
+import { dedupeCustomers } from "@/lib/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function CalendarPage() {
     { data: me },
   ] = await Promise.all([
     supabase.from("appointments").select("*").order("starts_at", { ascending: true }),
-    supabase.from("customers").select("id, name").order("name"),
+    supabase.from("customers").select("id, name, org_number").order("name"),
     supabase.from("event_types").select("*").order("sort_order"),
     supabase.from("profiles").select("id, full_name"),
     supabase.from("profiles").select("role").eq("id", user.id).single(),
@@ -44,7 +45,7 @@ export default async function CalendarPage() {
       </div>
       <CalendarView
         initialAppointments={(appointments as Appointment[]) ?? []}
-        customers={(customers as Pick<Customer, "id" | "name">[]) ?? []}
+        customers={dedupeCustomers((customers as Pick<Customer, "id" | "name" | "org_number">[]) ?? [])}
         initialEventTypes={(eventTypes as EventType[]) ?? []}
         currentUserId={user.id}
         isManager={(me as { role: Profile["role"] } | null)?.role === "manager"}

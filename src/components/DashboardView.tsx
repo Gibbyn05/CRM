@@ -21,6 +21,7 @@ import {
   type DashboardWidgetId,
   type DashboardWidgetPreference,
 } from "@/lib/dashboard-widgets";
+import { dedupeDeals } from "@/lib/dedupe";
 
 type ActivityType = "call" | "email" | "meeting" | "note" | "task" | "status" | "offer" | "signature" | "payment";
 
@@ -241,7 +242,14 @@ export default function DashboardView({
   useEffect(() => {
     supabase
       .rpc("get_active_agreements")
-      .then(({ data }) => setAgreements((data as ActiveAgreement[] | null) ?? []));
+      .then(({ data }) => {
+        const rows = (data as ActiveAgreement[] | null) ?? [];
+        setAgreements(dedupeDeals(rows.map((row) => ({
+          ...row,
+          id: row.deal_id,
+          stage: row.agreement_status,
+        }))));
+      });
 
     supabase
       .from("reminders")

@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
     .from("customers")
     .select("id")
     .eq("org_number", company.org_number)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle<{ id: string }>();
 
   let customerId = existingCustomer.data?.id ?? null;
