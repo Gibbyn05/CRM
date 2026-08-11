@@ -55,7 +55,7 @@ export default async function DashboardLayout({
             (bottom-[5rem] + h-14 => toppkant på 8.5rem), ikke bare
             statuslinja (~4rem). Pluss iPhone safe-area. */}
         <main className="thin-scroll flex-1 overflow-x-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(184,138,82,0.14),transparent_34rem),linear-gradient(120deg,#fffaf0_0%,#f4ead8_48%,#efe3ce_100%)] px-3 py-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-5 lg:overflow-y-auto lg:p-8 lg:pb-[calc(9rem+env(safe-area-inset-bottom))]">
-          <div className="mx-auto h-full w-full max-w-7xl">{children}</div>
+          <div className="mx-auto h-full w-full max-w-[96rem]">{children}</div>
         </main>
       </div>
 
