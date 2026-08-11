@@ -594,7 +594,7 @@ export default function SaleWizard({
       )}
 
       {/* Navigasjon */}
-      <div className="flex items-center justify-between">
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 -mx-1 flex items-center justify-between rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_12px_36px_rgba(30,41,59,0.16)] backdrop-blur sm:mx-0 sm:p-2.5">
         <button
           onClick={() => (step === 1 ? router.push("/salg") : setStep(step - 1))}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
