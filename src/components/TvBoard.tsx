@@ -6,6 +6,9 @@ import AgentCard from "./AgentCard";
 
 const REPOSITION_MS = 500;
 const REPOSITION_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+const LIVE_POLL_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 8_000;
+const DISCONNECTED_AFTER_MS = 30_000;
 
 const STATUS_ORDER: Record<string, number> = {
   in_call: 0,
@@ -28,7 +31,7 @@ export default function TvBoard() {
   const [agents, setAgents] = useState<LiveAgentRow[]>([]);
   const [now, setNow] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [connection, setConnection] = useState<"connecting" | "live" | "retrying" | "offline">("connecting");
 
   // Salgsfeiring + lyd (kun på TV-en). Autoplay krever at noen aktiverer lyden
   // én gang (kiosk-mus/-fjernkontroll), ellers blokkerer nettleseren lyd.
@@ -136,19 +139,42 @@ export default function TvBoard() {
 
   useEffect(() => {
     let active = true;
+    let inFlight = false;
+    let consecutiveFailures = 0;
+    let lastSuccessAt = Date.now();
 
     async function load() {
+      if (inFlight) return;
+      inFlight = true;
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const res = await fetch("/api/live-board", { cache: "no-store" });
+        const res = await fetch("/api/live-board", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error(`Live-status svarte ${res.status}`);
         const json = await res.json();
         if (active) {
           setAgents(json.agents ?? []);
           setLastUpdated(new Date());
-          setLoadError(false);
+          consecutiveFailures = 0;
+          lastSuccessAt = Date.now();
+          setConnection("live");
         }
       } catch {
-        if (active) setLoadError(true);
+        if (active) {
+          consecutiveFailures += 1;
+          const staleFor = Date.now() - lastSuccessAt;
+          if (staleFor >= DISCONNECTED_AFTER_MS && consecutiveFailures >= 3) {
+            setConnection("offline");
+          } else if (consecutiveFailures >= 3) {
+            setConnection("retrying");
+          }
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        inFlight = false;
       }
     }
 
@@ -156,7 +182,7 @@ export default function TvBoard() {
       if (document.visibilityState === "visible") load();
     };
     load();
-    const dataTimer = setInterval(load, 2_500);
+    const dataTimer = setInterval(load, LIVE_POLL_MS);
     const clockTimer = setInterval(() => setNow(new Date()), 1_000);
     window.addEventListener("focus", load);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -217,6 +243,23 @@ export default function TvBoard() {
   }, [sorted]);
 
   const inCall = agents.filter((a) => a.status === "in_call").length;
+  const connectionTone = connection === "offline"
+    ? "text-red-300"
+    : connection === "retrying"
+      ? "text-amber-300"
+      : "text-emerald-300";
+  const connectionDot = connection === "offline"
+    ? "bg-red-400"
+    : connection === "retrying"
+      ? "bg-amber-400"
+      : "bg-emerald-400";
+  const connectionLabel = connection === "offline"
+    ? "Ingen kontakt, prøver igjen"
+    : connection === "retrying"
+      ? "Midlertidig nettverksfeil, prøver igjen"
+      : connection === "live" && lastUpdated
+        ? "Live · oppdatert nå"
+        : "Kobler til …";
 
   return (
     <div
@@ -233,20 +276,12 @@ export default function TvBoard() {
             {inCall} i samtale nå · {agents.length} aktive brukere
           </p>
           <p
-            className={`mt-2 inline-flex items-center gap-2 rounded-full bg-slate-950/60 px-3 py-1 text-sm font-semibold ${
-              loadError ? "text-red-300" : "text-emerald-300"
-            }`}
+            className={`mt-2 inline-flex items-center gap-2 rounded-full bg-slate-950/60 px-3 py-1 text-sm font-semibold ${connectionTone}`}
           >
             <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                loadError ? "bg-red-400" : "bg-emerald-400"
-              }`}
+              className={`h-2.5 w-2.5 rounded-full ${connectionDot}`}
             />
-            {loadError
-              ? "Tilkobling brutt, prøver igjen"
-              : lastUpdated
-                ? "Live · oppdatert nå"
-                : "Kobler til …"}
+            {connectionLabel}
           </p>
         </div>
         <div className="text-right">
