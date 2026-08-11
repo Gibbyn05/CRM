@@ -67,7 +67,7 @@ create type contract_status as enum ('draft', 'sent', 'opened', 'signed', 'decli
 create type note_type as enum ('call', 'general', 'system', 'meeting');
 
 -- Chat-kanal: 'team' = felles boble, 'customer' = kommentar på en kunde-case.
-create type message_channel as enum ('team', 'customer', 'direct');
+create type message_channel as enum ('team', 'manager', 'customer', 'direct');
 
 -- ---------------------------------------------------------------------------
 --  PROFILES  (utvider auth.users)
@@ -841,14 +841,15 @@ create policy contracts_update on public.contracts
 
 -- ---------------------------------------------------------------------------
 --  MESSAGES
---  Team-kanal: alle innloggede leser/skriver. Kunde-kanal: kun de med tilgang
---  til kunden.
+--  Team-kanal: alle innloggede leser/skriver. Leder- og kunde-kanal: bare
+--  ledere. Direktemeldinger er bare synlige for avsender og mottaker.
 -- ---------------------------------------------------------------------------
 create policy messages_select on public.messages
   for select to authenticated
   using (
     channel = 'team'
-    or (channel = 'customer' and public.can_access_customer(customer_id))
+    or (channel = 'manager' and public.is_manager())
+    or (channel = 'customer' and public.is_manager())
     or (channel = 'direct' and (author_id = auth.uid() or recipient_id = auth.uid()))
   );
 
@@ -858,7 +859,8 @@ create policy messages_insert on public.messages
     author_id = auth.uid()
     and (
       channel = 'team'
-      or (channel = 'customer' and public.can_access_customer(customer_id))
+      or (channel = 'manager' and public.is_manager())
+      or (channel = 'customer' and public.is_manager())
       or (channel = 'direct' and recipient_id is not null and recipient_id <> auth.uid())
     )
   );

@@ -1,50 +1,65 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Message } from "@/lib/types";
 import type { AuthorMap } from "@/lib/chat-types";
 import { formatTime } from "@/lib/format";
 import Avatar from "./Avatar";
 
-// Intern team-chat (channel = 'team'). Sanntid via Supabase Realtime.
-// Viser profilbilde + navn på hver melding.
+// Delt logg for team- og lederkanalen. Sanntid via Supabase Realtime.
+// Viser profilbilde og navn på hvert innlegg.
 export default function TeamChat({
   authors,
   heightClass = "h-[70vh]",
   embedded = false,
+  channel = "team",
+  placeholder = "Skriv en melding til teamet …",
+  emptyText = "Ingen innlegg ennå. Start loggen.",
 }: {
   authors: AuthorMap;
   // Lar chatten gjenbrukes både som full side og inne i chat-bobla.
   heightClass?: string;
   embedded?: boolean;
+  channel?: "team" | "manager";
+  placeholder?: string;
+  emptyText?: string;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<Message[]>([]);
   const [body, setBody] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
 
+    setLoading(true);
+    setError("");
     supabase
       .from("messages")
       .select("*")
-      .eq("channel", "team")
+      .eq("channel", channel)
       .order("created_at", { ascending: true })
       .limit(200)
-      .then(({ data }) => setMessages((data as Message[]) ?? []));
+      .then(({ data, error: loadError }) => {
+        if (loadError) setError("Kunne ikke hente loggen.");
+        else setMessages((data as Message[]) ?? []);
+        setLoading(false);
+      });
 
-    const channel = supabase
-      .channel("team_chat")
+    const realtimeChannel = supabase
+      .channel(`${channel}_log`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: "channel=eq.team",
+          filter: `channel=eq.${channel}`,
         },
         (payload) => {
           const m = payload.new as Message;
@@ -56,23 +71,38 @@ export default function TeamChat({
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(realtimeChannel);
     };
-  }, [supabase]);
+  }, [channel, supabase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function send() {
-    if (!body.trim() || !userId) return;
+    if (!body.trim() || !userId || sending) return;
     const text = body.trim();
-    setBody("");
-    await supabase.from("messages").insert({
-      author_id: userId,
-      channel: "team",
-      body: text,
-    });
+    setSending(true);
+    setError("");
+    const { data, error: sendError } = await supabase
+      .from("messages")
+      .insert({
+        author_id: userId,
+        channel,
+        body: text,
+      })
+      .select("*")
+      .single<Message>();
+
+    if (sendError) {
+      setError("Innlegget ble ikke lagret. Prøv igjen.");
+    } else if (data) {
+      setBody("");
+      setMessages((prev) =>
+        prev.some((message) => message.id === data.id) ? prev : [...prev, data],
+      );
+    }
+    setSending(false);
   }
 
   function authorInfo(id: string | null) {
@@ -82,11 +112,13 @@ export default function TeamChat({
 
   return (
     <div
-      className={`flex ${heightClass} flex-col ${
-        embedded ? "" : "card"
+      className={`flex min-h-0 ${heightClass} flex-col ${
+        embedded
+          ? ""
+          : "overflow-hidden rounded-[1.75rem] border border-[#d8c9b0] bg-[#fffaf0]/90 shadow-[0_22px_65px_rgba(62,45,27,0.09)]"
       }`}
     >
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="thin-scroll flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
         {messages.map((m) => {
           const mine = m.author_id === userId;
           const a = authorInfo(m.author_id);
@@ -113,37 +145,64 @@ export default function TeamChat({
                 </div>
                 <div
                   className={`rounded-2xl px-4 py-2 ${
-                    mine ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-800"
+                    mine
+                      ? "bg-brand-600 text-white"
+                      : "bg-slate-100 text-slate-800"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {m.body}
+                  </p>
                 </div>
               </div>
             </div>
           );
         })}
-        {messages.length === 0 && (
-          <p className="text-center text-sm text-slate-400">
-            Ingen meldinger ennå. Start samtalen!
-          </p>
+        {!loading && messages.length === 0 && (
+          <div className="flex h-full min-h-56 items-center justify-center text-center">
+            <div>
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#d8c9b0] bg-white text-xl text-[#087a4b]">
+                ✎
+              </span>
+              <p className="mt-4 text-sm font-semibold text-[#756d64]">
+                {emptyText}
+              </p>
+            </div>
+          </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex gap-2 border-t border-slate-200 p-3">
-        <input
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Skriv en melding …"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-        <button
-          onClick={send}
-          className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          Send
-        </button>
+      <div className="border-t border-[#e1d6c5] bg-white/80 p-3 sm:p-4">
+        {error && (
+          <p role="alert" className="mb-2 text-xs font-semibold text-red-600">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={2}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            className="max-h-32 min-h-12 w-full resize-none rounded-xl border border-[#d8c9b0] bg-[#fffdf8] px-4 py-3 text-sm text-[#2b2118] outline-none transition placeholder:text-[#a49c92] focus:border-[#00a965] focus:ring-2 focus:ring-[#00a965]/15"
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!body.trim() || sending}
+            className="rounded-xl bg-[#171717] px-5 py-2 text-sm font-bold text-[#fffaf0] transition hover:bg-[#087a4b] disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            {sending ? "Lagrer …" : "Send"}
+          </button>
+        </div>
       </div>
     </div>
   );

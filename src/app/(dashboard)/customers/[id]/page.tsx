@@ -117,7 +117,7 @@ export default async function CustomerDetailPage({
   const ownerName = customer.owner_id ? nameMap.get(customer.owner_id) : null;
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 lg:overflow-hidden">
       <Link
         href="/customers"
         className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-800"
@@ -125,7 +125,7 @@ export default async function CustomerDetailPage({
         ← Tilbake til kunder
       </Link>
 
-      <div className="overflow-hidden rounded-[1.65rem] border border-[#d8cdbb] bg-white shadow-[0_22px_65px_rgba(62,45,27,0.11)] lg:grid lg:h-[calc(100dvh-10.25rem)] lg:min-h-[720px] lg:grid-cols-[minmax(280px,32%)_minmax(0,68%)]">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-[1.65rem] border border-[#d8cdbb] bg-white shadow-[0_22px_65px_rgba(62,45,27,0.11)] lg:grid lg:grid-cols-[minmax(280px,32%)_minmax(0,68%)]">
         <aside className="thin-scroll border-b border-[#ddd4c6] bg-[#fffdfa] lg:h-full lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="border-b border-[#ebe3d7] px-6 pb-6 pt-7">
             <div className="flex items-start justify-between gap-4">
