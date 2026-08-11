@@ -110,6 +110,13 @@ export default function SaleWizard({
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
+  function changeStep(nextStep: number) {
+    setStep(nextStep);
+    requestAnimationFrame(() => {
+      document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+
   async function generateContract() {
     setGenerating(true);
     setError(null);
@@ -268,7 +275,7 @@ export default function SaleWizard({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       {/* Stegindikator */}
       <div className="flex items-center gap-2 overflow-x-auto thin-scroll">
         {STEPS.map((label, i) => {
@@ -278,7 +285,7 @@ export default function SaleWizard({
           return (
             <div key={label} className="flex shrink-0 items-center gap-2">
               <button
-                onClick={() => n < step && setStep(n)}
+                onClick={() => n < step && changeStep(n)}
                 className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   active
                     ? "bg-brand-50 text-brand-700"
@@ -594,9 +601,9 @@ export default function SaleWizard({
       )}
 
       {/* Navigasjon */}
-      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 -mx-1 flex items-center justify-between rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_12px_36px_rgba(30,41,59,0.16)] backdrop-blur sm:mx-0 sm:p-2.5">
+      <div className="flex items-center justify-between">
         <button
-          onClick={() => (step === 1 ? router.push("/salg") : setStep(step - 1))}
+          onClick={() => (step === 1 ? router.push("/salg") : changeStep(step - 1))}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
         >
           {step === 1 ? "Avbryt" : "Tilbake"}
@@ -604,7 +611,7 @@ export default function SaleWizard({
 
         {step < 4 ? (
           <button
-            onClick={() => canNext && setStep(step + 1)}
+            onClick={() => canNext && changeStep(step + 1)}
             disabled={!canNext}
             className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
           >
