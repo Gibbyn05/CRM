@@ -582,55 +582,62 @@ export default function DashboardView({
       {/* Siste aktivitet */}
       <DashboardWidgetFrame preference={widgetById.recent} order={widgetOrder.recent}>
           <div className="card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#d8c9b0] px-5 py-4">
+            <div className="flex items-start justify-between px-6 pb-3 pt-5">
               <div>
-                <h2 className="font-display text-3xl font-bold leading-none text-[#2b2118]">Siste aktivitet</h2>
-                <p className="mt-1 text-sm text-[#6b6660]">
-                  Siste bevegelse på {isManager ? "teamets kunder" : "dine kunder og salg"}
-                </p>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-xl font-bold leading-none text-[#2b2118]">Sanntidsaktivitet</h2>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[#6b6660]">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#09fe94]" />
+                    Live
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-[#6b6660]">{recent.length} aktiviteter</p>
               </div>
-              <span className="flex items-center gap-1.5 rounded-full border border-[#d8c9b0] bg-[#eafff5] px-3 py-1 text-xs font-bold text-[#008f52]">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[#09fe94]" />
-                Oppdatert
+              <span className="flex h-9 w-9 items-center justify-center text-[#6b6660]" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+                  <path d="m3 8 6-6M21 8l-6-6M3 16l6 6M21 16l-6 6" />
+                </svg>
               </span>
             </div>
-            <ul className="divide-y divide-[#d8c9b0]/70">
-              {recent.map((activity) => (
-                <li
-                  key={activity.activity_id}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedActivity(activity)}
-                    className="group flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-[#fbf7ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#09c977]"
-                  >
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${activityStyle(activity.activity_type).icon}`}>
-                      <Icon name={activityStyle(activity.activity_type).iconName} size={17} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/customers/${activity.customer_id}`}
-                        onClick={(event) => event.stopPropagation()}
-                        className="truncate font-semibold text-[#2b2118] hover:text-[#008f52] hover:underline"
-                      >
-                        {activity.customer_name}
+            <ul className="thin-scroll mx-2 mb-2 h-[440px] overflow-y-auto border-t border-[#d8c9b0]/70 px-5 pb-8 pt-3 sm:px-8">
+              {recent.map((activity, index) => {
+                const showCustomer = index === 0 || recent[index - 1]?.customer_id !== activity.customer_id;
+                const note = activity.activity_type === "note";
+                return (
+                  <li key={activity.activity_id} className="list-none">
+                    {showCustomer && (
+                      <Link href={`/customers/${activity.customer_id}`} className="mb-3 mt-3 inline-flex text-sm text-[#6b6660] hover:text-[#008f52] hover:underline">
+                        Kunde <span className="ml-1 font-semibold text-[#008f52]">{activity.customer_name}</span>
                       </Link>
-                      <p className="truncate text-xs text-[#8d806e]">
-                        {activity.summary}{isManager ? ` · ${activity.agent_name}` : ""}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.09em] ${activityStyle(activity.activity_type).badge}`}>
-                      {activity.title}
-                    </span>
-                    <span className="hidden min-w-20 shrink-0 text-right text-xs text-[#8d806e] sm:block">
-                      {timeAgo(activity.occurred_at)}
-                    </span>
-                    <Icon name="chevron-right" size={15} className="shrink-0 text-[#b4a48e] transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                </li>
-              ))}
+                    )}
+                    {note ? (
+                      <button type="button" onClick={() => setSelectedActivity(activity)} className="group mb-5 flex max-w-[760px] items-end gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#09c977]">
+                        <Avatar name={activity.agent_name || "Ukjent"} size={42} />
+                        <span>
+                          <span className="block rounded-2xl rounded-bl-sm border border-[#d8c9b0] bg-[#fbf7ed] px-5 py-3.5 text-[15px] leading-6 text-[#2b2118] shadow-sm transition-shadow group-hover:shadow-md">
+                            <span className="block font-semibold">{activity.title}</span>
+                            {activity.summary}
+                          </span>
+                          <span className="mt-1.5 block text-xs text-[#8d806e]">{activity.agent_name} · {timeAgo(activity.occurred_at)}</span>
+                        </span>
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setSelectedActivity(activity)} className="group mb-5 ml-12 flex w-[calc(100%-3rem)] items-start gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#09c977]">
+                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${activityStyle(activity.activity_type).icon}`}><Icon name={activityStyle(activity.activity_type).iconName} size={14} /></span>
+                        <span className="min-w-0 text-sm leading-6 text-[#4f463d]">
+                          {isManager && <strong className="font-semibold text-[#2b2118]">{activity.agent_name} </strong>}
+                          {activity.summary}
+                          <strong className="ml-1 font-semibold text-[#008f52]">{activity.customer_name}</strong>
+                          <span className="ml-1.5 whitespace-nowrap text-[#8d806e]">{timeAgo(activity.occurred_at)}</span>
+                        </span>
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
               {!loading && recent.length === 0 && (
-                <li className="px-5 py-10 text-center text-sm text-[#6b6660]">
+                <li className="px-5 py-28 text-center text-sm text-[#6b6660]">
                   Ingen kundeaktivitet ennå.
                 </li>
               )}
