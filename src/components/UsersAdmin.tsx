@@ -1,31 +1,66 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Profile, RolePermission, UserRole } from "@/lib/types";
+import type { Profile, RolePermission, UserInvitation, UserRole } from "@/lib/types";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
 import PermissionMatrix from "./PermissionMatrix";
 
 type Tab = "brukere" | "tilgang";
 
+function formatInviteDate(value: string) {
+  return new Intl.DateTimeFormat("nb-NO", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export default function UsersAdmin({
   currentUserId,
   initialProfiles,
   initialPermissions,
+  initialInvitations,
 }: {
   currentUserId: string;
   initialProfiles: Profile[];
   initialPermissions: RolePermission[];
+  initialInvitations: UserInvitation[];
 }) {
   const supabase = createClient();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("brukere");
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
+  const [invitations, setInvitations] = useState<UserInvitation[]>(initialInvitations);
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [songProfile, setSongProfile] = useState<Profile | null>(null);
+
+  useEffect(() => setProfiles(initialProfiles), [initialProfiles]);
+  useEffect(() => setInvitations(initialInvitations), [initialInvitations]);
+
+  async function invitationAction(invitation: UserInvitation, action: "resend" | "revoke") {
+    setBusyId(invitation.id);
+    try {
+      const response = await fetch(`/api/users/invitations/${invitation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Kunne ikke oppdatere invitasjonen.");
+      if (action === "revoke") {
+        setInvitations((items) => items.filter((item) => item.id !== invitation.id));
+      } else {
+        setInvitations((items) => items.map((item) => item.id === invitation.id ? result.invitation : item));
+      }
+    } catch (caught) {
+      window.alert(caught instanceof Error ? caught.message : "Ukjent feil.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function setRole(p: Profile, role: UserRole) {
     setBusyId(p.id);
@@ -75,9 +110,35 @@ export default function UsersAdmin({
               className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
               <Icon name="plus" size={16} />
-              Ny bruker
+              Inviter bruker
             </button>
           </div>
+
+          {invitations.length > 0 && (
+            <div className="card divide-y divide-slate-100 p-0">
+              <div className="px-4 py-3">
+                <h2 className="font-semibold text-slate-800">Ventende invitasjoner</h2>
+                <p className="text-sm text-slate-500">Brukere som ennå ikke har aktivert kontoen sin.</p>
+              </div>
+              {invitations.map((invitation) => {
+                const expired = invitation.status === "expired" || new Date(invitation.expires_at) <= new Date();
+                return (
+                  <div key={invitation.id} className="flex flex-wrap items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 font-bold text-amber-700">{invitation.full_name.slice(0, 1).toUpperCase()}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-2 font-semibold text-slate-800"><span className="truncate">{invitation.full_name}</span><span className={`rounded px-1.5 py-0.5 text-3xs font-medium ${expired ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{expired ? "Utløpt" : "Invitert"}</span></p>
+                      <p className="truncate text-sm text-slate-500">{invitation.email}</p>
+                      <p className="mt-1 text-xs text-slate-400">Sendt {invitation.sent_at ? formatInviteDate(invitation.sent_at) : "ikke sendt"} · Utløper {formatInviteDate(invitation.expires_at)}</p>
+                      {invitation.email_error && <p className="mt-1 text-xs text-red-600">E-postsending feilet. Send invitasjonen på nytt.</p>}
+                    </div>
+                    <span className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600">{invitation.role === "manager" ? "Leder" : "Selger"}</span>
+                    <button disabled={busyId === invitation.id} onClick={() => invitationAction(invitation, "resend")} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Send på nytt</button>
+                    <button disabled={busyId === invitation.id} onClick={() => invitationAction(invitation, "revoke")} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Trekk tilbake</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="card divide-y divide-slate-100 p-0">
             {profiles.map((p) => {
@@ -165,7 +226,7 @@ export default function UsersAdmin({
       )}
 
       {createOpen && (
-        <CreateUserModal
+        <InviteUserModal
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
             setCreateOpen(false);
@@ -444,7 +505,7 @@ function TabButton({
   );
 }
 
-function CreateUserModal({
+function InviteUserModal({
   onClose,
   onCreated,
 }: {
@@ -454,32 +515,22 @@ function CreateUserModal({
   const [form, setForm] = useState({
     full_name: "",
     email: "",
-    password: "",
     role: "agent" as UserRole,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function generatePassword() {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    let p = "";
-    const arr = new Uint32Array(12);
-    crypto.getRandomValues(arr);
-    for (let i = 0; i < 12; i++) p += chars[arr[i] % chars.length];
-    setForm((f) => ({ ...f, password: p }));
-  }
-
   async function submit() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/users/create", {
+      const res = await fetch("/api/users/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "Kunne ikke opprette bruker.");
+      if (!res.ok) throw new Error(j.error ?? "Kunne ikke sende invitasjonen.");
       onCreated();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ukjent feil.");
@@ -500,7 +551,8 @@ function CreateUserModal({
         className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-bold text-slate-900">Ny bruker</h2>
+        <h2 className="mb-1 text-lg font-bold text-slate-900">Inviter bruker</h2>
+        <p className="mb-4 text-sm text-slate-500">Brukeren får en engangslenke på e-post og velger passord selv.</p>
         <div className="space-y-3">
           <input
             autoFocus
@@ -518,23 +570,6 @@ function CreateUserModal({
             placeholder="E-post"
             className={inputCls}
           />
-          <div className="flex gap-2">
-            <input
-              value={form.password}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, password: e.target.value }))
-              }
-              placeholder="Passord (min. 8 tegn)"
-              className={inputCls}
-            />
-            <button
-              type="button"
-              onClick={generatePassword}
-              className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              Generer
-            </button>
-          </div>
           <select
             value={form.role}
             onChange={(e) =>
@@ -545,10 +580,7 @@ function CreateUserModal({
             <option value="agent">Selger</option>
             <option value="manager">Leder</option>
           </select>
-          <p className="text-xs text-slate-400">
-            Del e-post og passord med brukeren manuelt. De kan endre passordet
-            senere.
-          </p>
+          <p className="text-xs text-slate-400">Invitasjonen er gyldig i 72 timer og kan bare brukes én gang.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
         <div className="mt-5 flex justify-end gap-2">
@@ -563,7 +595,7 @@ function CreateUserModal({
             disabled={saving}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            {saving ? "Oppretter …" : "Opprett bruker"}
+            {saving ? "Sender …" : "Send invitasjon"}
           </button>
         </div>
       </div>

@@ -478,6 +478,20 @@ export interface RolePermission {
   updated_at: string;
 }
 
+export type UserInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
+
+export interface UserInvitation {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  status: UserInvitationStatus;
+  expires_at: string;
+  sent_at: string | null;
+  created_at: string;
+  email_error: string | null;
+}
+
 // Flat oppslagsmodell brukt i UI: perms[resource][action] === boolean.
 export type PermissionMap = Record<
   PermissionResource,

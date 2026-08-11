@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, RolePermission } from "@/lib/types";
+import type { Profile, RolePermission, UserInvitation } from "@/lib/types";
 import UsersAdmin from "@/components/UsersAdmin";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +20,18 @@ export default async function UsersPage() {
     .single<Pick<Profile, "role">>();
   if (me?.role !== "manager") redirect("/dashboard");
 
-  const [{ data: profiles }, { data: permissions }] = await Promise.all([
+  const [{ data: profiles }, { data: permissions }, { data: invitations }] = await Promise.all([
     supabase
       .from("profiles")
       .select("*")
       .order("is_active", { ascending: false })
       .order("full_name"),
     supabase.from("role_permissions").select("*"),
+    supabase
+      .from("user_invitations")
+      .select("id, email, full_name, role, status, expires_at, sent_at, created_at, email_error")
+      .in("status", ["pending", "expired"])
+      .order("created_at", { ascending: false }),
   ]);
 
   return (
@@ -41,6 +46,7 @@ export default async function UsersPage() {
         currentUserId={user.id}
         initialProfiles={(profiles as Profile[]) ?? []}
         initialPermissions={(permissions as RolePermission[]) ?? []}
+        initialInvitations={(invitations as UserInvitation[]) ?? []}
       />
     </div>
   );
