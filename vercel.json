@@ -11,6 +11,10 @@
     {
       "path": "/api/reminders/sms/dispatch",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/contracts/expiry-notifications",
+      "schedule": "0 7 * * *"
     }
   ]
 }

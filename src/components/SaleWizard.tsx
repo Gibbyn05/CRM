@@ -93,6 +93,7 @@ export default function SaleWizard({
   const [contractDetails, setContractDetails] = useState({
     agreement_period: "",
     start_date: "",
+    end_date: "",
     payment_terms: "14 dager fra fakturadato",
     invoice_address: "",
     discount: "",
@@ -196,7 +197,7 @@ export default function SaleWizard({
   const canNext =
     (step === 1 && cart.length > 0) ||
     (step === 2 && !!customerId) ||
-    (step === 3 && title.trim().length > 0 && !!templateId && contract.trim().length > 0) ||
+    (step === 3 && title.trim().length > 0 && !!templateId && !!contractDetails.end_date && contract.trim().length > 0) ||
     step === 4;
 
   async function checkout() {
@@ -223,6 +224,7 @@ export default function SaleWizard({
         contract_text: contract.trim() || null,
         contract_template_id: templateId || null,
         contract_generation_data: generationData,
+        agreement_end: contractDetails.end_date,
       })
       .select("id")
       .single();
@@ -243,7 +245,7 @@ export default function SaleWizard({
       quantity: i.quantity,
       billing_type: i.billing_type,
       agreement_start: i.agreement_start || null,
-      agreement_end: i.agreement_end || null,
+      agreement_end: i.agreement_end || contractDetails.end_date || null,
       line_total: i.unit_price * i.quantity,
     }));
     const { error: itemsErr } = await supabase.from("deal_items").insert(items);
@@ -481,6 +483,7 @@ export default function SaleWizard({
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailField label="Avtaleperiode" value={contractDetails.agreement_period} placeholder="F.eks. 12 måneder" onChange={(value) => setContractDetails((d) => ({ ...d, agreement_period: value }))} />
               <DetailField label="Oppstartsdato" value={contractDetails.start_date} type="date" onChange={(value) => setContractDetails((d) => ({ ...d, start_date: value }))} />
+              <DetailField label="Avtalens sluttdato" value={contractDetails.end_date} type="date" onChange={(value) => setContractDetails((d) => ({ ...d, end_date: value }))} />
               <DetailField label="Betalingsbetingelser" value={contractDetails.payment_terms} placeholder="14 dager fra fakturadato" onChange={(value) => setContractDetails((d) => ({ ...d, payment_terms: value }))} />
               <DetailField label="Fakturaadresse" value={contractDetails.invoice_address} placeholder="Hentes fra kunden hvis feltet er tomt" onChange={(value) => setContractDetails((d) => ({ ...d, invoice_address: value }))} />
               <DetailField label="Rabatt" value={contractDetails.discount} placeholder="Valgfritt" onChange={(value) => setContractDetails((d) => ({ ...d, discount: value }))} />

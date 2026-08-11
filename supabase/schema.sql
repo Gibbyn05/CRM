@@ -221,6 +221,9 @@ create index deals_customer_idx on public.deals (customer_id);
 create index deals_agent_idx on public.deals (agent_id);
 create index deals_stage_idx on public.deals (stage);
 
+alter table public.deals add column agreement_end date;
+comment on column public.deals.agreement_end is 'Avtalens valgte sluttdato før kontrakten sendes til signering.';
+
 -- ---------------------------------------------------------------------------
 --  APPOINTMENTS  (kalender)
 -- ---------------------------------------------------------------------------
@@ -275,6 +278,12 @@ create index contracts_deal_idx on public.contracts (deal_id);
 alter table public.contracts
   add column due_at timestamptz;
 comment on column public.contracts.due_at is 'Frist for signering.';
+
+alter table public.contracts
+  add column agreement_end date;
+comment on column public.contracts.agreement_end is 'Avtalens sluttdato. Brukes til varsling før avtalen utløper.';
+create index contracts_agreement_end_idx on public.contracts (agreement_end)
+  where status = 'signed' and agreement_end is not null;
 
 -- ---------------------------------------------------------------------------
 --  MESSAGES  (intern chat + kommentarer på kunde-case)
@@ -402,6 +411,10 @@ create trigger appointments_set_updated_at
 
 create trigger contracts_set_updated_at
   before update on public.contracts
+  for each row execute function public.set_updated_at();
+
+create trigger contract_expiry_deliveries_set_updated_at
+  before update on public.contract_expiry_deliveries
   for each row execute function public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
@@ -1345,6 +1358,24 @@ create table public.notifications (
 );
 create index notifications_user_idx
   on public.notifications (user_id, read, created_at desc);
+
+create table public.contract_expiry_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  contract_id uuid not null references public.contracts (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  notice_days integer not null default 30 check (notice_days between 1 and 365),
+  in_app_created_at timestamptz,
+  email_sent_at timestamptz,
+  email_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (contract_id, user_id, notice_days)
+);
+create index contract_expiry_deliveries_retry_idx
+  on public.contract_expiry_deliveries (email_sent_at, created_at)
+  where email_sent_at is null;
+alter table public.contract_expiry_deliveries enable row level security;
+revoke all on public.contract_expiry_deliveries from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 --  CALL_TRANSCRIPTS  (live transkript fra ICE)

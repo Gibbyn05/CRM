@@ -19,6 +19,7 @@ export const CONTRACT_PLACEHOLDERS: ContractPlaceholder[] = [
   { key: "price.one_time", label: "Engangsbeløp", group: "Avtale", example: "25 000 kr" },
   { key: "price.monthly", label: "Månedlig kostnad", group: "Avtale", example: "990 kr/mnd" },
   { key: "agreement.start_date", label: "Oppstartsdato", group: "Avtale", example: "01.09.2026" },
+  { key: "agreement.end_date", label: "Avtalens sluttdato", group: "Avtale", example: "31.08.2027" },
   { key: "agreement.period", label: "Avtaleperiode", group: "Avtale", example: "12 måneder" },
   { key: "agreement.payment_terms", label: "Betalingsbetingelser", group: "Avtale", example: "10 dager fra fakturadato" },
   { key: "agreement.discount", label: "Rabatt", group: "Avtale", example: "10 %" },

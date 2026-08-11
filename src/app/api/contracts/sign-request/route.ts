@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const { data: deal } = await admin
     .from("deals")
     .select(
-      "id, title, agent_id, customer_id, contract_text, contract_template_id, contract_generation_data, customer:customers(name, email)",
+      "id, title, agent_id, customer_id, contract_text, contract_template_id, contract_generation_data, agreement_end, customer:customers(name, email)",
     )
     .eq("id", body.deal_id)
     .single();
@@ -94,6 +94,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const agreementEnd = deal.agreement_end;
+  if (!agreementEnd) {
+    return NextResponse.json(
+      { error: "Kontrakten mangler sluttdato. Oppdater kontrakten før den sendes til signering." },
+      { status: 400 },
+    );
+  }
+
   // 1) Opprett kontrakt-rad med øyeblikksbilde av teksten og eget token.
   const { data: contract, error: insErr } = await admin
     .from("contracts")
@@ -105,6 +113,7 @@ export async function POST(req: NextRequest) {
       recipient,
       status: "draft",
       due_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      agreement_end: agreementEnd,
       contract_text: contractText,
       contract_template_id: deal.contract_template_id,
       generation_data: deal.contract_generation_data ?? {},

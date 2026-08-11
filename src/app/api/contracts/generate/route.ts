@@ -29,6 +29,7 @@ interface Body {
   details?: {
     agreement_period?: string;
     start_date?: string;
+    end_date?: string;
     payment_terms?: string;
     invoice_address?: string;
     discount?: string;
@@ -48,6 +49,7 @@ const FIELD_LABELS: Record<string, string> = {
   price: "Pris",
   agreement_period: "Avtaleperiode",
   start_date: "Oppstartsdato",
+  end_date: "Avtalens sluttdato",
   payment_terms: "Betalingsbetingelser",
 };
 
@@ -109,6 +111,10 @@ export async function POST(req: NextRequest) {
   const recurring = body.lines.filter((line) => line.billing_type === "lopende");
   const oneTime = body.lines.filter((line) => line.billing_type !== "lopende");
   const firstStart = details.start_date?.trim() || body.lines.find((line) => line.agreement_start)?.agreement_start || "";
+  const agreementEnd = details.end_date?.trim() || (() => {
+    const ends = body.lines.map((line) => line.agreement_end).filter(Boolean) as string[];
+    return ends.sort().at(-1) || "";
+  })();
   const period = details.agreement_period?.trim() || (() => {
     const starts = body.lines.map((line) => line.agreement_start).filter(Boolean) as string[];
     const ends = body.lines.map((line) => line.agreement_end).filter(Boolean) as string[];
@@ -134,11 +140,12 @@ export async function POST(req: NextRequest) {
     monthly_amount: details.monthly_amount?.trim() || (recurring.length ? money(recurring.reduce((sum, line) => sum + Number(line.unit_price || 0) * Math.max(1, Number(line.quantity || 1)), 0)) : "Ikke aktuelt"),
     agreement_period: period,
     start_date: firstStart,
+    end_date: agreementEnd,
     payment_terms: details.payment_terms?.trim() || "",
     discount: details.discount?.trim() || "Ingen rabatt",
   };
 
-  const requiredKeys = ["customer_name", "organization_number", "product", "price"];
+  const requiredKeys = ["customer_name", "organization_number", "product", "price", "end_date"];
   const missing = requiredKeys.filter((key) => !values[key as keyof typeof values]);
   if (missing.length) {
     return NextResponse.json({
@@ -175,6 +182,7 @@ export async function POST(req: NextRequest) {
     "price.one_time": values.one_time_amount,
     "price.monthly": values.monthly_amount,
     "agreement.start_date": date(values.start_date),
+    "agreement.end_date": date(values.end_date),
     "agreement.period": values.agreement_period,
     "agreement.payment_terms": values.payment_terms,
     "agreement.discount": values.discount,
@@ -204,6 +212,7 @@ export async function POST(req: NextRequest) {
     used_placeholders: filled.used,
     lines,
     generated_by: user.id,
+    agreement_end: values.end_date,
   };
 
   let contract = filled.text;

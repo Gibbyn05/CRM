@@ -187,6 +187,7 @@ export interface Deal {
   offer_sent_at: string | null;
   offer_accepted_at: string | null;
   lost_reason: string | null;
+  agreement_end: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -229,6 +230,7 @@ export interface Contract {
   opened_at: string | null;
   signed_at: string | null;
   due_at: string | null;
+  agreement_end: string | null;
   provider: string | null;
   provider_ref: string | null;
   document_url: string | null;
