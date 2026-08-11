@@ -62,9 +62,30 @@ export default function OrganizationForm({
     }
 
     const { data } = supabase.storage.from("branding").getPublicUrl(path);
-    setLogoUrl(data.publicUrl);
+    const publicUrl = data.publicUrl;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error: saveErr } = await supabase
+      .from("organization")
+      .update({
+        logo_url: publicUrl,
+        updated_by: user?.id ?? null,
+      })
+      .eq("id", 1);
+
     setUploading(false);
-    setMessage({ type: "ok", text: "Logo lastet opp. Husk å lagre." });
+    if (saveErr) {
+      setMessage({
+        type: "err",
+        text: "Logoen ble lastet opp, men kunne ikke kobles til organisasjonen: " + saveErr.message,
+      });
+      return;
+    }
+
+    setLogoUrl(publicUrl);
+    setMessage({ type: "ok", text: "Logoen er lagret og brukes nå i kontrakter." });
+    router.refresh();
   }
 
   async function save() {

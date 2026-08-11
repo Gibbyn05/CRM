@@ -93,19 +93,14 @@ export default function ContractDocument({
       <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] print:block">
         <article className="min-w-0 px-5 py-8 sm:px-10 lg:px-14 lg:py-12 print:px-0 print:py-0">
           <div className="flex min-h-32 justify-end">
-            {organization.logoUrl ? (
+            {organization.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={organization.logoUrl}
                 alt={organization.name}
+                loading="eager"
                 className="h-16 max-w-52 object-contain object-right"
               />
-            ) : (
-              <div className="text-right">
-                <p className="text-xl font-black uppercase tracking-tight text-black">
-                  {organization.name}
-                </p>
-              </div>
             )}
           </div>
 
