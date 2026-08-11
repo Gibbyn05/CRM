@@ -102,7 +102,7 @@ export default function CustomerContactInfo({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between border-t border-[#ebe3d7] pt-5">
+      <div className="mb-3 flex items-center justify-between border-t border-[#ebe3d7] pt-4">
         <h2 className="label-eyebrow">Kontaktinformasjon</h2>
         {savedAt ? (
           <span className="text-xs font-medium text-emerald-600">Lagret ✓</span>
@@ -179,12 +179,12 @@ export default function CustomerContactInfo({
           </div>
         </div>
       ) : (
-        <dl className="space-y-5">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
           <Fact label="Kontaktperson" value={values.contact_name} />
-          <Fact label="E-post" value={values.email} breakAll />
           <Fact label="Telefon" value={values.phone} />
-          <Fact label="Adresse" value={fullAddress || null} />
-          <Fact label="Organisasjonsnummer" value={orgNumberDisplay} />
+          <Fact label="E-post" value={values.email} breakAll wide />
+          <Fact label="Adresse" value={fullAddress || null} wide />
+          <Fact label="Org.nr" value={orgNumberDisplay} />
           <Fact label="Tildelt" value={ownerName} />
           <Fact label="Opprettet" value={createdDisplay} />
         </dl>
@@ -224,16 +224,18 @@ function Fact({
   label,
   value,
   breakAll = false,
+  wide = false,
 }: {
   label: string;
   value: string | null;
   breakAll?: boolean;
+  wide?: boolean;
 }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${wide ? "col-span-2" : ""}`}>
       <dt className="label-eyebrow">{label}</dt>
       <dd
-        className={`mt-0.5 font-medium text-slate-700 ${
+        className={`mt-0.5 text-sm font-medium text-slate-700 ${
           breakAll ? "break-all" : "break-words"
         }`}
       >

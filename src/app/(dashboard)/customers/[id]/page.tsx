@@ -142,14 +142,14 @@ export default async function CustomerDetailPage({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-[1.65rem] border border-[#d8cdbb] bg-white shadow-[0_22px_65px_rgba(62,45,27,0.11)] lg:grid lg:grid-cols-[minmax(280px,32%)_minmax(0,68%)]">
         <aside className="thin-scroll border-b border-[#ddd4c6] bg-[#fffdfa] lg:h-full lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <div className="border-b border-[#ebe3d7] px-6 pb-6 pt-7">
+          <div className="border-b border-[#ebe3d7] px-6 pb-4 pt-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="label-eyebrow">Bedriftskunde</p>
-                <h1 className="mt-2 break-words font-display text-3xl font-bold leading-[1.05] text-[#251e18]">
+                <h1 className="mt-1.5 break-words font-display text-2xl font-bold leading-[1.05] text-[#251e18]">
                   {customer.name}
                 </h1>
-                <p className="mt-2 text-sm font-medium text-[#8a8177]">
+                <p className="mt-1.5 text-sm font-medium text-[#8a8177]">
                   Org.nr {formatOrgNumber(customer.org_number)}
                 </p>
               </div>
@@ -162,9 +162,9 @@ export default async function CustomerDetailPage({
             </div>
           </div>
 
-          <div className="px-6 py-6">
-            <div className="mb-7">
-              <p className="mb-4 text-xs font-black uppercase tracking-[0.14em] text-[#53483e]">
+          <div className="px-6 py-4">
+            <div className="mb-4">
+              <p className="mb-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#53483e]">
                 Om kunden
               </p>
               <CustomerStatusControl

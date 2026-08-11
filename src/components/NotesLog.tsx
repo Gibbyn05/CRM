@@ -91,6 +91,15 @@ export default function NotesLog({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-vokse skrivefeltet: én linje som standard, utvider seg linje for linje.
+  function autoGrow() {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }
 
   useEffect(() => {
     let active = true;
@@ -205,6 +214,7 @@ export default function NotesLog({
       current.some((note) => note.id === data.id) ? current : [...current, data],
     );
     setBody("");
+    if (taRef.current) taRef.current.style.height = "auto";
     setSaving(false);
   }
 
@@ -244,18 +254,24 @@ export default function NotesLog({
         )}
       </div>
 
-      <footer className="border-t border-[#ddd1bd] bg-white p-3 sm:p-4">
+      <footer className="border-t border-[#ddd1bd] bg-white px-3 py-2 sm:px-4">
         {saveError && <p className="mb-2 text-xs font-semibold text-red-600" role="alert">{saveError}</p>}
-        <div className="rounded-2xl border border-[#b8dcca] bg-white p-2 shadow-[0_8px_24px_rgba(39,73,55,0.08)] focus-within:border-[#00a965] focus-within:ring-2 focus-within:ring-[#00a965]/10">
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); addNote(); } }} rows={2} placeholder="Skriv et notat og trykk Enter for å lagre" className="max-h-32 min-h-[3.25rem] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm text-[#2b2118] outline-none placeholder:text-[#a49c92]" />
-          <div className="flex items-center justify-between gap-2 border-t border-[#eee7dc] pt-2">
-            <select value={noteType} onChange={(event) => setNoteType(event.target.value as NoteType)} className="rounded-lg border-0 bg-[#f5f1ea] px-3 py-2 text-xs font-semibold text-[#64594e] outline-none" aria-label="Aktivitetstype">
-              <option value="general">Notat</option><option value="call">Samtale</option><option value="meeting">Møte</option>
-            </select>
-            <button type="button" onClick={addNote} disabled={saving || !body.trim()} className="flex h-9 items-center gap-2 rounded-xl bg-[#171717] px-4 text-xs font-bold text-white transition hover:bg-[#087a4b] disabled:cursor-not-allowed disabled:opacity-35">
-              {saving ? "Lagrer" : "Lagre"}<Icon name="send" size={14} />
-            </button>
-          </div>
+        <div className="flex items-end gap-2 rounded-2xl border border-[#b8dcca] bg-white px-2 py-1.5 shadow-[0_8px_24px_rgba(39,73,55,0.08)] focus-within:border-[#00a965] focus-within:ring-2 focus-within:ring-[#00a965]/10">
+          <select value={noteType} onChange={(event) => setNoteType(event.target.value as NoteType)} className="mb-0.5 shrink-0 rounded-lg border-0 bg-[#f5f1ea] px-2.5 py-1.5 text-xs font-semibold text-[#64594e] outline-none" aria-label="Aktivitetstype">
+            <option value="general">Notat</option><option value="call">Samtale</option><option value="meeting">Møte</option>
+          </select>
+          <textarea
+            ref={taRef}
+            value={body}
+            onChange={(event) => { setBody(event.target.value); autoGrow(); }}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); addNote(); } }}
+            rows={1}
+            placeholder="Skriv et notat …"
+            className="max-h-40 min-h-[2.25rem] flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-sm leading-snug text-[#2b2118] outline-none placeholder:text-[#a49c92]"
+          />
+          <button type="button" onClick={addNote} disabled={saving || !body.trim()} aria-label="Lagre" className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#171717] text-white transition hover:bg-[#087a4b] disabled:cursor-not-allowed disabled:opacity-35">
+            <Icon name="send" size={15} />
+          </button>
         </div>
       </footer>
     </section>
