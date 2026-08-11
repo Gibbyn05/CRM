@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
     // (kiosk), telefoni-webhook, samt kundens signeringsside/-API. Ikke gjør
     // hele /api/tv offentlig, bare endepunktene tavlen faktisk leser.
     const isPublic =
+      path === "/" ||
       path.startsWith("/login") ||
       path === "/accept-invite" ||
       path === "/api/auth/invitations" ||
