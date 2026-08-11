@@ -101,7 +101,7 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/90 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur transition-[left] sm:px-3 sm:py-2.5 lg:left-[var(--sidebar-w,16rem)]">
+    <div className="sticky bottom-0 z-40 shrink-0 border-t border-slate-200 bg-white/90 px-2 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-3 sm:py-2.5">
       <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-1">
         {error && (
           <p className="text-xs font-medium text-red-600" role="alert">

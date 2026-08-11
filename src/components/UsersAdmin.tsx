@@ -357,7 +357,7 @@ function SongModal({
       onClick={onClose}
     >
       <div
-        className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="animate-panel-in max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl thin-scroll"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

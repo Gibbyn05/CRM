@@ -49,19 +49,19 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen flex-col bg-[#f4ead8] lg:h-screen lg:flex-row lg:overflow-hidden">
       <Sidebar profile={profile} />
 
-      <div className="flex min-w-0 flex-1 flex-col lg:h-screen lg:overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:h-screen lg:overflow-hidden">
         <Topbar profile={profile} />
-        {/* Bunn-padding må klarere det høyeste faste elementet: chat-bobla
-            (bottom-[5rem] + h-14 => toppkant på 8.5rem), ikke bare
-            statuslinja (~4rem). Pluss iPhone safe-area. */}
-        <main className="thin-scroll flex-1 overflow-x-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(184,138,82,0.14),transparent_34rem),linear-gradient(120deg,#fffaf0_0%,#f4ead8_48%,#efe3ce_100%)] px-3 py-4 pb-[calc(9rem+env(safe-area-inset-bottom))] sm:px-5 lg:overflow-y-auto lg:px-6 lg:pt-8 lg:pb-[calc(9rem+env(safe-area-inset-bottom))]">
+        <main className="thin-scroll min-h-0 flex-1 overflow-x-hidden bg-[radial-gradient(circle_at_18%_0%,rgba(184,138,82,0.14),transparent_34rem),linear-gradient(120deg,#fffaf0_0%,#f4ead8_48%,#efe3ce_100%)] px-3 py-4 pb-24 sm:px-5 lg:overflow-y-auto lg:px-6 lg:pt-8 lg:pb-24">
           <div className="mx-auto h-full w-full max-w-[110rem]">{children}</div>
         </main>
+
+        {/* Egen flex-rad reserverer høyde, så sideinnhold og handlingsknapper
+            aldri havner bak statusvelgeren. */}
+        <StatusBar />
       </div>
 
-      {/* Flytende chat-boble + fast statuslinje nederst */}
+      {/* Chatten flyter over innholdet, mens statuslinjen ligger i appflyten. */}
       <ChatWidget authors={authors} />
-      <StatusBar />
     </div>
   );
 }
