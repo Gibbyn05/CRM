@@ -47,8 +47,21 @@ export async function GET(req: NextRequest) {
     (statesResult.data as AgentState[]) ?? [],
   );
 
+  const projectRef = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname.split(".")[0] ?? "unknown";
+    } catch {
+      return "unknown";
+    }
+  })();
+
   return NextResponse.json(
     { agents: rows, generated_at: new Date().toISOString() },
-    { headers: { "Cache-Control": "no-store, max-age=0" } },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+        "X-Reachr-Data-Source": projectRef,
+      },
+    },
   );
 }
