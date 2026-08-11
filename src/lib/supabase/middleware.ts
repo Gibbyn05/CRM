@@ -43,11 +43,14 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname;
 
-    // Offentlige ruter: innlogging, TV-visning (kiosk), telefoni-webhook,
-    // samt kundens signeringsside/-API (ingen innlogging – nås via token).
+    // Offentlige ruter: innlogging, TV-visning og dens avgrensede data-API-er
+    // (kiosk), telefoni-webhook, samt kundens signeringsside/-API. Ikke gjør
+    // hele /api/tv offentlig, bare endepunktene tavlen faktisk leser.
     const isPublic =
       path.startsWith("/login") ||
       path.startsWith("/tv") ||
+      path === "/api/live-board" ||
+      path === "/api/tv/sales" ||
       path.startsWith("/signer") ||
       path.startsWith("/api/signer") ||
       path.startsWith("/api/telephony");
