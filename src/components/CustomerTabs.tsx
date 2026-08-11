@@ -79,7 +79,7 @@ export default function CustomerTabs({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/80">
       {/* Fanelinje */}
-      <div className="flex shrink-0 gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
+      <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-[#e7ddcd] bg-white px-3 pt-1 thin-scroll lg:justify-between lg:overflow-x-hidden">
         {tabs.map((t) => {
           const active = tab === t.key;
           const count =
@@ -93,7 +93,7 @@ export default function CustomerTabs({
               key={t.key}
               onClick={() => setTab(t.key)}
               aria-current={active ? "page" : undefined}
-              className={`relative flex shrink-0 items-center gap-2 px-1 py-4 text-sm font-semibold transition ${
+              className={`relative flex shrink-0 items-center gap-1.5 px-1 py-3 text-xs font-semibold transition xl:text-[13px] ${
                 active
                   ? "text-[#087a4b] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#00a965]"
                   : "text-[#756d64] hover:text-[#2b2118]"
@@ -101,13 +101,13 @@ export default function CustomerTabs({
             >
               <Icon
                 name={t.icon}
-                size={16}
+                size={14}
                 className={active ? "text-brand-600" : "text-slate-400"}
               />
               {t.label}
               {count > 0 && (
                 <span
-                  className={`ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-2xs font-bold ${
+                  className={`inline-flex min-w-[1.1rem] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold ${
                     active
                       ? "bg-brand-600 text-white"
                       : "bg-slate-200 text-slate-600"
