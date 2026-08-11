@@ -67,7 +67,7 @@ create type contract_status as enum ('draft', 'sent', 'opened', 'signed', 'decli
 create type note_type as enum ('call', 'general', 'system', 'meeting');
 
 -- Chat-kanal: 'team' = felles boble, 'customer' = kommentar på en kunde-case.
-create type message_channel as enum ('team', 'manager', 'customer', 'direct');
+create type message_channel as enum ('team', 'manager', 'customer_team', 'customer', 'direct');
 
 -- ---------------------------------------------------------------------------
 --  PROFILES  (utvider auth.users)
@@ -283,7 +283,7 @@ create table public.messages (
   id          uuid primary key default gen_random_uuid(),
   author_id   uuid references public.profiles (id) on delete set null,
   channel     message_channel not null default 'team',
-  -- Satt når channel = 'customer' (kommentar knyttet til et kundekort).
+  -- Satt for kundespesifikke team- og lederlogger.
   customer_id uuid references public.customers (id) on delete cascade,
   -- Satt når channel = 'direct' (mottaker av direktemelding).
   recipient_id uuid references public.profiles (id) on delete cascade,
@@ -291,7 +291,10 @@ create table public.messages (
   created_at  timestamptz not null default now(),
 
   constraint customer_channel_requires_customer
-    check (channel <> 'customer' or customer_id is not null)
+    check (
+      channel not in ('customer', 'customer_team')
+      or customer_id is not null
+    )
 );
 
 comment on table public.messages is 'Intern chat (team-boble) og kommentarer på spesifikke kunde-caser.';
@@ -849,6 +852,7 @@ create policy messages_select on public.messages
   using (
     channel = 'team'
     or (channel = 'manager' and public.is_manager())
+    or (channel = 'customer_team' and public.can_access_customer(customer_id))
     or (channel = 'customer' and public.is_manager())
     or (channel = 'direct' and (author_id = auth.uid() or recipient_id = auth.uid()))
   );
@@ -860,6 +864,7 @@ create policy messages_insert on public.messages
     and (
       channel = 'team'
       or (channel = 'manager' and public.is_manager())
+      or (channel = 'customer_team' and public.can_access_customer(customer_id))
       or (channel = 'customer' and public.is_manager())
       or (channel = 'direct' and recipient_id is not null and recipient_id <> auth.uid())
     )

@@ -74,7 +74,7 @@ export default async function CustomerDetailPage({
         .select("*")
         .eq("customer_id", params.id)
         .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profiles").select("id, full_name, email, avatar_url"),
       supabase
         .from("call_logs")
         .select("*")
@@ -115,6 +115,20 @@ export default async function CustomerDetailPage({
     ]),
   );
   const ownerName = customer.owner_id ? nameMap.get(customer.owner_id) : null;
+  const authors = Object.fromEntries(
+    (
+      (profiles as Pick<
+        Profile,
+        "id" | "full_name" | "email" | "avatar_url"
+      >[]) ?? []
+    ).map((profile) => [
+      profile.id,
+      {
+        name: profile.full_name || profile.email || "Ukjent",
+        avatar_url: profile.avatar_url,
+      },
+    ]),
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 lg:overflow-hidden">
@@ -190,6 +204,8 @@ export default async function CustomerDetailPage({
             commissions={(commissions as Commission[]) ?? []}
             files={(files as CustomerFile[]) ?? []}
             nameMap={Object.fromEntries(nameMap)}
+            authors={authors}
+            isManager={isManager}
           />
         </div>
       </div>

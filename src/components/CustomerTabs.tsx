@@ -19,11 +19,22 @@ import DealsPanel from "./DealsPanel";
 import ContractsPanel from "./ContractsPanel";
 import CustomerCustomInfo from "./CustomerCustomInfo";
 import CustomerFiles from "./CustomerFiles";
+import TeamChat from "./TeamChat";
+import type { AuthorMap } from "@/lib/chat-types";
 
-type TabKey = "aktivitet" | "salg" | "info" | "filer" | "transkripsjon";
+type TabKey =
+  | "aktivitet"
+  | "teamlogg"
+  | "lederlogg"
+  | "salg"
+  | "info"
+  | "filer"
+  | "transkripsjon";
 
-const TABS: { key: TabKey; label: string; icon: IconName }[] = [
+const BASE_TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: "aktivitet", label: "Aktivitet", icon: "dagsavis" },
+  { key: "teamlogg", label: "Teamlogg", icon: "chat" },
+  { key: "lederlogg", label: "Lederlogg", icon: "lock" },
   { key: "salg", label: "Salg", icon: "pipeline" },
   { key: "info", label: "Egendefinert info", icon: "building" },
   { key: "filer", label: "Filer", icon: "box" },
@@ -43,6 +54,8 @@ export default function CustomerTabs({
   commissions,
   files,
   nameMap,
+  authors,
+  isManager,
 }: {
   customer: Customer;
   notes: Note[];
@@ -54,16 +67,21 @@ export default function CustomerTabs({
   commissions: Commission[];
   files: CustomerFile[];
   nameMap: Record<string, string>;
+  authors: AuthorMap;
+  isManager: boolean;
 }) {
   const [tab, setTab] = useState<TabKey>("aktivitet");
   // Delt salgs-state så et nytt salg overlever fanebytte OG dukker opp i loggen.
   const [deals, setDeals] = useState<Deal[]>(initialDeals);
+  const tabs = isManager
+    ? BASE_TABS
+    : BASE_TABS.filter((item) => item.key !== "lederlogg");
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/80">
       {/* Fanelinje */}
       <div className="flex shrink-0 gap-7 overflow-x-auto border-b border-[#e7ddcd] bg-white px-6 pt-2 thin-scroll">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const active = tab === t.key;
           const count =
             t.key === "salg"
@@ -106,7 +124,11 @@ export default function CustomerTabs({
 
       {/* Faneinnhold */}
       <div
-        className={`min-h-0 flex-1 ${tab === "aktivitet" ? "overflow-hidden" : "overflow-y-auto p-4 sm:p-5"}`}
+        className={`min-h-0 flex-1 ${
+          tab === "aktivitet" || tab === "teamlogg" || tab === "lederlogg"
+            ? "overflow-hidden"
+            : "overflow-y-auto p-4 sm:p-5"
+        }`}
       >
         {tab === "aktivitet" && (
           <div className="h-full min-h-0 overflow-hidden">
@@ -122,6 +144,30 @@ export default function CustomerTabs({
               nameMap={nameMap}
             />
           </div>
+        )}
+
+        {tab === "teamlogg" && (
+          <TeamChat
+            authors={authors}
+            channel="customer_team"
+            customerId={customer.id}
+            heightClass="h-full"
+            embedded
+            placeholder="Skriv et notat til teamet om denne kunden …"
+            emptyText="Ingen teamnotater på denne kunden ennå."
+          />
+        )}
+
+        {tab === "lederlogg" && isManager && (
+          <TeamChat
+            authors={authors}
+            channel="customer"
+            customerId={customer.id}
+            heightClass="h-full"
+            embedded
+            placeholder="Skriv et ledernotat om denne kunden …"
+            emptyText="Ingen ledernotater på denne kunden ennå."
+          />
         )}
 
         {tab === "salg" && (

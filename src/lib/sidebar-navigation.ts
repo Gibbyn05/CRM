@@ -20,7 +20,6 @@ export const SIDEBAR_GROUP_LABELS: Record<SidebarGroupId, string> = {
 
 export const MANAGER_ONLY_SIDEBAR_HREFS = new Set([
   "/team-analysis",
-  "/leder-logg",
   "/kundereise",
   "/produkter",
   "/regnskap",
@@ -35,8 +34,6 @@ export const DEFAULT_SIDEBAR_NAVIGATION: SidebarGroupPreference[] = [
     visible: true,
     items: [
       "/dashboard",
-      "/team-logg",
-      "/leder-logg",
       "/team-analysis",
       "/leaderboard",
       "/dagsavis",

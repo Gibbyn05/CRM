@@ -14,6 +14,7 @@ export default function TeamChat({
   heightClass = "h-[70vh]",
   embedded = false,
   channel = "team",
+  customerId = null,
   placeholder = "Skriv en melding til teamet …",
   emptyText = "Ingen innlegg ennå. Start loggen.",
 }: {
@@ -21,7 +22,8 @@ export default function TeamChat({
   // Lar chatten gjenbrukes både som full side og inne i chat-bobla.
   heightClass?: string;
   embedded?: boolean;
-  channel?: "team" | "manager";
+  channel?: "team" | "manager" | "customer_team" | "customer";
+  customerId?: string | null;
   placeholder?: string;
   emptyText?: string;
 }) {
@@ -32,19 +34,23 @@ export default function TeamChat({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
 
     setLoading(true);
     setError("");
-    supabase
+    let query = supabase
       .from("messages")
       .select("*")
       .eq("channel", channel)
       .order("created_at", { ascending: true })
-      .limit(200)
+      .limit(200);
+    query = customerId
+      ? query.eq("customer_id", customerId)
+      : query.is("customer_id", null);
+    query
       .then(({ data, error: loadError }) => {
         if (loadError) setError("Kunne ikke hente loggen.");
         else setMessages((data as Message[]) ?? []);
@@ -52,7 +58,7 @@ export default function TeamChat({
       });
 
     const realtimeChannel = supabase
-      .channel(`${channel}_log`)
+      .channel(`${channel}_log_${customerId ?? "global"}`)
       .on(
         "postgres_changes",
         {
@@ -63,6 +69,7 @@ export default function TeamChat({
         },
         (payload) => {
           const m = payload.new as Message;
+          if ((m.customer_id ?? null) !== customerId) return;
           setMessages((prev) =>
             prev.some((x) => x.id === m.id) ? prev : [...prev, m],
           );
@@ -73,10 +80,13 @@ export default function TeamChat({
     return () => {
       supabase.removeChannel(realtimeChannel);
     };
-  }, [channel, supabase]);
+  }, [channel, customerId, supabase]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = scrollRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages]);
 
   async function send() {
@@ -89,6 +99,7 @@ export default function TeamChat({
       .insert({
         author_id: userId,
         channel,
+        customer_id: customerId,
         body: text,
       })
       .select("*")
@@ -118,7 +129,10 @@ export default function TeamChat({
           : "overflow-hidden rounded-[1.75rem] border border-[#d8c9b0] bg-[#fffaf0]/90 shadow-[0_22px_65px_rgba(62,45,27,0.09)]"
       }`}
     >
-      <div className="thin-scroll flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+      <div
+        ref={scrollRef}
+        className="thin-scroll flex-1 space-y-4 overflow-y-auto p-4 sm:p-6"
+      >
         {messages.map((m) => {
           const mine = m.author_id === userId;
           const a = authorInfo(m.author_id);
@@ -170,7 +184,6 @@ export default function TeamChat({
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       <div className="border-t border-[#e1d6c5] bg-white/80 p-3 sm:p-4">
