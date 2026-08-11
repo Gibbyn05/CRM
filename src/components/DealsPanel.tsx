@@ -1,29 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Deal, DealStage } from "@/lib/types";
+import type { Contract, ContractStatus, Deal, DealStage } from "@/lib/types";
 import { DEAL_STAGES, DEAL_STAGE_LABELS } from "@/lib/constants";
 import { formatCurrency, formatDate } from "@/lib/format";
 import Icon from "./Icon";
 
 // Salg per kunde: «Nytt salg» åpner den fulle salgsveiviseren (produktkatalog →
 // handlekurv → kontrakt → oversikt) med kunden forhåndsvalgt, og under vises
-// alle tidligere tilbud for kunden.
+// alle tidligere tilbud for kunden – med signeringsstatus rett på tilbudet.
 export default function DealsPanel({
   customerId,
   deals,
   setDeals,
+  contracts,
 }: {
   customerId: string;
   deals: Deal[];
   setDeals: React.Dispatch<React.SetStateAction<Deal[]>>;
+  contracts: Contract[];
 }) {
   const supabase = createClient();
   const [invoicingId, setInvoicingId] = useState<string | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Nyeste kontraktstatus per tilbud (deal), fra databasen …
+  const initialStatus = useMemo(() => {
+    const status: Record<string, ContractStatus> = {};
+    const at: Record<string, number> = {};
+    for (const c of contracts) {
+      if (!c.deal_id) continue;
+      const t = new Date(c.sent_at ?? c.created_at).getTime();
+      if (at[c.deal_id] === undefined || t >= at[c.deal_id]) {
+        at[c.deal_id] = t;
+        status[c.deal_id] = c.status;
+      }
+    }
+    return status;
+  }, [contracts]);
+  // … med lokal overstyring når man nettopp sendte til signering.
+  const [sentOverride, setSentOverride] = useState<Record<string, ContractStatus>>(
+    {},
+  );
+  const contractStatus = { ...initialStatus, ...sentOverride };
 
   async function sendToSigning(deal: Deal) {
     setSigningId(deal.id);
@@ -39,6 +61,7 @@ export default function DealsPanel({
         setMsg(json.error ?? "Kunne ikke sende til signering.");
       } else {
         setMsg(`Avtale sendt til signering på ${json.recipient}.`);
+        setSentOverride((s) => ({ ...s, [deal.id]: "sent" }));
       }
     } catch {
       setMsg("Kunne ikke sende til signering.");
@@ -113,6 +136,11 @@ export default function DealsPanel({
                     Sendt {formatDate(d.offer_sent_at)}
                   </p>
                 )}
+                {contractStatus[d.id] && (
+                  <div className="mt-1">
+                    <ContractBadge status={contractStatus[d.id]} />
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="text-sm font-semibold text-slate-700">
@@ -164,5 +192,24 @@ export default function DealsPanel({
         )}
       </ul>
     </div>
+  );
+}
+
+// Signeringsstatus på selve tilbudet: sendt → åpnet → signert.
+function ContractBadge({ status }: { status: ContractStatus }) {
+  const meta: Record<ContractStatus, { label: string; cls: string }> = {
+    draft: { label: "Kladd", cls: "bg-slate-100 text-slate-600" },
+    sent: { label: "Sendt til signering", cls: "bg-blue-100 text-blue-700" },
+    opened: { label: "Åpnet av kunde", cls: "bg-amber-100 text-amber-700" },
+    signed: { label: "Signert 🎉", cls: "bg-emerald-100 text-emerald-700" },
+    declined: { label: "Avslått", cls: "bg-red-100 text-red-700" },
+  };
+  const m = meta[status];
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold ${m.cls}`}
+    >
+      {m.label}
+    </span>
   );
 }

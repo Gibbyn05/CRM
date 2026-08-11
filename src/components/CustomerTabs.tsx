@@ -16,7 +16,6 @@ import Icon, { type IconName } from "./Icon";
 import LiveTranscript from "./LiveTranscript";
 import NotesLog from "./NotesLog";
 import DealsPanel from "./DealsPanel";
-import ContractsPanel from "./ContractsPanel";
 import CustomerCustomInfo from "./CustomerCustomInfo";
 import CustomerFiles from "./CustomerFiles";
 import TeamChat from "./TeamChat";
@@ -171,14 +170,12 @@ export default function CustomerTabs({
         )}
 
         {tab === "salg" && (
-          <div className="space-y-4">
-            <DealsPanel
-              customerId={customer.id}
-              deals={deals}
-              setDeals={setDeals}
-            />
-            <ContractsPanel customer={customer} initialContracts={contracts} />
-          </div>
+          <DealsPanel
+            customerId={customer.id}
+            deals={deals}
+            setDeals={setDeals}
+            contracts={contracts}
+          />
         )}
 
         {tab === "info" && (
