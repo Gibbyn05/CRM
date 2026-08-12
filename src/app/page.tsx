@@ -3,9 +3,9 @@ import Link from "next/link";
 import styles from "./landing.module.css";
 
 export const metadata: Metadata = {
-  title: "Din salgsplattform | Bygget rundt teamet deres",
+  title: "Custom salgsdashboard | Bygget for teamet deres",
   description:
-    "En salgsplattform dere former rundt egne prosesser, roller, dashboard og kundereise.",
+    "Vi bygger et salgsdashboard rundt teamet deres, og dere kan tilpasse det videre når arbeidsflyten endrer seg.",
 };
 
 const Arrow = () => <span aria-hidden="true">↗</span>;
@@ -94,41 +94,41 @@ export default function Home() {
 
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}><i /> Bygget rundt måten dere jobber på</p>
-          <h1>Deres team.<br /><span>Deres dashboard.</span></h1>
-          <p className={styles.heroLead}>Få en plattform som tilpasses deres salgsteam. Velg sider, widgets, roller, farger, pipeline og arbeidsflyt slik dere faktisk jobber.</p>
+          <p className={styles.eyebrow}><i /> Vi bygger dashboardet for dere</p>
+          <h1>Et dashboard laget<br /><span>rundt deres team.</span></h1>
+          <p className={styles.heroLead}>Vi setter opp en salgsplattform som matcher måten dere jobber på. Etterpå kan dere selv endre sider, widgets, roller, farger, pipeline og arbeidsflyt når behovene endrer seg.</p>
           <div className={styles.heroActions}><DemoButton /><a href="#produkt">Se hvordan det virker <span>↓</span></a></div>
-          <dl className={styles.heroFacts}><div><dt>Custom dashboard</dt><dd>Widgets der dere vil ha dem</dd></div><div><dt>Egne prosesser</dt><dd>Pipeline og kundereise på deres måte</dd></div><div><dt>Egne regler</dt><dd>Roller, sider og tilgang per team</dd></div></dl>
+          <dl className={styles.heroFacts}><div><dt>Vi bygger</dt><dd>Dashboardet settes opp for deres team</dd></div><div><dt>Dere tilpasser</dt><dd>Endre struktur selv underveis</dd></div><div><dt>Alt kan justeres</dt><dd>Roller, sider, farger og flyt</dd></div></dl>
         </div>
         <ProductFrame />
       </section>
 
       <section className={styles.statement}>
         <p>Ingen team jobber helt likt.</p>
-        <h2>Derfor skal heller ikke dashboardet deres se ut som alle andres.</h2>
+        <h2>Derfor bygger vi dashboardet rundt deres salgsprosess, og lar dere endre det videre når teamet vokser eller arbeidsflyten skifter.</h2>
       </section>
 
       <section id="produkt" className={styles.features}>
-        <header className={styles.sectionHeader}><p>Tilpass alt som betyr noe</p><h2>Bygg dashboardet<br />dere faktisk trenger.</h2></header>
+        <header className={styles.sectionHeader}><p>Bygget for dere, styrt av dere</p><h2>Start med et ferdig oppsett.<br />Tilpass når dere vil.</h2></header>
         <div className={styles.featureRows}>
-          <article><div className={styles.featureMeta}><span>01</span><Icon name="search" /></div><div><h3>Velg hva som møter teamet først</h3><p>Vis de viktigste tallene og listene øverst. Skjul resten. Hver bruker kan ha sin egen arbeidsflate.</p></div><div className={styles.leadSample}><header><span>Widget</span><span>Visning</span></header><p><b>Mine ringbare leads</b><span>Selger</span><em>Øverst</em></p><p><b>Teamets pipeline</b><span>Leder</span><em>Synlig</em></p></div></article>
-          <article><div className={styles.featureMeta}><span>02</span><Icon name="timeline" /></div><div><h3>Lag en prosess som passer dere</h3><p>Gi stegene deres egne navn, flytt dem, legg til nye og gjør kundereisen like enkel som den bør være.</p></div><div className={styles.callSample}><span><i /><i /><i /><i /><i /><i /><i /></span><div><b>Din flyt</b><small>Tilpasset pipeline</small></div></div></article>
+          <article><div className={styles.featureMeta}><span>01</span><Icon name="search" /></div><div><h3>Vi setter opp første versjon</h3><p>Dere slipper å starte med et tomt system. Vi bygger dashboardet rundt målene, rollene og arbeidsflyten deres.</p></div><div className={styles.leadSample}><header><span>Widget</span><span>Visning</span></header><p><b>Mine ringbare leads</b><span>Selger</span><em>Øverst</em></p><p><b>Teamets pipeline</b><span>Leder</span><em>Synlig</em></p></div></article>
+          <article><div className={styles.featureMeta}><span>02</span><Icon name="timeline" /></div><div><h3>Dere kan endre alt underveis</h3><p>Flytt widgets, skjul sider, endre farger, bytt rekkefølge og juster prosessen uten å måtte bygge dashboardet på nytt.</p></div><div className={styles.callSample}><span><i /><i /><i /><i /><i /><i /><i /></span><div><b>Din flyt</b><small>Tilpasset pipeline</small></div></div></article>
           <article><div className={styles.featureMeta}><span>03</span><Icon name="document" /></div><div><h3>La teamet få sine egne verktøy</h3><p>Velg hvilke faner, kontraktsmaler, moduler og snarveier hvert team og hver rolle skal se.</p></div><div className={styles.contractSample}><header><b>DERES MAL</b><span>Aktiv</span></header><i /><i /><i /><footer><span>Tilpasset for teamet</span><b>Ferdig</b></footer></div></article>
           <article><div className={styles.featureMeta}><span>04</span><Icon name="chart" /></div><div><h3>Bestem hva dere måler</h3><p>Bygg ledervisningen rundt tallene som betyr noe for dere, fra samtaler og møter til omsetning og fornyelser.</p></div><div className={styles.rankingSample}>{[["1", "Samtaler", "47"], ["2", "Møter", "6"], ["3", "Omsetning", "284k"]].map((item, index) => <p key={item[1]}><span>{index + 1}</span><i>{item[0]}</i><b>{item[1]}</b><strong>{item[2]}</strong></p>)}</div></article>
         </div>
       </section>
 
       <section id="arbeidsflyt" className={styles.workflow}>
-        <div className={styles.workflowCopy}><p className={styles.eyebrow}><i /> Dere bestemmer strukturen</p><h2>Tilpass fra første klikk.</h2><p>Ingen tvungen metode. Sett opp plattformen etter prosessen, teamet og produktene deres.</p></div>
-        <div className={styles.workflowLine}>{[["01", "Velg moduler", "Vis kun verktøyene dere bruker."], ["02", "Bygg dashboard", "Flytt, farg og prioriter widgets."], ["03", "Sett roller", "Gi hver rolle riktig tilgang."], ["04", "Juster underveis", "Endre når teamet endrer seg."]].map(([n, title, copy]) => <article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
+        <div className={styles.workflowCopy}><p className={styles.eyebrow}><i /> Fra oppsett til løpende forbedring</p><h2>Vi bygger grunnmuren.<br />Dere styrer hverdagen.</h2><p>Dashboardet leveres klart for teamet, men er ikke låst. Når dere endrer salgsprosess, produkter eller roller, kan oppsettet endres med dere.</p></div>
+        <div className={styles.workflowLine}>{[["01", "Kartlegg behov", "Vi finner ut hva teamet faktisk trenger."], ["02", "Bygg dashboard", "Vi setter opp sider, widgets og roller."], ["03", "Ta i bruk", "Teamet jobber i en ferdig tilpasset løsning."], ["04", "Juster underveis", "Dere kan endre oppsettet når behovene endrer seg."]].map(([n, title, copy]) => <article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
       </section>
 
       <section id="sikkerhet" className={styles.security}>
-        <div className={styles.securityIcon}><Icon name="shield" /></div><div><p>Én plattform, deres oppsett</p><h2>Helt deres.<br />Alltid adskilt.</h2></div><p>Navn, farger, logo, roller, innhold og data er deres. Hver organisasjon får sitt eget, isolerte arbeidsområde.</p><ul><li>Deres merkevare</li><li>Deres roller</li><li>Deres data</li></ul>
+        <div className={styles.securityIcon}><Icon name="shield" /></div><div><p>Én plattform, deres oppsett</p><h2>Helt deres.<br />Alltid adskilt.</h2></div><p>Navn, farger, logo, roller, innhold, dashboard og data tilpasses deres organisasjon. Hver kunde får sitt eget isolerte arbeidsområde.</p><ul><li>Deres merkevare</li><li>Deres roller</li><li>Deres data</li></ul>
       </section>
 
       <section className={styles.finalCta}>
-        <p>Se hvordan den kan se ut for dere</p><h2>Ikke en ferdig mal.<br />En plattform dere former selv.</h2><div><DemoButton /><Link href="/login">Allerede kunde? Logg inn</Link></div>
+        <p>Se hvordan dashboardet kan bygges for dere</p><h2>Vi lager første versjon.<br />Dere kan endre den når dere vil.</h2><div><DemoButton /><Link href="/login">Allerede kunde? Logg inn</Link></div>
       </section>
 
       <footer className={styles.footer}><Link href="/" className={styles.logo}><span>+</span>DIN PLATTFORM</Link><p>Bygget rundt teamet deres.</p><nav><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Tilpasning</a><Link href="/login">Logg inn</Link></nav><small>© {new Date().getFullYear()}</small></footer>
