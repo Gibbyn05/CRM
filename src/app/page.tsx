@@ -8,74 +8,184 @@ export const metadata: Metadata = {
     "Vi bygger et salgsdashboard rundt teamet deres, og dere kan tilpasse det videre når arbeidsflyten endrer seg.",
 };
 
-const Arrow = () => <span aria-hidden="true">↗</span>;
-
-const Icon = ({ name }: { name: "search" | "phone" | "timeline" | "document" | "chart" | "shield" }) => {
-  const paths = {
-    search: <><circle cx="10" cy="10" r="5.5" /><path d="m14.5 14.5 5 5" /></>,
-    phone: <path d="M7.2 3.5 10 7.7 8.2 9.5c1.4 2.7 3.6 4.9 6.3 6.3l1.8-1.8 4.2 2.8-.8 2.8c-.3 1.1-1.4 1.7-2.5 1.5C9.7 19.8 4.2 14.3 2.9 6.8c-.2-1.1.4-2.2 1.5-2.5l2.8-.8Z" />,
-    timeline: <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="12" r="2" /><circle cx="8" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v0a3 3 0 0 0 3 3M17.5 14c-1.1 3-3.5 5-7.5 5" /></>,
-    document: <><path d="M6 3h9l3 3v15H6z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></>,
-    chart: <><path d="M4 20V9M10 20V4M16 20v-7M22 20H2" /></>,
-    shield: <><path d="M12 3 4.5 6v5.5c0 4.7 3 7.8 7.5 9.5 4.5-1.7 7.5-4.8 7.5-9.5V6z" /><path d="m9 12 2 2 4-4" /></>,
-  };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
-};
-
 const DemoButton = ({ compact = false }: { compact?: boolean }) => (
-  <a className={compact ? styles.navCta : styles.primaryCta} href="mailto:post@reachr.no?subject=Jeg ønsker en demo av plattformen">
-    Bestill demo <Arrow />
+  <a
+    className={compact ? styles.navCta : styles.primaryCta}
+    href="mailto:post@reachr.no?subject=Jeg ønsker en demo av plattformen"
+  >
+    Bestill demo <span aria-hidden="true">↗</span>
   </a>
 );
 
-function ProductFrame() {
-  const activities = [
-    ["Samtale fullført", "Nordvest Elektro", "2 min"],
-    ["Møte booket", "Havbris AS", "8 min"],
-    ["Tilbud sendt", "Fjord Regnskap", "14 min"],
-  ];
+const Icon = ({
+  name,
+}: {
+  name: "layout" | "wand" | "shield" | "chart" | "phone" | "pipeline" | "users" | "lock";
+}) => {
+  const paths = {
+    layout: (
+      <>
+        <path d="M4 5h16v14H4z" />
+        <path d="M4 10h16M10 10v9" />
+      </>
+    ),
+    wand: (
+      <>
+        <path d="m15 4 1.5 3L20 8.5l-3.5 1.4L15 13l-1.5-3.1L10 8.5 13.5 7z" />
+        <path d="M4 20 13 11" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3 5 6v5.5c0 4.4 2.8 7.3 7 9 4.2-1.7 7-4.6 7-9V6z" />
+        <path d="m9.2 12 1.8 1.8 4-4" />
+      </>
+    ),
+    chart: (
+      <>
+        <path d="M4 20V8M10 20V4M16 20v-7M22 20H2" />
+      </>
+    ),
+    phone: (
+      <path d="M7.2 3.5 10 7.7 8.2 9.5c1.4 2.7 3.6 4.9 6.3 6.3l1.8-1.8 4.2 2.8-.8 2.8c-.3 1.1-1.4 1.7-2.5 1.5C9.7 19.8 4.2 14.3 2.9 6.8c-.2-1.1.4-2.2 1.5-2.5z" />
+    ),
+    pipeline: (
+      <>
+        <circle cx="5" cy="6" r="2" />
+        <circle cx="19" cy="12" r="2" />
+        <circle cx="8" cy="19" r="2" />
+        <path d="M7 6h5a3 3 0 0 1 3 3 3 3 0 0 0 3 3M17.5 14c-1.1 3-3.5 5-7.5 5" />
+      </>
+    ),
+    users: (
+      <>
+        <path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20" />
+        <circle cx="9.5" cy="7.5" r="3.5" />
+        <path d="M21 20v-1a3.5 3.5 0 0 0-2.8-3.4M16.5 4.3a3.4 3.4 0 0 1 0 6.4" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      </>
+    ),
+  };
 
   return (
-    <div className={styles.productFrame} aria-label="Forhåndsvisning av et tilpasset salgsdashboard">
-      <div className={styles.browserBar}>
-        <span className={styles.browserDots}><i /><i /><i /></span>
-        <span>deres-plattform.no</span>
-        <b><i /> Live</b>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+};
+
+const heroFrames = [
+  { title: "Dashboard", copy: "Widgets, farger og rekkefølge", metric: "100%" },
+  { title: "Pipeline", copy: "Steg, roller og salgsflyt", metric: "12" },
+  { title: "Team", copy: "Tilgang per selger og leder", metric: "4" },
+  { title: "Kontrakt", copy: "Maler og signering samlet", metric: "AI" },
+  { title: "Live", copy: "Samtaler, filer og aktivitet", metric: "Nå" },
+  { title: "Analyse", copy: "Resultater per selger og periode", metric: "47" },
+];
+
+const stats = [
+  ["01", "Ferdig oppsett", "Vi bygger første versjon rundt kundens team, prosess og mål."],
+  ["02", "Full kontroll", "Kunden kan endre sider, widgets, farger, roller og rekkefølge videre selv."],
+  ["03", "Eget arbeidsområde", "Hver organisasjon får isolerte data, egne brukere og sitt eget dashboard."],
+  ["04", "Kan vokse", "Oppsettet kan justeres når teamet, produktene eller salgsprosessen endrer seg."],
+];
+
+const features = [
+  {
+    icon: "layout" as const,
+    title: "Custom dashboard",
+    copy: "Vi setter opp dashboardet slik kunden faktisk skal bruke det. Ikke som en standardmal alle må presse seg inn i.",
+  },
+  {
+    icon: "wand" as const,
+    title: "Endres underveis",
+    copy: "Kunden kan flytte widgets, skjule sider, endre farger, endre rekkefølge og tilpasse arbeidsflyten etter hvert.",
+  },
+  {
+    icon: "pipeline" as const,
+    title: "Egen salgsprosess",
+    copy: "Pipeline, kundereise, kontraktsmaler og rapporter kan bygges rundt produktene og måten teamet selger på.",
+  },
+  {
+    icon: "shield" as const,
+    title: "Adskilt per kunde",
+    copy: "Hver kunde får sin egen organisasjon med isolerte brukere, filer, kunder, salg, kontrakter og sanntidsdata.",
+  },
+];
+
+const workflow = [
+  ["Kartlegg", "Vi går gjennom roller, mål, salgsflyt og hvilke sider teamet faktisk trenger."],
+  ["Bygg", "Vi setter opp dashboard, widgets, pipeline, roller, moduler og kundevisninger."],
+  ["Lever", "Teamet får en ferdig arbeidsflate med riktig struktur fra dag én."],
+  ["Juster", "Oppsettet kan endres senere uten at kunden må starte på nytt."],
+];
+
+const feedback = [
+  "Vi trenger et dashboard som er laget for vårt team, ikke et generisk system.",
+  "Selgere skal se sin egen arbeidsflate, ledere skal se hele teamet.",
+  "Vi må kunne endre oppsettet når salgsprosessen endrer seg.",
+  "Dashboard, kontrakter, pipeline og aktivitet må henge sammen.",
+];
+
+function HeroPreview() {
+  return (
+    <div className={styles.heroStack} aria-label="Eksempler på tilpassede dashboardmoduler">
+      {heroFrames.map((frame, index) => (
+        <article className={styles.heroFrame} style={{ "--i": index } as React.CSSProperties} key={frame.title}>
+          <div>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{frame.metric}</strong>
+          </div>
+          <h3>{frame.title}</h3>
+          <p>{frame.copy}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function ProductPanel() {
+  return (
+    <div className={styles.productPanel}>
+      <div className={styles.panelChrome}>
+        <span /><span /><span />
+        <p>[ DERES-DASHBOARD.NO ]</p>
       </div>
-      <div className={styles.appPreview}>
-        <aside className={styles.previewNav}>
-          <div className={styles.previewLogo}>R</div>
-          {["Oversikt", "Kunder", "Leads", "Salg", "Pipeline"].map((item, index) => (
-            <div className={index === 0 ? styles.previewNavActive : ""} key={item}>
-              <span>{index + 1}</span><b>{item}</b>
+      <div className={styles.panelBody}>
+        <aside>
+          {["Oversikt", "Kunder", "Salg", "Pipeline", "Kontrakter"].map((item, index) => (
+            <div className={index === 0 ? styles.activePanelLink : ""} key={item}>
+              <span>{index + 1}</span>
+              {item}
             </div>
           ))}
-          <div className={styles.previewUser}><i>FN</i><span><b>Fredrik</b><small>Selger</small></span></div>
         </aside>
-        <div className={styles.previewMain}>
-          <header className={styles.previewHeader}>
-            <div><small>Tirsdag 12. august</small><h3>God morgen, Fredrik.</h3></div>
-            <button>+ Nytt salg</button>
-          </header>
-          <div className={styles.previewMetrics}>
-            <article><small>Samtaler i dag</small><strong>47</strong><span>↑ 18% fra i går</span></article>
-            <article><small>Møter booket</small><strong>6</strong><span>2 kommende</span></article>
-            <article><small>Pipeline</small><strong>284 000</strong><span>12 aktive avtaler</span></article>
+        <section>
+          <div className={styles.panelHeader}>
+            <p>// CUSTOM DASHBOARD</p>
+            <button>Endre oppsett</button>
           </div>
-          <div className={styles.previewGrid}>
-            <article className={styles.activityChart}>
-              <header><b>Aktivitet</b><span>Denne uken</span></header>
-              <div>{[38, 56, 47, 75, 62, 91, 70].map((height, index) => <i className={index === 5 ? styles.activeBar : ""} style={{ height: `${height}%` }} key={index} />)}</div>
-              <footer><span>M</span><span>T</span><span>O</span><span>T</span><span>F</span><span>L</span><span>S</span></footer>
+          <div className={styles.panelMetrics}>
+            <article><span>Samtaler</span><strong>47</strong></article>
+            <article><span>Møter</span><strong>6</strong></article>
+            <article><span>Pipeline</span><strong>284k</strong></article>
+          </div>
+          <div className={styles.panelGrid}>
+            <article className={styles.panelChart}>
+              <header><b>Aktivitet</b><span>Live</span></header>
+              <div>{[42, 58, 39, 76, 61, 88, 70].map((height, index) => <i className={index === 5 ? styles.hotBar : ""} style={{ height: `${height}%` }} key={index} />)}</div>
             </article>
-            <article className={styles.liveFeed}>
-              <header><b>Siste aktivitet</b><span><i /> Live</span></header>
-              {activities.map(([title, company, time], index) => (
-                <div key={title}><i>{["FN", "EA", "TS"][index]}</i><p><b>{title}</b><small>{company}</small></p><time>{time}</time></div>
-              ))}
+            <article className={styles.panelFeed}>
+              <header><b>Siste aktivitet</b><span>Oppdatert</span></header>
+              {["Tilbud sendt", "Møte booket", "Status endret"].map((item) => <p key={item}>{item}<span>Nå</span></p>)}
             </article>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
@@ -86,52 +196,151 @@ export default function Home() {
     <main className={styles.page}>
       <header className={styles.navWrap}>
         <nav className={styles.nav} aria-label="Hovedmeny">
-          <Link href="/" className={styles.logo} aria-label="Plattformens forside"><span>+</span>DIN PLATTFORM</Link>
-          <div className={styles.navLinks}><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Arbeidsflyt</a><a href="#sikkerhet">Sikkerhet</a></div>
-          <div className={styles.navActions}><Link href="/login">Logg inn</Link><DemoButton compact /></div>
+          <Link href="/" className={styles.logo} aria-label="Plattformens forside">
+            <span>+</span> DIN PLATTFORM
+          </Link>
+          <div className={styles.navLinks}>
+            <a href="#oppsett">Oppsett</a>
+            <a href="#tilpasning">Tilpasning</a>
+            <a href="#leveranse">Leveranse</a>
+          </div>
+          <div className={styles.navActions}>
+            <Link href="/login">Logg inn</Link>
+            <DemoButton compact />
+          </div>
         </nav>
       </header>
 
       <section className={styles.hero}>
+        <div className={styles.gridMark} />
+        <div className={styles.cornerMarks} aria-hidden="true" />
+        <div className={styles.heroGlow} />
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}><i /> Vi bygger dashboardet for dere</p>
-          <h1>Et dashboard laget<br /><span>rundt deres team.</span></h1>
-          <p className={styles.heroLead}>Vi setter opp en salgsplattform som matcher måten dere jobber på. Etterpå kan dere selv endre sider, widgets, roller, farger, pipeline og arbeidsflyt når behovene endrer seg.</p>
-          <div className={styles.heroActions}><DemoButton /><a href="#produkt">Se hvordan det virker <span>↓</span></a></div>
-          <dl className={styles.heroFacts}><div><dt>Vi bygger</dt><dd>Dashboardet settes opp for deres team</dd></div><div><dt>Dere tilpasser</dt><dd>Endre struktur selv underveis</dd></div><div><dt>Alt kan justeres</dt><dd>Roller, sider, farger og flyt</dd></div></dl>
+          <p className={styles.kicker}>// CUSTOM SALES DASHBOARD</p>
+          <h1>
+            Vi bygger dashboardet.
+            <span>Dere styrer det videre.</span>
+          </h1>
+          <p>
+            Et salgsdashboard laget rundt teamet, prosessen og målene deres. Vi setter opp første versjon, og dere kan endre sider, widgets, farger, roller og arbeidsflyt når dere vil.
+          </p>
+          <div className={styles.heroActions}>
+            <DemoButton />
+            <a href="#oppsett">Se oppsettet</a>
+          </div>
+          <div className={styles.heroBadges}>
+            <span>Ferdig bygget for kunden</span>
+            <span>Tilpasses underveis</span>
+            <span>Eget isolert teamområde</span>
+          </div>
         </div>
-        <ProductFrame />
+        <HeroPreview />
       </section>
 
-      <section className={styles.statement}>
-        <p>Ingen team jobber helt likt.</p>
-        <h2>Derfor bygger vi dashboardet rundt deres salgsprosess, og lar dere endre det videre når teamet vokser eller arbeidsflyten skifter.</h2>
-      </section>
-
-      <section id="produkt" className={styles.features}>
-        <header className={styles.sectionHeader}><p>Bygget for dere, styrt av dere</p><h2>Start med et ferdig oppsett.<br />Tilpass når dere vil.</h2></header>
-        <div className={styles.featureRows}>
-          <article><div className={styles.featureMeta}><span>01</span><Icon name="search" /></div><div><h3>Vi setter opp første versjon</h3><p>Dere slipper å starte med et tomt system. Vi bygger dashboardet rundt målene, rollene og arbeidsflyten deres.</p></div><div className={styles.leadSample}><header><span>Widget</span><span>Visning</span></header><p><b>Mine ringbare leads</b><span>Selger</span><em>Øverst</em></p><p><b>Teamets pipeline</b><span>Leder</span><em>Synlig</em></p></div></article>
-          <article><div className={styles.featureMeta}><span>02</span><Icon name="timeline" /></div><div><h3>Dere kan endre alt underveis</h3><p>Flytt widgets, skjul sider, endre farger, bytt rekkefølge og juster prosessen uten å måtte bygge dashboardet på nytt.</p></div><div className={styles.callSample}><span><i /><i /><i /><i /><i /><i /><i /></span><div><b>Din flyt</b><small>Tilpasset pipeline</small></div></div></article>
-          <article><div className={styles.featureMeta}><span>03</span><Icon name="document" /></div><div><h3>La teamet få sine egne verktøy</h3><p>Velg hvilke faner, kontraktsmaler, moduler og snarveier hvert team og hver rolle skal se.</p></div><div className={styles.contractSample}><header><b>DERES MAL</b><span>Aktiv</span></header><i /><i /><i /><footer><span>Tilpasset for teamet</span><b>Ferdig</b></footer></div></article>
-          <article><div className={styles.featureMeta}><span>04</span><Icon name="chart" /></div><div><h3>Bestem hva dere måler</h3><p>Bygg ledervisningen rundt tallene som betyr noe for dere, fra samtaler og møter til omsetning og fornyelser.</p></div><div className={styles.rankingSample}>{[["1", "Samtaler", "47"], ["2", "Møter", "6"], ["3", "Omsetning", "284k"]].map((item, index) => <p key={item[1]}><span>{index + 1}</span><i>{item[0]}</i><b>{item[1]}</b><strong>{item[2]}</strong></p>)}</div></article>
+      <section id="oppsett" className={styles.stats}>
+        <div className={styles.sectionIntro}>
+          <p>// LEVERANSE</p>
+          <h2>Ikke en tom plattform. Et ferdig dashboard kunden kan bruke.</h2>
+        </div>
+        <div className={styles.statsGrid}>
+          {stats.map(([number, title, copy]) => (
+            <article key={title}>
+              <span>{number}</span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section id="arbeidsflyt" className={styles.workflow}>
-        <div className={styles.workflowCopy}><p className={styles.eyebrow}><i /> Fra oppsett til løpende forbedring</p><h2>Vi bygger grunnmuren.<br />Dere styrer hverdagen.</h2><p>Dashboardet leveres klart for teamet, men er ikke låst. Når dere endrer salgsprosess, produkter eller roller, kan oppsettet endres med dere.</p></div>
-        <div className={styles.workflowLine}>{[["01", "Kartlegg behov", "Vi finner ut hva teamet faktisk trenger."], ["02", "Bygg dashboard", "Vi setter opp sider, widgets og roller."], ["03", "Ta i bruk", "Teamet jobber i en ferdig tilpasset løsning."], ["04", "Juster underveis", "Dere kan endre oppsettet når behovene endrer seg."]].map(([n, title, copy]) => <article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
+      <section id="tilpasning" className={styles.features}>
+        <div className={styles.sectionIntro}>
+          <p>// TILPASNING</p>
+          <h2>Alt som påvirker salgsdagen kan formes rundt kunden.</h2>
+        </div>
+        <div className={styles.featureGrid}>
+          {features.map((feature) => (
+            <article key={feature.title}>
+              <Icon name={feature.icon} />
+              <h3>{feature.title}</h3>
+              <p>{feature.copy}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
-      <section id="sikkerhet" className={styles.security}>
-        <div className={styles.securityIcon}><Icon name="shield" /></div><div><p>Én plattform, deres oppsett</p><h2>Helt deres.<br />Alltid adskilt.</h2></div><p>Navn, farger, logo, roller, innhold, dashboard og data tilpasses deres organisasjon. Hver kunde får sitt eget isolerte arbeidsområde.</p><ul><li>Deres merkevare</li><li>Deres roller</li><li>Deres data</li></ul>
+      <section className={styles.previewSection}>
+        <div className={styles.sectionIntro}>
+          <p>// DASHBOARD PREVIEW</p>
+          <h2>Samme system. Forskjellig oppsett for hvert team.</h2>
+        </div>
+        <ProductPanel />
+      </section>
+
+      <section id="leveranse" className={styles.workflow}>
+        <div className={styles.sectionIntro}>
+          <p>// FLOW</p>
+          <h2>Fra kartlegging til et dashboard som kan utvikles videre.</h2>
+        </div>
+        <div className={styles.workflowGrid}>
+          {workflow.map(([title, copy], index) => (
+            <article key={title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.feedback}>
+        <div className={styles.sectionIntro}>
+          <p>// KUNDEBEHOV</p>
+          <h2>Typiske krav vi bygger dashboardet rundt.</h2>
+        </div>
+        <div className={styles.feedbackTrack}>
+          {[...feedback, ...feedback].map((quote, index) => (
+            <article key={`${quote}-${index}`}>
+              <span>{index % 2 === 0 ? "TEAM" : "LEDER"}</span>
+              <p>"{quote}"</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.security}>
+        <Icon name="lock" />
+        <div>
+          <p>// ORGANISASJON</p>
+          <h2>Hver kunde får sitt eget arbeidsområde.</h2>
+        </div>
+        <p>
+          Brukere, kunder, filer, kontrakter, salg, teamstatus og sanntid holdes adskilt per organisasjon. Det betyr at samme plattform kan leveres til flere kunder uten at teamene blandes.
+        </p>
       </section>
 
       <section className={styles.finalCta}>
-        <p>Se hvordan dashboardet kan bygges for dere</p><h2>Vi lager første versjon.<br />Dere kan endre den når dere vil.</h2><div><DemoButton /><Link href="/login">Allerede kunde? Logg inn</Link></div>
+        <p>// DEMO</p>
+        <h2>Se hvordan dashboardet kan bygges for deres team.</h2>
+        <div>
+          <DemoButton />
+          <Link href="/login">Allerede kunde? Logg inn</Link>
+        </div>
       </section>
 
-      <footer className={styles.footer}><Link href="/" className={styles.logo}><span>+</span>DIN PLATTFORM</Link><p>Bygget rundt teamet deres.</p><nav><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Tilpasning</a><Link href="/login">Logg inn</Link></nav><small>© {new Date().getFullYear()}</small></footer>
+      <footer className={styles.footer}>
+        <div>
+          <Link href="/" className={styles.logo}><span>+</span> DIN PLATTFORM</Link>
+          <p>Custom salgsdashboard bygget rundt kundens team, prosess og mål.</p>
+        </div>
+        <nav>
+          <a href="#oppsett">Oppsett</a>
+          <a href="#tilpasning">Tilpasning</a>
+          <a href="#leveranse">Leveranse</a>
+          <Link href="/login">Logg inn</Link>
+        </nav>
+        <small>© {new Date().getFullYear()}</small>
+      </footer>
     </main>
   );
 }
