@@ -3,9 +3,9 @@ import Link from "next/link";
 import styles from "./landing.module.css";
 
 export const metadata: Metadata = {
-  title: "Reachr | Salgsarbeidet samlet på ett sted",
+  title: "Din salgsplattform | Bygget rundt teamet deres",
   description:
-    "Finn nye kunder, ring, følg opp og lukk avtaler i én arbeidsflate laget for norske salgsteam.",
+    "En salgsplattform dere former rundt egne prosesser, roller, dashboard og kundereise.",
 };
 
 const Arrow = () => <span aria-hidden="true">↗</span>;
@@ -23,7 +23,7 @@ const Icon = ({ name }: { name: "search" | "phone" | "timeline" | "document" | "
 };
 
 const DemoButton = ({ compact = false }: { compact?: boolean }) => (
-  <a className={compact ? styles.navCta : styles.primaryCta} href="mailto:post@reachr.no?subject=Jeg ønsker en demo av Reachr">
+  <a className={compact ? styles.navCta : styles.primaryCta} href="mailto:post@reachr.no?subject=Jeg ønsker en demo av plattformen">
     Bestill demo <Arrow />
   </a>
 );
@@ -36,16 +36,16 @@ function ProductFrame() {
   ];
 
   return (
-    <div className={styles.productFrame} aria-label="Forhåndsvisning av Reachr">
+    <div className={styles.productFrame} aria-label="Forhåndsvisning av et tilpasset salgsdashboard">
       <div className={styles.browserBar}>
         <span className={styles.browserDots}><i /><i /><i /></span>
-        <span>app.reachr.no</span>
+        <span>deres-plattform.no</span>
         <b><i /> Live</b>
       </div>
       <div className={styles.appPreview}>
         <aside className={styles.previewNav}>
           <div className={styles.previewLogo}>R</div>
-          {["Oversikt", "Kunder", "Reachr", "Salg", "Pipeline"].map((item, index) => (
+          {["Oversikt", "Kunder", "Leads", "Salg", "Pipeline"].map((item, index) => (
             <div className={index === 0 ? styles.previewNavActive : ""} key={item}>
               <span>{index + 1}</span><b>{item}</b>
             </div>
@@ -86,7 +86,7 @@ export default function Home() {
     <main className={styles.page}>
       <header className={styles.navWrap}>
         <nav className={styles.nav} aria-label="Hovedmeny">
-          <Link href="/" className={styles.logo} aria-label="Reachr forside"><span>R</span>REACHR</Link>
+          <Link href="/" className={styles.logo} aria-label="Plattformens forside"><span>+</span>DIN PLATTFORM</Link>
           <div className={styles.navLinks}><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Arbeidsflyt</a><a href="#sikkerhet">Sikkerhet</a></div>
           <div className={styles.navActions}><Link href="/login">Logg inn</Link><DemoButton compact /></div>
         </nav>
@@ -94,44 +94,44 @@ export default function Home() {
 
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}><i /> Salgsplattform for norske team</p>
-          <h1>Selg mer.<br /><span>Lettere.</span></h1>
-          <p className={styles.heroLead}>Reachr samler leads, telefoni, oppfølging, avtaler og ledelse i én arbeidsflate. Teamet får arbeidsro. Lederen får oversikt.</p>
+          <p className={styles.eyebrow}><i /> Bygget rundt måten dere jobber på</p>
+          <h1>Deres team.<br /><span>Deres dashboard.</span></h1>
+          <p className={styles.heroLead}>Få en plattform som tilpasses deres salgsteam. Velg sider, widgets, roller, farger, pipeline og arbeidsflyt slik dere faktisk jobber.</p>
           <div className={styles.heroActions}><DemoButton /><a href="#produkt">Se hvordan det virker <span>↓</span></a></div>
-          <dl className={styles.heroFacts}><div><dt>Én arbeidsflate</dt><dd>Fra lead til betaling</dd></div><div><dt>Sanntid</dt><dd>Ingen doble leads</dd></div><div><dt>Norsk salgsflyt</dt><dd>Bygget rundt teamet</dd></div></dl>
+          <dl className={styles.heroFacts}><div><dt>Custom dashboard</dt><dd>Widgets der dere vil ha dem</dd></div><div><dt>Egne prosesser</dt><dd>Pipeline og kundereise på deres måte</dd></div><div><dt>Egne regler</dt><dd>Roller, sider og tilgang per team</dd></div></dl>
         </div>
         <ProductFrame />
       </section>
 
       <section className={styles.statement}>
-        <p>Salgsverktøy skal fjerne arbeid, ikke skape mer av det.</p>
-        <h2>Reachr holder hele kundereisen samlet, slik at selgeren kan bruke tiden på neste samtale.</h2>
+        <p>Ingen team jobber helt likt.</p>
+        <h2>Derfor skal heller ikke dashboardet deres se ut som alle andres.</h2>
       </section>
 
       <section id="produkt" className={styles.features}>
-        <header className={styles.sectionHeader}><p>Plattformen</p><h2>Det teamet trenger.<br />Ikke mer.</h2></header>
+        <header className={styles.sectionHeader}><p>Tilpass alt som betyr noe</p><h2>Bygg dashboardet<br />dere faktisk trenger.</h2></header>
         <div className={styles.featureRows}>
-          <article><div className={styles.featureMeta}><span>01</span><Icon name="search" /></div><div><h3>Finn noen det er verdt å ringe</h3><p>Filtrer norske bedrifter, finn riktig kontakt og reserver leadet før noen andre i teamet gjør det.</p></div><div className={styles.leadSample}><header><span>Bedrift</span><span>Kontakt</span></header><p><b>Nordvest Elektro AS</b><span>Daglig leder</span><em>Verifisert</em></p><p><b>Havbris Regnskap</b><span>Sentralbord</span><em>Ringbar</em></p></div></article>
-          <article><div className={styles.featureMeta}><span>02</span><Icon name="phone" /></div><div><h3>Ring uten å bytte kontekst</h3><p>Samtalen, notatet og neste aktivitet havner på kunden mens selgeren jobber.</p></div><div className={styles.callSample}><span><i /><i /><i /><i /><i /><i /><i /></span><div><b>12:48</b><small>Samtale pågår</small></div></div></article>
-          <article><div className={styles.featureMeta}><span>03</span><Icon name="document" /></div><div><h3>Gå fra ja til signatur</h3><p>Bruk kundedata og organisasjonens mal til å lage, kontrollere og sende avtalen.</p></div><div className={styles.contractSample}><header><b>AVTALE</b><span>Klar for signering</span></header><i /><i /><i /><footer><span>Eksempel AS</span><b>25 000 kr</b></footer></div></article>
-          <article><div className={styles.featureMeta}><span>04</span><Icon name="chart" /></div><div><h3>Se hva som faktisk beveger salget</h3><p>Sammenlign samtaler, møter, tilbud, signeringer og omsetning på tvers av perioden.</p></div><div className={styles.rankingSample}>{[["FN", "Fredrik", "128 400"], ["EA", "Emil", "96 200"], ["TS", "Test", "71 850"]].map((item, index) => <p key={item[1]}><span>{index + 1}</span><i>{item[0]}</i><b>{item[1]}</b><strong>{item[2]}</strong></p>)}</div></article>
+          <article><div className={styles.featureMeta}><span>01</span><Icon name="search" /></div><div><h3>Velg hva som møter teamet først</h3><p>Vis de viktigste tallene og listene øverst. Skjul resten. Hver bruker kan ha sin egen arbeidsflate.</p></div><div className={styles.leadSample}><header><span>Widget</span><span>Visning</span></header><p><b>Mine ringbare leads</b><span>Selger</span><em>Øverst</em></p><p><b>Teamets pipeline</b><span>Leder</span><em>Synlig</em></p></div></article>
+          <article><div className={styles.featureMeta}><span>02</span><Icon name="timeline" /></div><div><h3>Lag en prosess som passer dere</h3><p>Gi stegene deres egne navn, flytt dem, legg til nye og gjør kundereisen like enkel som den bør være.</p></div><div className={styles.callSample}><span><i /><i /><i /><i /><i /><i /><i /></span><div><b>Din flyt</b><small>Tilpasset pipeline</small></div></div></article>
+          <article><div className={styles.featureMeta}><span>03</span><Icon name="document" /></div><div><h3>La teamet få sine egne verktøy</h3><p>Velg hvilke faner, kontraktsmaler, moduler og snarveier hvert team og hver rolle skal se.</p></div><div className={styles.contractSample}><header><b>DERES MAL</b><span>Aktiv</span></header><i /><i /><i /><footer><span>Tilpasset for teamet</span><b>Ferdig</b></footer></div></article>
+          <article><div className={styles.featureMeta}><span>04</span><Icon name="chart" /></div><div><h3>Bestem hva dere måler</h3><p>Bygg ledervisningen rundt tallene som betyr noe for dere, fra samtaler og møter til omsetning og fornyelser.</p></div><div className={styles.rankingSample}>{[["1", "Samtaler", "47"], ["2", "Møter", "6"], ["3", "Omsetning", "284k"]].map((item, index) => <p key={item[1]}><span>{index + 1}</span><i>{item[0]}</i><b>{item[1]}</b><strong>{item[2]}</strong></p>)}</div></article>
         </div>
       </section>
 
       <section id="arbeidsflyt" className={styles.workflow}>
-        <div className={styles.workflowCopy}><p className={styles.eyebrow}><i /> En sammenhengende prosess</p><h2>Fra første kontakt til fornyelse.</h2><p>Ingen eksport. Ingen kopiering. Ingen usikkerhet om hvor kunden befinner seg.</p></div>
-        <div className={styles.workflowLine}>{[["01", "Finn", "Velg bedrifter og beslutningstakere."], ["02", "Kontakt", "Ring og loggfør i samme visning."], ["03", "Følg opp", "Avtal neste aktivitet før du går videre."], ["04", "Lukk", "Send, signer og følg betalingen."]].map(([n, title, copy]) => <article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
+        <div className={styles.workflowCopy}><p className={styles.eyebrow}><i /> Dere bestemmer strukturen</p><h2>Tilpass fra første klikk.</h2><p>Ingen tvungen metode. Sett opp plattformen etter prosessen, teamet og produktene deres.</p></div>
+        <div className={styles.workflowLine}>{[["01", "Velg moduler", "Vis kun verktøyene dere bruker."], ["02", "Bygg dashboard", "Flytt, farg og prioriter widgets."], ["03", "Sett roller", "Gi hver rolle riktig tilgang."], ["04", "Juster underveis", "Endre når teamet endrer seg."]].map(([n, title, copy]) => <article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
       </section>
 
       <section id="sikkerhet" className={styles.security}>
-        <div className={styles.securityIcon}><Icon name="shield" /></div><div><p>Separate arbeidsområder</p><h2>Deres kunder. Deres data.</h2></div><p>Hver organisasjon har avgrensede brukere, kunder, filer, avtaler og sanntidsstrømmer. Roller avgjør hvem som kan se og endre hva.</p><ul><li>Organisasjonsbasert tilgang</li><li>Private dokumenter</li><li>Rollebaserte rettigheter</li></ul>
+        <div className={styles.securityIcon}><Icon name="shield" /></div><div><p>Én plattform, deres oppsett</p><h2>Helt deres.<br />Alltid adskilt.</h2></div><p>Navn, farger, logo, roller, innhold og data er deres. Hver organisasjon får sitt eget, isolerte arbeidsområde.</p><ul><li>Deres merkevare</li><li>Deres roller</li><li>Deres data</li></ul>
       </section>
 
       <section className={styles.finalCta}>
-        <p>Se Reachr med deres salgsprosess</p><h2>Færre systemer.<br />Flere gode samtaler.</h2><div><DemoButton /><Link href="/login">Allerede kunde? Logg inn</Link></div>
+        <p>Se hvordan den kan se ut for dere</p><h2>Ikke en ferdig mal.<br />En plattform dere former selv.</h2><div><DemoButton /><Link href="/login">Allerede kunde? Logg inn</Link></div>
       </section>
 
-      <footer className={styles.footer}><Link href="/" className={styles.logo}><span>R</span>REACHR</Link><p>Salgsarbeidet samlet på ett sted.</p><nav><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Arbeidsflyt</a><Link href="/login">Logg inn</Link></nav><small>© {new Date().getFullYear()} Reachr</small></footer>
+      <footer className={styles.footer}><Link href="/" className={styles.logo}><span>+</span>DIN PLATTFORM</Link><p>Bygget rundt teamet deres.</p><nav><a href="#produkt">Produkt</a><a href="#arbeidsflyt">Tilpasning</a><Link href="/login">Logg inn</Link></nav><small>© {new Date().getFullYear()}</small></footer>
     </main>
   );
 }
