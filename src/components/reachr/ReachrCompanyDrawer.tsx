@@ -86,6 +86,10 @@ export default function ReachrCompanyDrawer({
   const salesBrief = useMemo(() => buildSalesBrief(active), [active]);
   const missingData = useMemo(() => getMissingData(active), [active]);
   const externalLinks = useMemo(() => getExternalLinks(active), [active]);
+  const has1881ProfileSignal = Boolean(active.keywords?.length);
+  const hasChecked1881 = active.data_sources?.some(
+    (source) => source.provider === "api1881",
+  );
 
   if (!open) return null;
 
@@ -308,28 +312,49 @@ export default function ReachrCompanyDrawer({
             </div>
           </section>
 
-          {active.keywords && active.keywords.length > 0 && (
-            <section className="rounded-3xl border border-[#09fe94]/40 bg-[#eafff5] p-5">
+          {hasChecked1881 && (
+            <section className={`rounded-3xl border p-5 ${
+              has1881ProfileSignal
+                ? "border-[#09fe94]/40 bg-[#eafff5]"
+                : "border-[#d8c9b0] bg-[#fff8ea]"
+            }`}>
               <div className="flex items-center gap-2">
-                <p className="label-eyebrow">Søkeord på 1881</p>
-                <span className="rounded-full border border-[#09fe94]/50 bg-[#09fe94]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#0d7a4b]">
-                  Aktiv annonsør
+                <p className="label-eyebrow">1881-profil</p>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${
+                  has1881ProfileSignal
+                    ? "border-[#09fe94]/50 bg-[#09fe94]/20 text-[#0d7a4b]"
+                    : "border-[#d8c9b0] bg-[#fffaf0] text-[#6f5a43]"
+                }`}>
+                  {has1881ProfileSignal ? "Aktiv profil påvist" : "Ingen profil påvist"}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-[#6f5a43]">
-                Bedriften er registrert med {active.keywords.length} søkeord på 1881
-                – den betaler for synlighet, altså en aktiv bedrift.
+              {has1881ProfileSignal ? (
+                <>
+                  <p className="mt-1 text-xs text-[#6f5a43]">
+                    1881-profilen har {active.keywords!.length} registrerte søkeord. Det er et
+                    tydelig signal om at bedriften jobber med synlighet i katalogen.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {active.keywords!.map((kw) => (
+                      <span
+                        key={kw}
+                        className="rounded-full border border-[#b7d8c4] bg-[#fffaf0] px-2.5 py-1 text-xs font-semibold text-[#2b2118]"
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-[#6f5a43]">
+                  Ingen registrerte 1881-søkeord ble funnet. Det kan bety en enkel eller
+                  ufullstendig oppføring, men bekrefter ikke at bedriften ikke er kunde hos 1881.
+                </p>
+              )}
+              <p className="mt-3 text-[11px] leading-relaxed text-[#8b7357]">
+                Dette er et kvalifiseringssignal basert på offentlig profilinnhold, ikke en
+                bekreftelse på hvilken avtale bedriften har.
               </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {active.keywords.map((kw) => (
-                  <span
-                    key={kw}
-                    className="rounded-full border border-[#b7d8c4] bg-[#fffaf0] px-2.5 py-1 text-xs font-semibold text-[#2b2118]"
-                  >
-                    {kw}
-                  </span>
-                ))}
-              </div>
             </section>
           )}
 
