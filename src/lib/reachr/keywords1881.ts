@@ -12,14 +12,26 @@ export interface Profile1881Data {
 
 export async function fetch1881Profile(orgNumber: string): Promise<Profile1881Data> {
   try {
-    const res = await fetch(`https://www.1881.no/?query=${orgNumber}`, {
-      headers: { Accept: "text/html", "User-Agent": UA },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8000),
-      next: { revalidate: 86400 },
-    });
-    if (!res.ok) return { keywords: [], phone: null };
-    const html = await res.text();
+    const searchHtml = await fetch1881Html(`https://www.1881.no/?query=${orgNumber}`);
+    if (!searchHtml) return { keywords: [], phone: null };
+
+    // Et oppslag på org.nr. åpner ofte en resultatliste, ikke selve
+    // firmakortet. Betalte søkeord, logo og beskrivelse ligger på firmakortet.
+    // P4 er et eksempel: org.nr.-søket viser «P4 Lyden av Norge» som profil.
+    for (const profilePath of extract1881ProfilePaths(searchHtml, orgNumber)) {
+      const profileHtml = await fetch1881Html(
+        new URL(profilePath, "https://www.1881.no").toString(),
+      );
+      if (!profileHtml) continue;
+      const profileKeywords = extract1881KeywordsFromHtml(profileHtml);
+      if (profileKeywords.length) {
+        return {
+          keywords: profileKeywords,
+          phone: extractPublicPhone(profileHtml, orgNumber),
+        };
+      }
+    }
+    const html = searchHtml;
     // Søkeord ligger som «emneknagger»-lenker (bransjekategoriene bruker andre).
     const matches = [...html.matchAll(/\/emneknagger\/[^"]+">([^<]+)<\/a>/gi)];
     const seen = new Set<string>();
@@ -37,6 +49,47 @@ export async function fetch1881Profile(orgNumber: string): Promise<Profile1881Da
   } catch {
     return { keywords: [], phone: null };
   }
+}
+
+async function fetch1881Html(url: string): Promise<string | null> {
+  const res = await fetch(url, {
+    headers: { Accept: "text/html", "User-Agent": UA },
+    redirect: "follow",
+    signal: AbortSignal.timeout(8000),
+    next: { revalidate: 86400 },
+  });
+  return res.ok ? res.text() : null;
+}
+
+// Finn første firmakort i et org.nr.-oppslag. En slik lenke har en stabil
+// intern 1881-ID (`_...S...`) og leder til siden der søkeordene publiseres.
+export function extract1881ProfilePaths(html: string, orgNumber: string): string[] {
+  const escaped = orgNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `href="([^"?#]+_[^"/]+S\\d+/)\\?query=${escaped}(?:&amp;[^\"]*)?"`,
+    "gi",
+  );
+  return [...new Set([...html.matchAll(pattern)].map((match) => match[1]))].slice(0, 3);
+}
+
+export function extract1881ProfilePath(html: string, orgNumber: string): string | null {
+  return extract1881ProfilePaths(html, orgNumber)[0] ?? null;
+}
+
+export function extract1881KeywordsFromHtml(html: string): string[] {
+  const matches = [...html.matchAll(/\/emneknagger\/[^\"]+">([^<]+)<\/a>/gi)];
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const match of matches) {
+    const keyword = decodeEntities(match[1]).trim();
+    const key = keyword.toLowerCase();
+    if (keyword && !seen.has(key)) {
+      seen.add(key);
+      keywords.push(keyword);
+    }
+    if (keywords.length >= 40) break;
+  }
+  return keywords;
 }
 
 export async function fetch1881Keywords(orgNumber: string): Promise<string[]> {

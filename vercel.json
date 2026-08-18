@@ -15,6 +15,10 @@
     {
       "path": "/api/contracts/expiry-notifications",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/reachr/daily-leads",
+      "schedule": "0 6 * * 1-5"
     }
   ]
 }

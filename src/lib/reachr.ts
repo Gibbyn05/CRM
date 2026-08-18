@@ -607,6 +607,7 @@ export function leadRowToReachrLead(row: Record<string, unknown>): ReachrLead {
       debt: numberOrNull(row.debt),
     },
     roles: Array.isArray(row.roles) ? (row.roles as ReachrRole[]) : [],
+    keywords: Array.isArray(row.keywords) ? (row.keywords as string[]) : [],
     contact_candidates: Array.isArray(row.contact_candidates)
       ? (row.contact_candidates as ReachrContactCandidate[])
       : [],
