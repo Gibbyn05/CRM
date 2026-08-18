@@ -24,6 +24,7 @@ create index if not exists reachr_daily_lead_runs_owner_date_idx
 
 alter table public.reachr_daily_lead_runs enable row level security;
 
+drop policy if exists "Managers can read daily Reachr runs" on public.reachr_daily_lead_runs;
 create policy "Managers can read daily Reachr runs"
   on public.reachr_daily_lead_runs for select to authenticated
   using (public.is_manager());
