@@ -55,7 +55,10 @@ export async function updateSession(request: NextRequest) {
       path === "/api/tv/sales" ||
       path.startsWith("/signer") ||
       path.startsWith("/api/signer") ||
-      path.startsWith("/api/telephony");
+      path.startsWith("/api/telephony") ||
+      // Vercel Cron har ikke en Supabase-nettlesersesjon. Endepunktet
+      // validerer selv CRON_SECRET før det gjør noe med leadene.
+      path === "/api/reachr/daily-leads";
 
     if (!user && !isPublic) {
       const redirectUrl = request.nextUrl.clone();
