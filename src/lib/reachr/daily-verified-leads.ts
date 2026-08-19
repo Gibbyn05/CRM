@@ -19,6 +19,7 @@ export interface Verified1881Candidate {
 export async function findVerified1881Candidates(
   date: Date,
   needed: number,
+  excludedOrgNumbers = new Set<string>(),
 ): Promise<Verified1881Candidate[]> {
   const day = Math.floor(date.getTime() / 86_400_000);
   const terms = SEARCH_TERMS.map((_, i) => SEARCH_TERMS[(day + i) % SEARCH_TERMS.length]);
@@ -30,7 +31,7 @@ export async function findVerified1881Candidates(
     for (const listing of listings[index].companies) {
       if (verified.length >= needed) break;
       const orgNumber = await resolveOrgFor(listing.path, listing.name);
-      if (!orgNumber || seen.has(orgNumber)) continue;
+      if (!orgNumber || seen.has(orgNumber) || excludedOrgNumbers.has(orgNumber)) continue;
       seen.add(orgNumber);
 
       // Strengt krav: både treff i 1881s søkeord-katalog og søkeord på

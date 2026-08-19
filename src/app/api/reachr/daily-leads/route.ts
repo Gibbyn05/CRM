@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enrichCompanyFromProviders } from "@/lib/reachr/providers";
 import { findVerified1881Candidates } from "@/lib/reachr/daily-verified-leads";
+import { calculateDailyLeadInventory } from "@/lib/reachr/daily-inventory";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-const PER_AGENT = 30;
 
 function osloDate() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Oslo" }).format(new Date());
@@ -34,18 +33,58 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, agents: 0, assigned: 0 });
   }
 
+  let inventories: Array<{ agent: (typeof agents)[number]; carriedOver: number; required: number }>;
+  try {
+    inventories = await Promise.all(agents.map(async (agent) => {
+      const { count, error: countError } = await admin
+        .from("reachr_leads")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", agent.id)
+        .eq("status", "Ikke kontaktet");
+      if (countError) throw new Error(countError.message);
+      return { agent, ...calculateDailyLeadInventory(count ?? 0) };
+    }));
+  } catch (inventoryError) {
+    const message = inventoryError instanceof Error ? inventoryError.message : "Ukjent feil";
+    console.error("[reachr:daily-leads] Kunne ikke telle åpne leads", message);
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+
   const runDate = osloDate();
-  const target = agents.length * PER_AGENT * 2;
-  const candidates = await findVerified1881Candidates(new Date(), target);
+  const requiredTotal = inventories.reduce((total, inventory) => total + inventory.required, 0);
+  if (requiredTotal === 0) {
+    console.info("[reachr:daily-leads] Arbeidslistene er allerede fulle", {
+      runDate,
+      agents: inventories.length,
+      carriedOver: inventories.map(({ agent, carriedOver }) => ({ owner_id: agent.id, carriedOver })),
+    });
+    return NextResponse.json({ ok: true, run_date: runDate, agents: inventories.length, assigned: 0 });
+  }
+
+  const { data: claims, error: claimsError } = await admin
+    .from("reachr_lead_claims")
+    .select("org_number");
+  if (claimsError) {
+    console.error("[reachr:daily-leads] Kunne ikke hente tidligere tildelte leads", claimsError);
+    return NextResponse.json({ error: claimsError.message }, { status: 502 });
+  }
+
+  const claimedOrgNumbers = new Set((claims ?? []).map((claim) => claim.org_number));
+  const candidates = await findVerified1881Candidates(new Date(), requiredTotal * 2, claimedOrgNumbers);
   console.info("[reachr:daily-leads] Kandidater kontrollert", {
     runDate,
     agents: agents.length,
     candidates: candidates.length,
+    requiredTotal,
   });
   let cursor = 0;
-  const summary: Array<{ owner_id: string; assigned: number; verification_failures: number }> = [];
+  const summary: Array<{ owner_id: string; carried_over: number; assigned: number; verification_failures: number }> = [];
 
-  for (const agent of agents) {
+  for (const { agent, carriedOver, required } of inventories) {
+    if (required === 0) {
+      summary.push({ owner_id: agent.id, carried_over: carriedOver, assigned: 0, verification_failures: 0 });
+      continue;
+    }
     const { data: existingRun } = await admin
       .from("reachr_daily_lead_runs")
       .select("assigned_count, status")
@@ -53,17 +92,17 @@ export async function GET(req: NextRequest) {
       .eq("owner_id", agent.id)
       .maybeSingle();
     if (existingRun?.status === "completed") {
-      summary.push({ owner_id: agent.id, assigned: existingRun.assigned_count, verification_failures: 0 });
+      summary.push({ owner_id: agent.id, carried_over: carriedOver, assigned: existingRun.assigned_count, verification_failures: 0 });
       continue;
     }
 
     await admin.from("reachr_daily_lead_runs").upsert(
-      { run_date: runDate, owner_id: agent.id, requested_count: PER_AGENT, status: "running" },
+      { run_date: runDate, owner_id: agent.id, requested_count: required, status: "running" },
       { onConflict: "run_date,owner_id" },
     );
     let assigned = 0;
     let failures = 0;
-    while (cursor < candidates.length && assigned < PER_AGENT) {
+    while (cursor < candidates.length && assigned < required) {
       const candidate = candidates[cursor++];
       const { error: claimError } = await admin
         .from("reachr_lead_claims")
@@ -108,10 +147,11 @@ export async function GET(req: NextRequest) {
         roles: company.roles ?? [],
         contact_candidates: company.contact_candidates ?? [],
         selected_contact: company.selected_contact ?? null,
-        source: "1881 verifisert",
+        source: "1881 offentlig profil",
         keywords: candidate.keywords,
         source_metadata: {
-          verification: "1881_keyword_directory_and_profile",
+          verification: "public_1881_keyword_directory_and_profile",
+          payment_status: "not_publicly_confirmed",
           profile_url: candidate.profileUrl,
           matched_term: candidate.matchedTerm,
           verified_at: new Date().toISOString(),
@@ -125,24 +165,29 @@ export async function GET(req: NextRequest) {
       assigned++;
     }
 
-    const status = assigned === PER_AGENT ? "completed" : "partial";
+    const status = assigned === required ? "completed" : "partial";
     await admin.from("reachr_daily_lead_runs").update({
       assigned_count: assigned,
       verification_failures: failures,
       status,
-      details: { candidate_pool: candidates.length, agent_name: agent.full_name },
+      details: {
+        candidate_pool: candidates.length,
+        agent_name: agent.full_name,
+        carried_over: carriedOver,
+        requested_new_leads: required,
+      },
       completed_at: new Date().toISOString(),
     }).eq("run_date", runDate).eq("owner_id", agent.id);
     await admin.from("notifications").insert({
       user_id: agent.id,
       type: "system",
-      title: status === "completed" ? "30 nye 1881-verifiserte leads" : "Færre enn 30 verifiserte leads",
+      title: status === "completed" ? `${assigned} nye 1881-profiler klare` : "Færre nye 1881-profiler enn planlagt",
       body: status === "completed"
-        ? "Reachr har lagt 30 nye leads med verifiserte 1881-søkeord i Mine leads."
-        : `Reachr fant ${assigned} leads som besto den strenge 1881-kontrollen i dag.`,
+        ? `Reachr beholdt ${carriedOver} ubehandlede leads og la til ${assigned} nye leads med offentlig verifiserte 1881-søkeord.`
+        : `Reachr beholdt ${carriedOver} ubehandlede leads og fant ${assigned} nye profiler som besto den strenge 1881-kontrollen i dag.`,
       link: "/reachr/mine-leads",
     });
-    summary.push({ owner_id: agent.id, assigned, verification_failures: failures });
+    summary.push({ owner_id: agent.id, carried_over: carriedOver, assigned, verification_failures: failures });
   }
   console.info("[reachr:daily-leads] Fullført", { runDate, candidates: candidates.length, summary });
   return NextResponse.json({ ok: true, run_date: runDate, candidates: candidates.length, summary });
