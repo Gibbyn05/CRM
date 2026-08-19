@@ -3,6 +3,11 @@ export const OPENAI_DAGSAVIS_MODEL =
   process.env.OPENAI_MODEL ??
   "gpt-5-nano";
 
+export const OPENAI_CRM_MODEL =
+  process.env.OPENAI_CRM_MODEL ??
+  process.env.OPENAI_MODEL ??
+  "gpt-5-nano";
+
 function getOpenAIKey(): string | null {
   return process.env.OPENAI_API_KEY ?? process.env.OpenAi_Api_key ?? null;
 }

@@ -37,9 +37,16 @@ export type IconName =
   | "box"
   | "route"
   | "mail"
-  | "settings";
+  | "settings"
+  | "sparkles";
 
 const PATHS: Record<IconName, React.ReactNode> = {
+  sparkles: (
+    <>
+      <path d="m12 3 1.2 3.3L16.5 7.5l-3.3 1.2L12 12l-1.2-3.3-3.3-1.2 3.3-1.2L12 3Z" />
+      <path d="m18.5 13 1 2.5L22 16.5l-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5ZM5.5 13l.8 2.2 2.2.8-2.2.8L5.5 19l-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
+    </>
+  ),
   lock: (
     <>
       <rect x="4" y="10" width="16" height="11" rx="2" />
