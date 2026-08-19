@@ -25,12 +25,23 @@ export async function GET(req: NextRequest) {
     .eq("role", "agent")
     .eq("is_active", true)
     .order("created_at");
-  if (error) return NextResponse.json({ error: error.message }, { status: 502 });
-  if (!agents?.length) return NextResponse.json({ ok: true, agents: 0, assigned: 0 });
+  if (error) {
+    console.error("[reachr:daily-leads] Kunne ikke hente aktive selgere", error);
+    return NextResponse.json({ error: error.message }, { status: 502 });
+  }
+  if (!agents?.length) {
+    console.info("[reachr:daily-leads] Ingen aktive selgere funnet");
+    return NextResponse.json({ ok: true, agents: 0, assigned: 0 });
+  }
 
   const runDate = osloDate();
   const target = agents.length * PER_AGENT * 2;
   const candidates = await findVerified1881Candidates(new Date(), target);
+  console.info("[reachr:daily-leads] Kandidater kontrollert", {
+    runDate,
+    agents: agents.length,
+    candidates: candidates.length,
+  });
   let cursor = 0;
   const summary: Array<{ owner_id: string; assigned: number; verification_failures: number }> = [];
 
@@ -133,5 +144,6 @@ export async function GET(req: NextRequest) {
     });
     summary.push({ owner_id: agent.id, assigned, verification_failures: failures });
   }
+  console.info("[reachr:daily-leads] Fullført", { runDate, candidates: candidates.length, summary });
   return NextResponse.json({ ok: true, run_date: runDate, candidates: candidates.length, summary });
 }
