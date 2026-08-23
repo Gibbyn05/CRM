@@ -4,6 +4,7 @@ import type { ContractChannel } from "@/lib/types";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
 import { sendSms as sendSmsViaProvider } from "@/lib/providers/sms";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 // ============================================================================
 //  Send kontrakt via e-post eller SMS fra kundekortet.
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   const brandName = orgRow?.name?.trim() || undefined;
 
   // 2) Send via valgt kanal.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getPublicAppUrl();
   const signUrl = body.document_url ?? `${appUrl}/sign/${contract.id}`;
 
   const result =

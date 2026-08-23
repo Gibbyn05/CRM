@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "./email";
+import { getPublicAppUrl } from "./app-url";
 
 interface RecipientProfile {
   id: string;
@@ -57,10 +58,7 @@ export async function sendSignedContractCopies(
   );
   if (recipients.length === 0) return { sent: 0, failed: 0 };
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
+  const appUrl = getPublicAppUrl();
   const documentUrl = `${appUrl}/signer/${contract.sign_token}`;
   const signedAt = new Date(contract.signed_at).toLocaleString("nb-NO", {
     dateStyle: "long",

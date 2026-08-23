@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 // ============================================================================
 //  POST /api/contracts/sign-request   body: { deal_id, recipient? }
@@ -137,10 +138,7 @@ export async function POST(req: NextRequest) {
   const brandName =
     (org as { name: string | null } | null)?.name?.trim() || undefined;
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
+  const appUrl = getPublicAppUrl();
   const signUrl = `${appUrl}/signer/${contract.sign_token}`;
 
   // 2) Send e-post med signeringslenke.
