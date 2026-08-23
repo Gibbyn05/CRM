@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { sendEmail, contractEmailHtml } from "@/lib/email";
 import { getPublicAppUrl } from "@/lib/app-url";
+import { sendContractSentCopies } from "@/lib/contract-signing-email";
 
 // ============================================================================
 //  POST /api/contracts/sign-request   body: { deal_id, recipient? }
@@ -168,6 +169,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const copies = await sendContractSentCopies(admin, {
+    id: contract.id,
+    agent_id: deal.agent_id,
+    contract_text: contractText,
+    customer_name: customer?.name ?? "kunde",
+    customer_email: recipient,
+  });
+
   // 3) Marker som sendt.
   await admin
     .from("contracts")
@@ -179,5 +188,11 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", contract.id);
 
-  return NextResponse.json({ ok: true, recipient, sign_url: signUrl });
+  return NextResponse.json({
+    ok: true,
+    recipient,
+    sign_url: signUrl,
+    copies_sent: copies.sent,
+    copies_failed: copies.failed,
+  });
 }

@@ -109,6 +109,7 @@ export default function SaleWizard({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingContractDealId, setPendingContractDealId] = useState<string | null>(null);
 
   function changeStep(nextStep: number) {
     setStep(nextStep);
@@ -219,6 +220,26 @@ export default function SaleWizard({
     setSaving(true);
     setError(null);
 
+    // Hvis salget allerede er lagret, prøver vi bare kontraktsutsendelsen på
+    // nytt. Det hindrer at et dobbeltklikk etter en e-postfeil lager et nytt salg.
+    if (pendingContractDealId) {
+      const res = await fetch("/api/contracts/sign-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_id: pendingContractDealId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      savingRef.current = false;
+      setSaving(false);
+      if (!res.ok) {
+        setError(json.error ?? "Salget er lagret, men kontrakten kunne ikke sendes.");
+        return;
+      }
+      router.push(`/customers/${customerId}`);
+      router.refresh();
+      return;
+    }
+
     // 1) Opprett tilbudet (deal) – markert som «tilbud sendt».
     const { data: deal, error: dealErr } = await supabase
       .from("deals")
@@ -261,12 +282,26 @@ export default function SaleWizard({
     }));
     const { error: itemsErr } = await supabase.from("deal_items").insert(items);
 
-    savingRef.current = false;
-    setSaving(false);
     if (itemsErr) {
+      savingRef.current = false;
+      setSaving(false);
       setError(
         "Tilbudet ble laget, men produktlinjene feilet: " + itemsErr.message,
       );
+      return;
+    }
+
+    setPendingContractDealId(deal.id);
+    const sendRes = await fetch("/api/contracts/sign-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deal_id: deal.id }),
+    });
+    const sendJson = await sendRes.json().catch(() => ({}));
+    if (!sendRes.ok) {
+      savingRef.current = false;
+      setSaving(false);
+      setError(sendJson.error ?? "Salget er lagret, men kontrakten kunne ikke sendes.");
       return;
     }
 
