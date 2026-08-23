@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as {
     action?: "inspect" | "accept";
     token?: string;
-    password?: string;
     full_name?: string;
   } | null;
   if (!body?.token || body.token.length > 256 || !["inspect", "accept"].includes(body.action ?? "")) {
@@ -64,18 +63,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Skriv inn fullt navn." }, { status: 400 });
   }
 
-  const password = body.password ?? "";
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Passordet må være minst åtte tegn." }, { status: 400 });
-  }
-
   if (invitation.auth_user_id) {
     const { data: knownUser } = await admin.auth.admin.getUserById(invitation.auth_user_id);
     if (!knownUser.user || knownUser.user.email?.toLowerCase() !== invitation.email) {
       return NextResponse.json({ error: "Invitasjonen kunne ikke aktiveres. Kontakt lederen din." }, { status: 409 });
     }
     const { error: updateError } = await admin.auth.admin.updateUserById(invitation.auth_user_id, {
-      password,
       email_confirm: true,
       user_metadata: { full_name: fullName },
       app_metadata: { role: invitation.role },
@@ -86,7 +79,6 @@ export async function POST(req: NextRequest) {
   } else {
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email: invitation.email,
-      password,
       email_confirm: true,
       user_metadata: { full_name: fullName },
       app_metadata: { role: invitation.role },
