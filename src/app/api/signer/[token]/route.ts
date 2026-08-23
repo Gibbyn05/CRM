@@ -19,6 +19,22 @@ function clientIp(req: NextRequest): string | null {
   return req.headers.get("x-real-ip");
 }
 
+async function markDealAccepted(
+  admin: ReturnType<typeof createAdminClient>,
+  dealId: string | null,
+  acceptedAt: string | null,
+) {
+  if (!dealId) return;
+  const { error } = await admin
+    .from("deals")
+    .update({
+      stage: "akseptert",
+      offer_accepted_at: acceptedAt ?? new Date().toISOString(),
+    })
+    .eq("id", dealId);
+  if (error) console.error("Kunne ikke oppdatere salg til akseptert:", error.message);
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { token: string } },
@@ -66,7 +82,7 @@ export async function POST(
   const admin = createAdminClient();
   const { data: contract } = await admin
     .from("contracts")
-    .select("id, status, signed_at, signer_name, signer_email, signer_phone, opened_at, agent_id, contract_text, sign_token, customer:customers(name)")
+    .select("id, deal_id, status, signed_at, signer_name, signer_email, signer_phone, opened_at, agent_id, contract_text, sign_token, customer:customers(name)")
     .eq("sign_token", params.token)
     .maybeSingle();
 
@@ -74,6 +90,9 @@ export async function POST(
     return NextResponse.json({ error: "Fant ikke avtalen." }, { status: 404 });
   }
   if (contract.status === "signed") {
+    // Retter opp gamle signeringer der kontrakten ble lagret, men salgsstatusen
+    // ikke rakk å oppdatere før klienten prøvde igjen.
+    await markDealAccepted(admin, contract.deal_id, contract.signed_at);
     return NextResponse.json({
       ok: true,
       already: true,
@@ -108,6 +127,8 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  await markDealAccepted(admin, contract.deal_id, signedContract.signed_at);
 
   const customer = (Array.isArray(contract.customer)
     ? contract.customer[0]
