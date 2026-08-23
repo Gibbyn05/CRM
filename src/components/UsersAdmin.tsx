@@ -110,7 +110,7 @@ export default function UsersAdmin({
               className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
               <Icon name="plus" size={16} />
-              Inviter bruker
+              Legg til medlem
             </button>
           </div>
 
@@ -513,7 +513,6 @@ function InviteUserModal({
   onCreated: () => void;
 }) {
   const [form, setForm] = useState({
-    full_name: "",
     email: "",
     role: "agent" as UserRole,
   });
@@ -551,35 +550,30 @@ function InviteUserModal({
         className="animate-panel-in w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-lg font-bold text-slate-900">Inviter bruker</h2>
-        <p className="mb-4 text-sm text-slate-500">Brukeren får en engangslenke på e-post og velger passord selv.</p>
+        <h2 className="mb-1 text-lg font-bold text-slate-900">Legg til medlem</h2>
+        <p className="mb-4 text-sm text-slate-500">Velg rolle og e-post. Medlemmet fyller selv inn navn og profilbilde når kontoen aktiveres.</p>
         <div className="space-y-3">
           <input
             autoFocus
-            value={form.full_name}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, full_name: e.target.value }))
-            }
-            placeholder="Fullt navn"
-            className={inputCls}
-          />
-          <input
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             placeholder="E-post"
             className={inputCls}
           />
-          <select
-            value={form.role}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, role: e.target.value as UserRole }))
-            }
-            className={inputCls}
-          >
-            <option value="agent">Selger</option>
-            <option value="manager">Leder</option>
-          </select>
+          <label className="block text-sm font-medium text-slate-600">
+            Rolle
+            <select
+              value={form.role}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, role: e.target.value as UserRole }))
+              }
+              className={`mt-1 ${inputCls}`}
+            >
+              <option value="agent">Selger</option>
+              <option value="manager">Leder</option>
+            </select>
+          </label>
           <p className="text-xs text-slate-400">Invitasjonen er gyldig i 72 timer og kan bare brukes én gang.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>

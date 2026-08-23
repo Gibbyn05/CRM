@@ -9,6 +9,7 @@ import {
   invitationExpiresAt,
   normalizeInviteInput,
 } from "@/lib/user-invitations";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Kunne ikke opprette invitasjonen." }, { status: 500 });
   }
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin).replace(/\/$/, "");
+  const appUrl = getPublicAppUrl(req.nextUrl.origin);
   const mail = invitationEmail({
     fullName: input.fullName,
     inviterName: manager.full_name || "En leder",

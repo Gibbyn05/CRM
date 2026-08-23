@@ -12,6 +12,7 @@ function AcceptInviteForm() {
   const router = useRouter();
   const token = params.get("token") ?? "";
   const [info, setInfo] = useState<InviteInfo | null>(null);
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,20 +44,21 @@ function AcceptInviteForm() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (fullName.trim().length < 2) return setError("Skriv inn fullt navn.");
     if (password.length < 8) return setError("Passordet må være minst åtte tegn.");
     if (password !== confirmPassword) return setError("Passordene er ikke like.");
     setSaving(true);
     try {
       const response = await fetch("/api/auth/invitations", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "accept", token, password }),
+        body: JSON.stringify({ action: "accept", token, password, full_name: fullName.trim() }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Kontoen kunne ikke aktiveres.");
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: result.email, password });
       if (signInError) throw new Error("Kontoen er aktivert. Gå til innlogging og bruk det nye passordet.");
-      router.replace("/dashboard");
+      router.replace("/profile?setup=1");
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Ukjent feil.");
@@ -74,8 +76,10 @@ function AcceptInviteForm() {
         ) : info ? (
           <form onSubmit={submit}>
             <h1 className="text-2xl font-bold text-slate-900">Aktiver kontoen din</h1>
-            <p className="mt-2 text-slate-600">Hei {info.full_name}. Du er invitert som {info.role === "manager" ? "leder" : "selger"}.</p>
+            <p className="mt-2 text-slate-600">Du er invitert som {info.role === "manager" ? "leder" : "selger"}. Start med å sette opp profilen din.</p>
             <p className="mt-1 text-sm text-slate-500">{info.email}</p>
+            <label className="mt-7 block text-sm font-semibold text-slate-700" htmlFor="full-name">Fullt navn</label>
+            <input id="full-name" autoComplete="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" />
             <label className="mt-7 block text-sm font-semibold text-slate-700" htmlFor="password">Nytt passord</label>
             <input id="password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" />
             <label className="mt-4 block text-sm font-semibold text-slate-700" htmlFor="confirm-password">Bekreft passord</label>

@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 
-// Rediger egen profil: navn, telefon og profilbilde. Profilbilde lastes opp til
+// Rediger egen profil: navn og profilbilde. Profilbilde lastes opp til
 // Supabase Storage (bucket "avatars") og lagres som public URL på profilen.
-export default function ProfileForm({ profile }: { profile: Profile }) {
+export default function ProfileForm({ profile, showSetupNotice = false }: { profile: Profile; showSetupNotice?: boolean }) {
   const supabase = createClient();
   const router = useRouter();
   const [fullName, setFullName] = useState(profile.full_name ?? "");
-  const [phone, setPhone] = useState(profile.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,7 +56,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       .from("profiles")
       .update({
         full_name: fullName.trim(),
-        phone: phone.trim() || null,
         avatar_url: avatarUrl.trim() || null,
       })
       .eq("id", profile.id);
@@ -73,6 +71,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
 
   return (
     <div className="card max-w-lg space-y-5 p-6">
+      {showSetupNotice && <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">Kontoen er aktivert. Last opp et profilbilde slik at teamet kjenner deg igjen.</p>}
       {/* Profilbilde */}
       <div className="flex items-center gap-4">
         <Avatar name={fullName || profile.email} url={avatarUrl} size={72} />
@@ -96,15 +95,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         <input
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </Field>
-
-      {/* Telefon */}
-      <Field label="Telefon">
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
       </Field>

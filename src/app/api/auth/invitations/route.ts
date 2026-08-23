@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     action?: "inspect" | "accept";
     token?: string;
     password?: string;
+    full_name?: string;
   } | null;
   if (!body?.token || body.token.length > 256 || !["inspect", "accept"].includes(body.action ?? "")) {
     return NextResponse.json({ error: invalidMessage }, { status: 400 });
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const fullName = body.full_name?.trim() ?? "";
+  if (fullName.length < 2 || fullName.length > 120) {
+    return NextResponse.json({ error: "Skriv inn fullt navn." }, { status: 400 });
+  }
+
   const password = body.password ?? "";
   if (password.length < 8) {
     return NextResponse.json({ error: "Passordet må være minst åtte tegn." }, { status: 400 });
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await admin.auth.admin.updateUserById(invitation.auth_user_id, {
       password,
       email_confirm: true,
-      user_metadata: { full_name: invitation.full_name },
+      user_metadata: { full_name: fullName },
       app_metadata: { role: invitation.role },
     });
     if (updateError) {
@@ -82,7 +88,7 @@ export async function POST(req: NextRequest) {
       email: invitation.email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: invitation.full_name },
+      user_metadata: { full_name: fullName },
       app_metadata: { role: invitation.role },
     });
     if (createError || !created.user) {
@@ -93,12 +99,22 @@ export async function POST(req: NextRequest) {
       );
     }
     invitation.auth_user_id = created.user.id;
+    // Knytt Auth-brukeren til invitasjonen før profilen settes opp. Da kan
+    // samme lenke trygt prøves igjen hvis et senere steg feiler.
+    const { error: linkError } = await admin
+      .from("user_invitations")
+      .update({ auth_user_id: created.user.id })
+      .eq("id", invitation.id)
+      .eq("status", "pending");
+    if (linkError) {
+      return NextResponse.json({ error: "Kontoen ble opprettet, men kunne ikke kobles til invitasjonen. Kontakt lederen din." }, { status: 500 });
+    }
   }
 
   const { error: profileError } = await admin.from("profiles").upsert({
     id: invitation.auth_user_id,
     email: invitation.email,
-    full_name: invitation.full_name,
+    full_name: fullName,
     role: invitation.role,
     is_active: true,
   }, { onConflict: "id" });
@@ -108,6 +124,7 @@ export async function POST(req: NextRequest) {
 
   const { data: accepted, error: acceptError } = await admin.from("user_invitations").update({
     auth_user_id: invitation.auth_user_id,
+    full_name: fullName,
     status: "accepted",
     accepted_at: new Date().toISOString(),
     email_error: null,

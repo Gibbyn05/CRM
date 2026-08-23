@@ -6,7 +6,11 @@ import ProfileTabs from "@/components/ProfileTabs";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: { setup?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
@@ -29,7 +33,7 @@ export default async function ProfilePage() {
       </div>
       <ProfileTabs />
       {profile ? (
-        <ProfileForm profile={profile} />
+        <ProfileForm profile={profile} showSetupNotice={searchParams.setup === "1"} />
       ) : (
         <p className="text-slate-500">Fant ikke profilen din.</p>
       )}

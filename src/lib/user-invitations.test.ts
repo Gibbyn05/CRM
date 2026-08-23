@@ -5,6 +5,7 @@ import {
   invitationExpiresAt,
   isInvitationExpired,
   normalizeInviteInput,
+  PENDING_PROFILE_NAME,
 } from "./user-invitations";
 
 describe("user invitations", () => {
@@ -29,8 +30,11 @@ describe("user invitations", () => {
     expect(normalizeInviteInput({ full_name: "Kari", email: "kari@example.no", role: "owner" }).role).toBe("agent");
   });
 
-  it("rejects missing names and malformed email addresses", () => {
-    expect(() => normalizeInviteInput({ full_name: "", email: "kari@example.no" })).toThrow("Navn");
+  it("lets the invited person supply their own name during activation", () => {
+    expect(normalizeInviteInput({ email: "kari@example.no" }).fullName).toBe(PENDING_PROFILE_NAME);
+  });
+
+  it("rejects malformed email addresses", () => {
     expect(() => normalizeInviteInput({ full_name: "Kari", email: "ikke-en-epost" })).toThrow("Ugyldig");
   });
 });

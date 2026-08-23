@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { sendEmail } from "@/lib/email";
 import { createInvitationToken, invitationEmail, invitationExpiresAt } from "@/lib/user-invitations";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }).eq("id", params.id).in("status", ["pending", "expired"]);
   if (rotateError) return NextResponse.json({ error: "Kunne ikke fornye invitasjonen." }, { status: 500 });
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin).replace(/\/$/, "");
+  const appUrl = getPublicAppUrl(req.nextUrl.origin);
   const mail = invitationEmail({
     fullName: invitation.full_name,
     inviterName: manager.full_name || "En leder",
