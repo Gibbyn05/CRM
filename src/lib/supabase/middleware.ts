@@ -66,6 +66,20 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
+    // En deaktivert konto kan ha et kortvarig, allerede utstedt tilgangstoken.
+    // Blokker API-kall også i det vinduet, i tillegg til at dashboard-layouten
+    // viser deaktiveringsskjermen for vanlige sider.
+    if (user && !isPublic && path.startsWith("/api/")) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!profile?.is_active) {
+        return NextResponse.json({ error: "Kontoen er deaktivert." }, { status: 403 });
+      }
+    }
+
     return supabaseResponse;
   } catch (err) {
     // Transient feil (nettverk/konfig) skal ikke ta ned hele siden.

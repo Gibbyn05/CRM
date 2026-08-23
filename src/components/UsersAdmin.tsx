@@ -28,7 +28,6 @@ export default function UsersAdmin({
   initialPermissions: RolePermission[];
   initialInvitations: UserInvitation[];
 }) {
-  const supabase = createClient();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("brukere");
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
@@ -63,30 +62,46 @@ export default function UsersAdmin({
   }
 
   async function setRole(p: Profile, role: UserRole) {
-    setBusyId(p.id);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role })
-      .eq("id", p.id);
-    setBusyId(null);
-    if (!error) {
-      setProfiles((list) =>
-        list.map((x) => (x.id === p.id ? { ...x, role } : x)),
-      );
-    }
+    await memberAction(p, { action: "set-role", role });
   }
 
   async function setActive(p: Profile, is_active: boolean) {
+    const label = is_active ? "aktivere" : "deaktivere";
+    if (!window.confirm(`Vil du ${label} ${p.full_name || p.email}?`)) return;
+    await memberAction(p, { action: "set-active", is_active });
+  }
+
+  async function removeMember(p: Profile) {
+    const confirmed = window.confirm(
+      `Fjern ${p.full_name || p.email} permanent? Dette sletter kontoen og personlige arbeidsdata. Salg og kunder beholdes, men mister koblingen til brukeren.`,
+    );
+    if (!confirmed) return;
+    await memberAction(p, { action: "remove" });
+  }
+
+  async function memberAction(
+    p: Profile,
+    body: { action: "set-active"; is_active: boolean } | { action: "set-role"; role: UserRole } | { action: "remove" },
+  ) {
     setBusyId(p.id);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_active })
-      .eq("id", p.id);
-    setBusyId(null);
-    if (!error) {
-      setProfiles((list) =>
-        list.map((x) => (x.id === p.id ? { ...x, is_active } : x)),
-      );
+    try {
+      const response = await fetch(`/api/users/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Kunne ikke oppdatere brukeren.");
+      if (body.action === "remove") {
+        setProfiles((list) => list.filter((profile) => profile.id !== p.id));
+      } else {
+        setProfiles((list) => list.map((profile) => profile.id === p.id ? result.profile : profile));
+      }
+      router.refresh();
+    } catch (caught) {
+      window.alert(caught instanceof Error ? caught.message : "Ukjent feil.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -214,6 +229,15 @@ export default function UsersAdmin({
                       Aktiver
                     </button>
                   )}
+
+                  <button
+                    onClick={() => removeMember(p)}
+                    disabled={isSelf || busyId === p.id}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
+                    title={isSelf ? "Du kan ikke fjerne deg selv" : "Fjerner konto og personlige arbeidsdata permanent"}
+                  >
+                    Fjern
+                  </button>
                 </div>
               );
             })}
