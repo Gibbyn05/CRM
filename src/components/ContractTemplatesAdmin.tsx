@@ -203,7 +203,7 @@ export default function ContractTemplatesAdmin({
           <p className="label-eyebrow text-[#8c785b]">Organisasjonens dokumentmotor</p>
           <h2 className="mt-2 font-serif text-3xl font-bold text-[#251e16]">Kontraktsmaler</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#776b5c]">
-            Originalen lagres privat. Reachr bruker malteksten som juridisk ramme og fyller bare inn dokumenterte CRM-opplysninger.
+            Originalen lagres privat. Media Norge CRM bruker malteksten som juridisk ramme og fyller bare inn dokumenterte CRM-opplysninger.
           </p>
         </div>
         <div className="flex items-center gap-8 border-t border-[#ded2bf] px-8 py-6 lg:border-l lg:border-t-0">
@@ -279,7 +279,7 @@ export default function ContractTemplatesAdmin({
             <div className="mb-3">
               <h4 className="text-sm font-bold text-[#3c3023]">Dynamiske kontraktsfelt</h4>
               <p className="mt-1 text-xs leading-5 text-[#776b5c]">
-                Plasser markøren i kontrakten og velg et felt. Reachr erstatter feltet med faktiske CRM-data før AI-en ferdigstiller dokumentet.
+                Plasser markøren i kontrakten og velg et felt. Media Norge CRM erstatter feltet med faktiske CRM-data før AI-en ferdigstiller dokumentet.
               </p>
             </div>
             <div className="space-y-3">

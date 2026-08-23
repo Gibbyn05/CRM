@@ -31,11 +31,11 @@ const CUSTOMER_DETAILS: Array<{
   { match: /customer notes across tab/i, title: "Notater forsvinner ikke ved fanebytte", description: "Aktivitetsloggen henter nå alltid den nyeste versjonen fra databasen når fanen åpnes, og bekrefter lagring før skrivefeltet tømmes.", impact: "Notater blir liggende på kunden og er tilgjengelige igjen med én gang, også etter at du har byttet fane." },
   { match: /customer journey to managers/i, title: "Kundereise er begrenset til ledere", description: "Kundereise og tilhørende menyvalg vises nå bare for lederprofiler.", impact: "Selgere får en enklere meny, mens ledere beholder verktøyene de trenger for å administrere kundereisen." },
   { match: /manager tabs from seller/i, title: "Lederfaner er skjult for selgere", description: "Menyinnstillingene filtrerer nå bort sider som bare ledere har tilgang til, i stedet for å vise utilgjengelige valg.", impact: "Hver bruker ser bare relevante sider for sin rolle, både i menyen og når menyen tilpasses." },
-  { match: /automate product update log/i, title: "Oppdateringsloggen oppdateres automatisk", description: "Denne siden henter nå de siste endringene direkte fra Reachr sin utviklingshistorikk og organiserer dem etter dato og produktområde.", impact: "Kunder kan følge utviklingen fortløpende uten at endringsloggen må oppdateres manuelt." },
-  { match: /product updates page/i, title: "Ny side for produktoppdateringer", description: "Det er opprettet en egen oversikt som samler de siste forbedringene i Reachr på ett sted.", impact: "Det blir enklere å se hva som er levert, når det ble levert og hvilken del av løsningen som er forbedret." },
+  { match: /automate product update log/i, title: "Oppdateringsloggen oppdateres automatisk", description: "Denne siden henter nå de siste endringene direkte fra Media Norge CRM sin utviklingshistorikk og organiserer dem etter dato og produktområde.", impact: "Kunder kan følge utviklingen fortløpende uten at endringsloggen må oppdateres manuelt." },
+  { match: /product updates page/i, title: "Ny side for produktoppdateringer", description: "Det er opprettet en egen oversikt som samler de siste forbedringene i Media Norge CRM på ett sted.", impact: "Det blir enklere å se hva som er levert, når det ble levert og hvilken del av løsningen som er forbedret." },
   { match: /realtime customer subscriptions/i, title: "Mer stabil live-oppdatering", description: "Live-abonnementene for kundedata og filer bruker nå en stabil tilkobling gjennom hele sidevisningen.", impact: "Endringer fra kollegaer dukker opp raskere og mer pålitelig uten at siden må lastes inn på nytt." },
-  { match: /live customer updates and lead reservations/i, title: "Live kundedata og tryggere leadfordeling", description: "Filer og kundeinformasjon synkroniseres mellom brukere, samtidig som Reachr reserverer et lead når en selger legger det til.", impact: "Kollegaer ser oppdateringer fortløpende, og risikoen for at to selgere tar samme lead blir redusert." },
-  { match: /contract template placeholders/i, title: "Dynamiske felter i kontraktsmaler", description: "Kontraktsmaler kan inneholde felter som kundenavn, organisasjonsnummer, produkt, pris og dato. Reachr fyller inn verdiene fra CRM-dataene.", impact: "Selgere bruker mindre tid på manuell utfylling og får mer konsistente kontrakter." },
+  { match: /live customer updates and lead reservations/i, title: "Live kundedata og tryggere leadfordeling", description: "Filer og kundeinformasjon synkroniseres mellom brukere, samtidig som Media Norge CRM reserverer et lead når en selger legger det til.", impact: "Kollegaer ser oppdateringer fortløpende, og risikoen for at to selgere tar samme lead blir redusert." },
+  { match: /contract template placeholders/i, title: "Dynamiske felter i kontraktsmaler", description: "Kontraktsmaler kan inneholde felter som kundenavn, organisasjonsnummer, produkt, pris og dato. Media Norge CRM fyller inn verdiene fra CRM-dataene.", impact: "Selgere bruker mindre tid på manuell utfylling og får mer konsistente kontrakter." },
   { match: /contract template workflow/i, title: "Ny arbeidsflyt for kontraktsmaler", description: "Organisasjonen kan administrere flere kontraktsmaler og bruke CRM-data til å lage et ferdig utkast for riktig kunde og produkt.", impact: "Veien fra vunnet salg til kontrollert kontrakt blir kortere og krever mindre dobbeltarbeid." },
   { match: /legacy contract document layout/i, title: "Kontrakter følger kjent dokumentoppsett", description: "Kontraktsvisningen er bygget om med tydelig kundeinformasjon, produktlinjer, priser, vilkår og signeringsområde.", impact: "Både selger og kunde får et mer gjenkjennelig og profesjonelt kontraktsdokument." },
   { match: /activity composer visible|reserve space for activity composer/i, title: "Skrivefeltet er alltid tilgjengelig", description: "Aktivitetsloggen reserverer nå fast plass til skrivefeltet nederst, uavhengig av hvor lang kundehistorikken er.", impact: "Du kan alltid skrive et nytt notat uten å lete etter feltet eller rulle til en bestemt posisjon." },
@@ -61,7 +61,7 @@ function classify(message: string): string {
   const explicit = message.match(/^release\(([^)]+)\):/i)?.[1];
   if (explicit) return explicit;
   const text = message.toLowerCase();
-  if (/reachr|lead|1881|phone|contact/.test(text)) return "Reachr";
+  if (/reachr|lead|1881|phone|contact/.test(text)) return "Media Norge CRM";
   if (/contract|sign|offer|agreement/.test(text)) return "Kontrakter";
   if (/customer|activity|file/.test(text)) return "Kunder";
   if (/dashboard|widget/.test(text)) return "Dashboard";
@@ -69,7 +69,7 @@ function classify(message: string): string {
   if (/fiken|invoice|payment|income|commission/.test(text)) return "Regnskap";
   if (/leaderboard|team analysis|seller/.test(text)) return "Team";
   if (/navigation|sidebar|page|layout|ui/.test(text)) return "Grensesnitt";
-  return "Reachr";
+  return "Media Norge CRM";
 }
 
 function cleanTitle(message: string): string {
@@ -113,7 +113,7 @@ async function getRecentUpdates(): Promise<ReleaseNote[]> {
         description: copy.description,
         impact: copy.impact,
         area,
-        author: item.commit.author?.name || "Reachr-teamet",
+        author: item.commit.author?.name || "Media Norge CRM-teamet",
         date: new Date(date),
       }];
     });
@@ -160,9 +160,9 @@ export default async function UpdatesPage() {
             <span className="h-2 w-2 animate-pulse rounded-full bg-[#09fe94]" />
             Automatisk produktjournal · siste 7 dager
           </p>
-          <h1 className="font-display text-5xl font-bold leading-[0.95] sm:text-7xl">Dette er nytt i Reachr</h1>
+          <h1 className="font-display text-5xl font-bold leading-[0.95] sm:text-7xl">Dette er nytt i Media Norge CRM</h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-[#d8d0c4] sm:text-lg">
-            Her kan dere følge hvordan Reachr utvikles fra uke til uke. Hvert punkt forklarer både hva vi har endret og hvilken praktisk verdi det gir dere.
+            Her kan dere følge hvordan Media Norge CRM utvikles fra uke til uke. Hvert punkt forklarer både hva vi har endret og hvilken praktisk verdi det gir dere.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
             <span className="rounded-full bg-[#09fe94] px-4 py-2 text-[#171717]">{updates.length} oppdateringer</span>

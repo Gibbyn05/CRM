@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
   let ai = false;
   try {
     contract = await generateOpenAIText({
-      instructions: `Du ferdigstiller en norsk B2B-kontrakt etter at alle eksplisitte {{plassholdere}} allerede er fylt deterministisk av Reachr. Bevar struktur, klausuler, nummerering, juridisk innhold og alle utfylte verdier. Du kan bare gjøre grammatisk nødvendige bøyninger og formatere produktlinjene lesbart. Ikke gjett, legg til fakta, endre priser eller fjern vilkår. Returner hele kontrakten som ren tekst uten markdown eller forklaring.`,
+      instructions: `Du ferdigstiller en norsk B2B-kontrakt etter at alle eksplisitte {{plassholdere}} allerede er fylt deterministisk av Media Norge CRM. Bevar struktur, klausuler, nummerering, juridisk innhold og alle utfylte verdier. Du kan bare gjøre grammatisk nødvendige bøyninger og formatere produktlinjene lesbart. Ikke gjett, legg til fakta, endre priser eller fjern vilkår. Returner hele kontrakten som ren tekst uten markdown eller forklaring.`,
       input: `UTFYLT MAL:\n${filled.text}\n\nKONTROLLDATA:\n${JSON.stringify({ placeholders: placeholderValues, products: lines }, null, 2)}`,
       maxOutputTokens: 6000,
       model: process.env.OPENAI_CONTRACT_MODEL ?? "gpt-5.6-luna",

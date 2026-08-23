@@ -544,7 +544,7 @@ export default function SaleWizard({
               <ul className="mt-2 grid list-inside list-disc gap-1 text-sm text-amber-800 sm:grid-cols-2">
                 {missingFields.map((field) => <li key={field.key}>{field.label}</li>)}
               </ul>
-              <p className="mt-2 text-xs text-amber-700">Reachr genererer ikke kontrakten før feltene er gyldige og nødvendige CRM-data finnes.</p>
+              <p className="mt-2 text-xs text-amber-700">Media Norge CRM genererer ikke kontrakten før feltene er gyldige og nødvendige CRM-data finnes.</p>
             </div>
           )}
 
@@ -575,7 +575,7 @@ export default function SaleWizard({
 
           {usedFields.length > 0 && (
             <details className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-              <summary className="cursor-pointer text-sm font-bold text-emerald-900">Se {usedFields.length} opplysninger Reachr fylte inn</summary>
+              <summary className="cursor-pointer text-sm font-bold text-emerald-900">Se {usedFields.length} opplysninger Media Norge CRM fylte inn</summary>
               <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                 {usedFields.map((field) => <div key={field.key}><dt className="font-semibold text-emerald-800">{field.label}</dt><dd className="truncate text-emerald-950">{String(field.value)}</dd></div>)}
               </dl>

@@ -19,7 +19,7 @@ export default function ReachrTabs({ isManager = false }: { isManager?: boolean 
       <div>
         <p className="label-eyebrow">Offentlige norske bedriftsdata</p>
         <h1 className="font-display text-4xl font-black tracking-[-0.04em] text-[#2b2118] md:text-5xl">
-          Reachr
+          Media Norge CRM
         </h1>
       </div>
       <div className="rounded-2xl border border-[#d8c9b0] bg-[#fffaf0]/75 p-1 shadow-sm">

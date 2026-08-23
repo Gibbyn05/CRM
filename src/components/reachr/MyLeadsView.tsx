@@ -87,7 +87,7 @@ export default function MyLeadsView() {
       <section className="rounded-[2rem] border border-[#d8c9b0] bg-[#fffaf0]/85 p-5">
         <p className="mb-3 text-sm text-[#6f5a43]">
           <span className="font-black text-[#2b2118]">Dagens ringeliste: {stats.untouched}/30 ubehandlede leads.</span>{" "}
-          Ubehandlede leads følger med til neste dag, og Reachr fyller bare opp resten til 30.
+          Ubehandlede leads følger med til neste dag, og Media Norge CRM fyller bare opp resten til 30.
         </p>
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <input

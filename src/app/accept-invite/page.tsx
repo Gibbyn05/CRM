@@ -70,7 +70,7 @@ function AcceptInviteForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f5efe2] p-5">
       <section className="w-full max-w-md rounded-3xl border border-[#dfd0b7] bg-[#fffaf0] p-8 shadow-xl">
-        <p className="mb-8 text-xl font-black tracking-tight text-slate-900">Reachr</p>
+        <p className="mb-8 text-xl font-black tracking-tight text-slate-900">Media Norge CRM</p>
         {loading ? <p className="text-slate-600">Kontrollerer invitasjonen …</p> : error && !info ? (
           <div><h1 className="text-2xl font-bold text-slate-900">Invitasjonen kan ikke brukes</h1><p className="mt-3 leading-6 text-slate-600">{error}</p><Link href="/login" className="mt-6 inline-block font-semibold text-emerald-700">Gå til innlogging</Link></div>
         ) : info ? (

@@ -25,8 +25,8 @@ function periodStart(period: Period): string | null {
   return null;
 }
 
-// Leder-oversikt: hvor mange leads hver selger har eksportert fra Reachr til
-// CRM (hver lagret Reachr-lead oppretter/kobler en kunde). Kun ledere.
+// Leder-oversikt: hvor mange leads hver selger har eksportert fra Media Norge CRM
+// til CRM (hver lagret lead oppretter eller kobler en kunde). Kun ledere.
 export default async function ReachrExportPage({
   searchParams,
 }: {
@@ -133,7 +133,7 @@ export default async function ReachrExportPage({
             Eksport per selger
           </h2>
           <p className="text-sm text-slate-500">
-            Hvor mange leads hver selger har lagt til i CRM fra Reachr – og hvor
+            Hvor mange leads hver selger har lagt til i CRM fra Media Norge CRM, og hvor
             mange de faktisk har ringt. «Ringt» måles på reelle samtaler i
             samtaleloggen, ikke selgerens egen status.
           </p>

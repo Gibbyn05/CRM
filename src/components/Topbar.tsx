@@ -171,7 +171,7 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
                 </span>
                 <span>
                   <span className="block text-sm font-bold text-[#2b2118]">Oppdateringer</span>
-                  <span className="block text-xs text-[#8d806e]">Se hva som er nytt i Reachr</span>
+                  <span className="block text-xs text-[#8d806e]">Se hva som er nytt i Media Norge CRM</span>
                 </span>
               </button>
             )}

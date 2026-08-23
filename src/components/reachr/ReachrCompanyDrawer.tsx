@@ -286,7 +286,7 @@ export default function ReachrCompanyDrawer({
                 <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
                   <p className="text-sm font-black text-amber-900">Ingen kontakt besto kvalitetssjekken</p>
                   <p className="mt-2 text-xs leading-relaxed text-amber-800">
-                    Reachr fant kandidater, men kobler ikke nummeret til bedriften før navn, rolle og bedriftstilknytning er verifisert.
+                    Media Norge CRM fant kandidater, men kobler ikke nummeret til bedriften før navn, rolle og bedriftstilknytning er verifisert.
                   </p>
                 </div>
               )}
