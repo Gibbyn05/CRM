@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type InviteInfo = { full_name: string; email: string; role: "agent" | "manager"; expires_at: string };
+const OTP_LENGTH = 8;
 
 function AcceptInviteForm() {
   const params = useSearchParams();
@@ -101,9 +102,9 @@ function AcceptInviteForm() {
               <h1 className="text-2xl font-bold text-slate-900">Skriv inn koden</h1>
               <p className="mt-2 text-slate-600">Vi har sendt en engangskode til {info.email}.</p>
               <label className="mt-7 block text-sm font-semibold text-slate-700" htmlFor="code">Engangskode</label>
-              <input id="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center text-xl tracking-[0.35em] outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" placeholder="000000" />
+              <input id="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={OTP_LENGTH} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center text-xl tracking-[0.35em] outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" placeholder="00000000" />
               {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-              <button disabled={saving || code.length !== 6} className="mt-6 w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{saving ? "Kontrollerer …" : "Logg inn"}</button>
+              <button disabled={saving || code.length !== OTP_LENGTH} className="mt-6 w-full rounded-xl bg-emerald-700 px-4 py-3 font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{saving ? "Kontrollerer …" : "Logg inn"}</button>
             </form>
           ) : (
             <form onSubmit={submit}>

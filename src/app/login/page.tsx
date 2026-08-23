@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Step = "email" | "code";
+const OTP_LENGTH = 8;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -89,10 +90,10 @@ export default function LoginPage() {
             <p className="text-sm leading-6 text-slate-600">Vi har sendt en engangskode til <strong>{email}</strong>.</p>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="code">Engangskode</label>
-              <input id="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-center text-xl tracking-[0.35em] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100" placeholder="000000" />
+              <input id="code" inputMode="numeric" autoComplete="one-time-code" required maxLength={OTP_LENGTH} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-center text-xl tracking-[0.35em] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100" placeholder="00000000" />
             </div>
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-            <button type="submit" disabled={loading || code.length !== 6} className="w-full rounded-lg bg-brand-600 py-2.5 font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50">
+            <button type="submit" disabled={loading || code.length !== OTP_LENGTH} className="w-full rounded-lg bg-brand-600 py-2.5 font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50">
               {loading ? "Kontrollerer kode …" : "Logg inn"}
             </button>
             <button type="button" onClick={() => { setStep("email"); setCode(""); setError(null); }} className="w-full py-1 text-sm font-medium text-brand-700 hover:text-brand-800">
