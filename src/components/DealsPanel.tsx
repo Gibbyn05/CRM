@@ -41,13 +41,13 @@ export default function DealsPanel({
     }
     return status;
   }, [contracts]);
-  // … med lokal overstyring når man nettopp sendte til signering.
+  // … med lokal overstyring når man nettopp har sendt kontrakten.
   const [sentOverride, setSentOverride] = useState<Record<string, ContractStatus>>(
     {},
   );
   const contractStatus = { ...initialStatus, ...sentOverride };
 
-  async function sendToSigning(deal: Deal) {
+  async function sendContract(deal: Deal) {
     setSigningId(deal.id);
     setMsg(null);
     try {
@@ -58,13 +58,13 @@ export default function DealsPanel({
       });
       const json = await res.json();
       if (!res.ok) {
-        setMsg(json.error ?? "Kunne ikke sende til signering.");
+        setMsg(json.error ?? "Kunne ikke sende kontrakten.");
       } else {
-        setMsg(`Avtale sendt til signering på ${json.recipient}.`);
+        setMsg(`Kontrakt sendt til ${json.recipient} for signering.`);
         setSentOverride((s) => ({ ...s, [deal.id]: "sent" }));
       }
     } catch {
-      setMsg("Kunne ikke sende til signering.");
+      setMsg("Kunne ikke sende kontrakten.");
     } finally {
       setSigningId(null);
     }
@@ -147,11 +147,11 @@ export default function DealsPanel({
                   {formatCurrency(d.amount, d.currency)}
                 </span>
                 <button
-                  onClick={() => sendToSigning(d)}
+                  onClick={() => sendContract(d)}
                   disabled={signingId === d.id}
                   className="whitespace-nowrap rounded-lg border border-brand-300 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
                 >
-                  {signingId === d.id ? "Sender …" : "Send til signering"}
+                  {signingId === d.id ? "Sender …" : "Send kontrakt"}
                 </button>
                 <button
                   onClick={() => sendInvoice(d)}
