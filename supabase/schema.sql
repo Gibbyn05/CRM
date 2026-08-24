@@ -83,12 +83,14 @@ create table public.profiles (
   extension    text unique,
   avatar_url   text,
   is_active    boolean not null default true,
+  is_system_admin boolean not null default false,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
 
 comment on table public.profiles is 'Ansatte (selgere/salgssjefer). 1:1 med auth.users.';
 comment on column public.profiles.extension is 'Softphone extension / Bria-id for kobling av telefoni-hendelser.';
+comment on column public.profiles.is_system_admin is 'Låst systemadministrator. Rollen kan ikke endres, deaktiveres eller slettes gjennom CRM-et.';
 
 -- ---------------------------------------------------------------------------
 --  AGENT_STATES  (live-status, egen tabell for lette realtime-oppdateringer)

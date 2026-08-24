@@ -53,6 +53,7 @@ export interface Profile {
   extension: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  is_system_admin: boolean;
   sale_song_url: string | null;
   sale_song_start_seconds: number;
   sale_song_duration_seconds: number | null;

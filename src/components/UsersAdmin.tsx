@@ -158,6 +158,7 @@ export default function UsersAdmin({
           <div className="card divide-y divide-slate-100 p-0">
             {profiles.map((p) => {
               const isSelf = p.id === currentUserId;
+              const canManageMember = !isSelf && !p.is_system_admin;
               return (
                 <div
                   key={p.id}
@@ -181,6 +182,11 @@ export default function UsersAdmin({
                           Deg
                         </span>
                       )}
+                      {p.is_system_admin && (
+                        <span className="rounded bg-violet-50 px-1.5 py-0.5 text-3xs font-medium text-violet-700">
+                          Systemadministrator
+                        </span>
+                      )}
                     </p>
                     <p className="truncate text-sm text-slate-400">{p.email}</p>
                   </div>
@@ -188,10 +194,10 @@ export default function UsersAdmin({
                   {/* Rolle */}
                   <select
                     value={p.role}
-                    disabled={isSelf || busyId === p.id}
+                    disabled={!canManageMember || busyId === p.id}
                     onChange={(e) => setRole(p, e.target.value as UserRole)}
                     className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm disabled:opacity-50"
-                    title={isSelf ? "Du kan ikke endre din egen rolle" : undefined}
+                    title={p.is_system_admin ? "Systemadministratorens rolle er låst" : isSelf ? "Du kan ikke endre din egen rolle" : undefined}
                   >
                     <option value="agent">Selger</option>
                     <option value="manager">Leder</option>
@@ -200,12 +206,13 @@ export default function UsersAdmin({
                   {/* Salgssang (spilles på TV ved salg) */}
                   <button
                     onClick={() => setSongProfile(p)}
+                    disabled={p.is_system_admin && !isSelf}
                     className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
                       p.sale_song_url
                         ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
                         : "border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                    title="Salgssang som spilles på TV-visningen"
+                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                    title={p.is_system_admin && !isSelf ? "Denne systemadministratorkontoen kan ikke endres av en leder" : "Salgssang som spilles på TV-visningen"}
                   >
                     🎵 {p.sale_song_url ? "Endre sang" : "Sang"}
                   </button>
@@ -214,17 +221,18 @@ export default function UsersAdmin({
                   {p.is_active ? (
                     <button
                       onClick={() => setActive(p, false)}
-                      disabled={isSelf || busyId === p.id}
+                      disabled={!canManageMember || busyId === p.id}
                       className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
-                      title={isSelf ? "Du kan ikke deaktivere deg selv" : undefined}
+                      title={p.is_system_admin ? "Systemadministratorkontoen kan ikke deaktiveres" : isSelf ? "Du kan ikke deaktivere deg selv" : undefined}
                     >
                       Deaktiver
                     </button>
                   ) : (
                     <button
                       onClick={() => setActive(p, true)}
-                      disabled={busyId === p.id}
+                      disabled={!canManageMember || busyId === p.id}
                       className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
+                      title={p.is_system_admin ? "Systemadministratorkontoen kan ikke deaktiveres" : undefined}
                     >
                       Aktiver
                     </button>
@@ -232,9 +240,9 @@ export default function UsersAdmin({
 
                   <button
                     onClick={() => removeMember(p)}
-                    disabled={isSelf || busyId === p.id}
+                    disabled={!canManageMember || busyId === p.id}
                     className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
-                    title={isSelf ? "Du kan ikke fjerne deg selv" : "Fjerner konto og personlige arbeidsdata permanent"}
+                    title={p.is_system_admin ? "Systemadministratorkontoen kan ikke fjernes" : isSelf ? "Du kan ikke fjerne deg selv" : "Fjerner konto og personlige arbeidsdata permanent"}
                   >
                     Fjern
                   </button>

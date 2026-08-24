@@ -34,12 +34,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const admin = createAdminClient();
   const [{ data: actor }, { data: target }] = await Promise.all([
     admin.from("profiles").select("id, role, is_active").eq("id", user.id).maybeSingle(),
-    admin.from("profiles").select("id, role, is_active").eq("id", params.id).maybeSingle(),
+    admin.from("profiles").select("id, role, is_active, is_system_admin").eq("id", params.id).maybeSingle(),
   ]);
   if (actor?.role !== "manager" || actor.is_active === false) {
     return NextResponse.json({ error: "Kun aktive ledere kan administrere teamet." }, { status: 403 });
   }
   if (!target) return NextResponse.json({ error: "Brukeren ble ikke funnet." }, { status: 404 });
+  if (target.is_system_admin) {
+    return NextResponse.json({
+      error: "Denne systemadministratorkontoen er låst og kan ikke endres, deaktiveres eller fjernes.",
+    }, { status: 403 });
+  }
 
   const wouldRemoveActiveManager = target.role === "manager" && target.is_active && (
     body.action === "remove" ||
