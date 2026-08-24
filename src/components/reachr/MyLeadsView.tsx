@@ -6,6 +6,7 @@ import { REACHR_LEAD_STATUSES, formatMoney } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
 
 type LeadsResponse = { leads?: ReachrLead[]; error?: string };
+type LeadSaveResult = { customerKind: "potential" | "customer" | null };
 
 export default function MyLeadsView() {
   const [leads, setLeads] = useState<ReachrLead[]>([]);
@@ -34,16 +35,24 @@ export default function MyLeadsView() {
     }
   }
 
-  async function patchLead(id: string, patch: Partial<Pick<ReachrLead, "status" | "notes" | "email" | "phone" | "last_contacted_at">>) {
+  async function patchLead(
+    id: string,
+    patch: Partial<Pick<ReachrLead, "status" | "notes" | "email" | "phone" | "last_contacted_at">>,
+  ): Promise<LeadSaveResult> {
     const res = await fetch(`/api/reachr/leads/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    const data = (await res.json().catch(() => ({}))) as { lead?: ReachrLead; error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      lead?: ReachrLead;
+      customer?: { kind?: "potential" | "customer" } | null;
+      error?: string;
+    };
     if (!res.ok || !data.lead) throw new Error(data.error ?? "Kunne ikke oppdatere lead.");
     setLeads((current) => current.map((lead) => (lead.id === id ? data.lead! : lead)));
     setSelected((current) => (current?.id === id ? data.lead! : current));
+    return { customerKind: data.customer?.kind ?? null };
   }
 
   async function removeLead(id: string) {
@@ -189,7 +198,7 @@ function LeadPanel({
   onDelete,
 }: {
   lead: ReachrLead;
-  onPatch: (id: string, patch: Partial<Pick<ReachrLead, "status" | "notes" | "email" | "phone" | "last_contacted_at">>) => Promise<void>;
+  onPatch: (id: string, patch: Partial<Pick<ReachrLead, "status" | "notes" | "email" | "phone" | "last_contacted_at">>) => Promise<LeadSaveResult>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [notes, setNotes] = useState(lead.notes ?? "");
@@ -197,6 +206,8 @@ function LeadPanel({
   const [phone, setPhone] = useState(lead.phone ?? "");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     setNotes(lead.notes ?? "");
@@ -204,10 +215,25 @@ function LeadPanel({
     setPhone(lead.phone ?? "");
   }, [lead.id, lead.notes, lead.email, lead.phone]);
 
+  useEffect(() => {
+    setSaveMessage("");
+    setSaveError("");
+  }, [lead.id]);
+
   async function save() {
+    if (saving) return;
     setSaving(true);
+    setSaveMessage("");
+    setSaveError("");
     try {
-      await onPatch(lead.id, { notes, email: email || null, phone: phone || null });
+      const result = await onPatch(lead.id, { notes, email: email || null, phone: phone || null });
+      setSaveMessage(
+        result.customerKind === "potential"
+          ? "Lagt til under Potensielle kunder."
+          : "Info er lagret på kundekortet.",
+      );
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Kunne ikke lagre informasjonen.");
     } finally {
       setSaving(false);
     }
@@ -247,9 +273,11 @@ function LeadPanel({
       </div>
 
       <div className="mt-5 grid gap-2">
-        <button type="button" onClick={save} className="rounded-2xl bg-[#09fe94] px-5 py-3 text-sm font-black text-[#171717] hover:brightness-95">
+        <button type="button" onClick={save} disabled={saving} className="rounded-2xl bg-[#09fe94] px-5 py-3 text-sm font-black text-[#171717] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60">
           {saving ? "Lagrer ..." : "Lagre info"}
         </button>
+        {saveMessage && <p className="text-center text-sm font-bold text-emerald-700">{saveMessage}</p>}
+        {saveError && <p className="text-center text-sm font-bold text-red-700">{saveError}</p>}
         <button type="button" onClick={() => setDrawerOpen(true)} className="rounded-2xl border border-[#d8c9b0] bg-[#fff8ea] px-5 py-3 text-sm font-bold text-[#2b2118] hover:bg-[#efe1c7]">
           Åpne komplett firmakort
         </button>
