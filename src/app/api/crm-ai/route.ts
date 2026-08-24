@@ -7,6 +7,33 @@ import { generateOpenAIText, OPENAI_CRM_MODEL } from "@/lib/openai";
 export const dynamic = "force-dynamic";
 
 type Source = { label: string; href?: string };
+type CrmAiMessageRole = "user" | "assistant";
+
+const MESSAGE_FIELDS = "id, role, content, sources, period, created_at";
+
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Du må logge inn." }, { status: 401 });
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "manager") {
+    return NextResponse.json({ error: "Kun ledelsen har tilgang til Spør CRM." }, { status: 403 });
+  }
+
+  const { data, error } = await supabase
+    .from("crm_ai_messages")
+    .select(MESSAGE_FIELDS)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(250);
+  if (error) {
+    console.error("crm-ai history", error);
+    return NextResponse.json({ error: "Kunne ikke hente samtalehistorikken." }, { status: 500 });
+  }
+
+  return NextResponse.json({ messages: (data ?? []).reverse() });
+}
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -31,16 +58,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Skriv et spørsmål på mellom 3 og 600 tegn." }, { status: 400 });
   }
 
+  const { error: questionError } = await supabase.from("crm_ai_messages").insert({
+    user_id: user.id,
+    role: "user" satisfies CrmAiMessageRole,
+    content: question,
+  });
+  if (questionError) {
+    console.error("crm-ai save question", questionError);
+    return NextResponse.json({ error: "Kunne ikke lagre spørsmålet. Prøv igjen." }, { status: 500 });
+  }
+
   try {
     const parsed = await classifyCrmQuestion(question);
     const [start, end] = resolveQuestionRange(parsed);
     const range = formatRange(start, end);
 
     if (parsed.intent === "customer_history") {
-      return customerHistory(supabase, question, parsed.entity, range);
+      return customerHistory(supabase, user.id, question, parsed.entity, range);
     }
     if (parsed.intent === "pending_followups") {
-      return pendingFollowups(supabase, end.toISOString(), range);
+      return pendingFollowups(supabase, user.id, end.toISOString(), range);
     }
 
     const { data, error } = await supabase.rpc("get_team_analysis", {
@@ -54,10 +91,10 @@ export async function POST(request: NextRequest) {
       : team;
 
     if (parsed.intent === "seller_sales" && !parsed.entity) {
-      return answer("Hvilken selger vil du se salgstall for?", [], range);
+      return answer(supabase, user.id, "Hvilken selger vil du se salgstall for?", [], range);
     }
     if (parsed.intent === "seller_sales" && !selected.length) {
-      return answer(`Jeg fant ingen aktiv selger som matcher «${parsed.entity}».`, [], range);
+      return answer(supabase, user.id, `Jeg fant ingen aktiv selger som matcher «${parsed.entity}».`, [], range);
     }
 
     const revenue = selected.reduce((sum, row) => sum + Number(row.revenue_amount), 0);
@@ -66,13 +103,13 @@ export async function POST(request: NextRequest) {
     const sources: Source[] = [{ label: "Åpne teamanalyse", href: "/team-analysis" }];
 
     if (parsed.intent === "offers_sent") {
-      return answer(`${offers} tilbud ble sendt i perioden ${range}.`, sources, range);
+      return answer(supabase, user.id, `${offers} tilbud ble sendt i perioden ${range}.`, sources, range);
     }
     if (parsed.intent === "closing_rate") {
       const best = [...team]
         .filter((row) => Number(row.offers_count) > 0)
         .sort((a, b) => Number(b.conversion_rate) - Number(a.conversion_rate))[0];
-      return answer(
+      return answer(supabase, user.id,
         best
           ? `${best.full_name} har høyest closing rate i perioden: ${Number(best.conversion_rate).toFixed(1)} % (${best.signed_count} signert av ${best.offers_count} tilbud).`
           : `Det finnes ingen sendte tilbud i perioden ${range}.`,
@@ -81,12 +118,12 @@ export async function POST(request: NextRequest) {
       );
     }
     if (parsed.intent === "seller_sales") {
-      return answer(`${selected[0].full_name} har ${selected[0].signed_count} signerte salg med ${formatCurrency(Number(selected[0].revenue_amount))} i omsetning i perioden ${range}.`, sources, range);
+      return answer(supabase, user.id, `${selected[0].full_name} har ${selected[0].signed_count} signerte salg med ${formatCurrency(Number(selected[0].revenue_amount))} i omsetning i perioden ${range}.`, sources, range);
     }
     if (parsed.intent === "sales_total") {
-      return answer(`Teamet har ${signed} signerte salg med ${formatCurrency(revenue)} i omsetning i perioden ${range}.`, sources, range);
+      return answer(supabase, user.id, `Teamet har ${signed} signerte salg med ${formatCurrency(revenue)} i omsetning i perioden ${range}.`, sources, range);
     }
-    return answer(`I perioden ${range} har teamet sendt ${offers} tilbud, signert ${signed} salg og registrert ${formatCurrency(revenue)} i omsetning.`, sources, range);
+    return answer(supabase, user.id, `I perioden ${range} har teamet sendt ${offers} tilbud, signert ${signed} salg og registrert ${formatCurrency(revenue)} i omsetning.`, sources, range);
   } catch (error) {
     console.error("crm-ai", error);
     return NextResponse.json({ error: "Jeg klarte ikke å hente et sikkert svar akkurat nå. Prøv igjen." }, { status: 500 });
@@ -95,18 +132,19 @@ export async function POST(request: NextRequest) {
 
 async function customerHistory(
   supabase: ReturnType<typeof createClient>,
+  userId: string,
   question: string,
   entity: string | null,
   range: string,
 ) {
-  if (!entity) return answer("Hvilken kunde vil du vite mer om? Skriv kundenavnet i spørsmålet.", [], range);
+  if (!entity) return answer(supabase, userId, "Hvilken kunde vil du vite mer om? Skriv kundenavnet i spørsmålet.", [], range);
   const safeEntity = entity.replace(/[%,]/g, "");
   const { data: customers } = await supabase.from("customers")
     .select("id,name,contact_name,owner_id")
     .ilike("name", `%${safeEntity}%`).limit(5);
-  if (!customers?.length) return answer(`Jeg fant ingen kunde som matcher «${entity}».`, [], range);
+  if (!customers?.length) return answer(supabase, userId, `Jeg fant ingen kunde som matcher «${entity}».`, [], range);
   if (customers.length > 1) {
-    return answer(`Jeg fant flere mulige kunder: ${customers.map((item) => item.name).join(", ")}. Hvilken mener du?`, [], range);
+    return answer(supabase, userId, `Jeg fant flere mulige kunder: ${customers.map((item) => item.name).join(", ")}. Hvilken mener du?`, [], range);
   }
 
   const customer = customers[0];
@@ -132,11 +170,12 @@ async function customerHistory(
     maxOutputTokens: 520,
     model: OPENAI_CRM_MODEL,
   });
-  return answer(text || `Jeg fant historikk for ${customer.name}, men kunne ikke lage et sammendrag.`, [{ label: customer.name, href: `/customers/${customer.id}` }], range);
+  return answer(supabase, userId, text || `Jeg fant historikk for ${customer.name}, men kunne ikke lage et sammendrag.`, [{ label: customer.name, href: `/customers/${customer.id}` }], range);
 }
 
 async function pendingFollowups(
   supabase: ReturnType<typeof createClient>,
+  userId: string,
   endIso: string,
   range: string,
 ) {
@@ -150,7 +189,7 @@ async function pendingFollowups(
     const agent = row.profiles as unknown as { full_name?: string } | null;
     return `${customer?.name ?? "Uten kunde"}: ${row.title} (${agent?.full_name ?? "Uten ansvarlig"})`;
   });
-  return answer(`${rows.length} oppfølginger er fortsatt åpne, hvorav ${overdue} har passert fristen.${details.length ? `\n\nNærmest frist:\n• ${details.join("\n• ")}` : ""}`, [{ label: "Åpne påminnelser", href: "/reminders" }], range);
+  return answer(supabase, userId, `${rows.length} oppfølginger er fortsatt åpne, hvorav ${overdue} har passert fristen.${details.length ? `\n\nNærmest frist:\n• ${details.join("\n• ")}` : ""}`, [{ label: "Åpne påminnelser", href: "/reminders" }], range);
 }
 
 interface TeamRow {
@@ -162,7 +201,21 @@ interface TeamRow {
   conversion_rate: number;
 }
 
-function answer(text: string, sources: Source[], period: string) {
+async function answer(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  text: string,
+  sources: Source[],
+  period: string,
+) {
+  const { error } = await supabase.from("crm_ai_messages").insert({
+    user_id: userId,
+    role: "assistant" satisfies CrmAiMessageRole,
+    content: text,
+    sources,
+    period,
+  });
+  if (error) throw error;
   return NextResponse.json({ answer: text, sources, period });
 }
 

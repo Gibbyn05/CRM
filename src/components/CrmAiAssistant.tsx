@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 
@@ -8,6 +8,14 @@ type Message = {
   role: "user" | "assistant";
   text: string;
   sources?: Array<{ label: string; href?: string }>;
+  period?: string;
+};
+
+type StoredMessage = {
+  id: string;
+  role: Message["role"];
+  content: string;
+  sources?: Message["sources"];
   period?: string;
 };
 
@@ -22,7 +30,32 @@ export default function CrmAiAssistant() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/crm-ai", { cache: "no-store" });
+        const payload = await response.json() as { messages?: StoredMessage[]; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Kunne ikke hente samtalehistorikken.");
+        if (active) {
+          setMessages((payload.messages ?? []).map((message) => ({
+            role: message.role,
+            text: message.content,
+            sources: message.sources,
+            period: message.period,
+          })));
+        }
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : "Kunne ikke hente samtalehistorikken.");
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   async function ask(event?: FormEvent) {
     event?.preventDefault();
@@ -70,7 +103,8 @@ export default function CrmAiAssistant() {
         </div>
 
         <div className="thin-scroll flex-1 space-y-4 overflow-y-auto p-4 sm:p-7" aria-live="polite">
-          {!messages.length && (
+          {historyLoading && <p className="text-sm font-semibold text-[#6b6660]">Henter samtalehistorikk …</p>}
+          {!historyLoading && !messages.length && (
             <div className="flex h-full min-h-72 flex-col items-center justify-center text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#171717] text-[#09fe94]">
                 <Icon name="sparkles" size={25} />
@@ -121,7 +155,7 @@ export default function CrmAiAssistant() {
               placeholder="Spør om kunder, salg eller oppfølging …"
               className="min-h-12 flex-1 resize-none bg-transparent py-2 text-sm outline-none"
             />
-            <button type="submit" disabled={loading || !question.trim()} className="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-[#171717] text-[#09fe94] transition hover:scale-105 disabled:opacity-35" aria-label="Send spørsmål">
+            <button type="submit" disabled={historyLoading || loading || !question.trim()} className="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-[#171717] text-[#09fe94] transition hover:scale-105 disabled:opacity-35" aria-label="Send spørsmål">
               <Icon name="send" size={18} />
             </button>
           </div>

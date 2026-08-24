@@ -93,6 +93,24 @@ comment on column public.profiles.extension is 'Softphone extension / Bria-id fo
 comment on column public.profiles.is_system_admin is 'Låst systemadministrator. Rollen kan ikke endres, deaktiveres eller slettes gjennom CRM-et.';
 
 -- ---------------------------------------------------------------------------
+--  CRM AI-MELDINGER (privat historikk per leder)
+-- ---------------------------------------------------------------------------
+create table public.crm_ai_messages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null check (length(trim(content)) between 1 and 12000),
+  sources jsonb not null default '[]'::jsonb check (jsonb_typeof(sources) = 'array'),
+  period text,
+  created_at timestamptz not null default now()
+);
+
+create index crm_ai_messages_user_created_idx
+  on public.crm_ai_messages (user_id, created_at asc);
+
+comment on table public.crm_ai_messages is 'Privat og varig samtalehistorikk for Spør CRM. Hver bruker kan bare lese og skrive sin egen historikk.';
+
+-- ---------------------------------------------------------------------------
 --  AGENT_STATES  (live-status, egen tabell for lette realtime-oppdateringer)
 -- ---------------------------------------------------------------------------
 create table public.agent_states (
@@ -703,6 +721,7 @@ comment on function public.get_leaderboard is 'Aggregert ledertavle for et tidsr
 -- ============================================================================
 
 alter table public.profiles       enable row level security;
+alter table public.crm_ai_messages enable row level security;
 alter table public.agent_states   enable row level security;
 alter table public.customers      enable row level security;
 alter table public.call_logs      enable row level security;
@@ -727,6 +746,18 @@ create policy profiles_update_own on public.profiles
   for update to authenticated
   using (id = auth.uid() or public.is_manager())
   with check (id = auth.uid() or public.is_manager());
+
+create policy crm_ai_messages_select_own on public.crm_ai_messages
+  for select to authenticated
+  using ((select auth.uid()) = user_id and (select public.is_manager()));
+
+create policy crm_ai_messages_insert_own on public.crm_ai_messages
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id and (select public.is_manager()));
+
+create policy crm_ai_messages_delete_own on public.crm_ai_messages
+  for delete to authenticated
+  using ((select auth.uid()) = user_id and (select public.is_manager()));
 
 -- ---------------------------------------------------------------------------
 --  AGENT_STATES
