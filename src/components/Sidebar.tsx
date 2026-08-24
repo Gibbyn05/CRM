@@ -42,7 +42,7 @@ const NAV_GROUPS: { id: SidebarGroupId; title: string; items: NavItem[] }[] = [
     title: "Salg",
     items: [
       { href: "/customers", label: "Kunder", icon: "customers" },
-      { href: "/reachr", label: "Media Norge CRM", icon: "reachr" },
+      { href: "/reachr", label: "Reachr", icon: "reachr" },
       { href: "/salg", label: "Salg", icon: "receipt" },
       { href: "/pipeline", label: "Pipeline", icon: "pipeline" },
       {
