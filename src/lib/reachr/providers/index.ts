@@ -20,15 +20,24 @@ export const reachrProviders: ReachrProvider[] = [
 // bulk-berikelse i søkelista for fart og kostnad.
 const DEEP_PROVIDERS = new Set(["api1881", "proff", "website"]);
 
+type EnrichmentOptions = {
+  deep?: boolean;
+  // Brukes når CRM-et skal finne nummeret til daglig leder eller styreleder.
+  // Vi åpner kun Proff-kilden, ikke flere 1881-oppslag, fordi 1881-signalene
+  // allerede er verifisert i den daglige lead-jobben.
+  personLookup?: boolean;
+};
+
 export async function enrichCompanyFromProviders(
   orgNumber: string,
-  opts?: { deep?: boolean },
+  opts?: EnrichmentOptions,
 ): Promise<ReachrCompany | null> {
   let company: ReachrCompany | null = null;
   const sources: ReachrDataSource[] = [];
 
   for (const provider of reachrProviders) {
-    if (DEEP_PROVIDERS.has(provider.name) && !opts?.deep) continue;
+    const usePersonLookupProvider = opts?.personLookup && provider.name === "proff";
+    if (DEEP_PROVIDERS.has(provider.name) && !opts?.deep && !usePersonLookupProvider) continue;
     const result = await provider.enrichByOrgNumber(orgNumber, company);
     sources.push(result.source);
     if (!result.company) continue;

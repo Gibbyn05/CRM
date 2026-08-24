@@ -109,7 +109,12 @@ export async function GET(req: NextRequest) {
         .insert({ org_number: candidate.orgNumber, owner_id: agent.id });
       if (claimError) continue; // Alltid eksklusivt lead, aldri duplikat.
 
-      const company = await enrichCompanyFromProviders(candidate.orgNumber);
+      // Kandidaten er allerede kontrollert mot offentlig 1881-profil. Her
+      // henter vi bare eventuell verifisert daglig leder/styreleder fra Proff,
+      // med hovednummer som trygg reserve hvis en person ikke kan bekreftes.
+      const company = await enrichCompanyFromProviders(candidate.orgNumber, {
+        personLookup: true,
+      });
       if (!company) {
         failures++;
         await admin.from("reachr_lead_claims").delete().eq("org_number", candidate.orgNumber);

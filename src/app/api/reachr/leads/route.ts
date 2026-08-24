@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
   // Never trust verification metadata submitted by the browser. Re-run the
   // provider lookup and contact policy on the server before a person/number is
   // persisted or copied to customers.
-  const company = await enrichCompanyFromProviders(submittedCompany.org_number);
+  const company = await enrichCompanyFromProviders(submittedCompany.org_number, {
+    personLookup: true,
+  });
   if (!company) {
     await releaseClaim();
     return NextResponse.json(
