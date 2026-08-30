@@ -157,6 +157,8 @@
   text-transform: none;
 }
 
+.headlineLine { display: block; }
+
 .deck {
   max-width: 46rem;
   margin-top: .68rem;

@@ -146,6 +146,7 @@ export default function DagsavisModal({
 
   const editionDate = formatDate(data?.report_date ?? new Date().toISOString());
   const dailyVisual = dailyVisualIndex(data?.report_date);
+  const edition = editionContentForDate(data?.report_date);
 
   if (!open) return null;
 
@@ -180,8 +181,12 @@ export default function DagsavisModal({
             </button>
             <div className={styles.heroHeadline}>
               <p className={styles.subtitle}>{reportTitle}</p>
-              <h2 className={styles.headline}>Dagens innsats<br />er klar for deg.</h2>
-              <p className={styles.deck}>Samtaler, muligheter og salg samlet i én redaksjonell oversikt.</p>
+              <h2 className={styles.headline}>
+                {edition.headline.map((line) => (
+                  <span key={line} className={styles.headlineLine}>{line}</span>
+                ))}
+              </h2>
+              <p className={styles.deck}>{edition.deck}</p>
             </div>
 
             <div className={styles.controls}>
@@ -333,11 +338,8 @@ export default function DagsavisModal({
                     <section className={styles.heroStory}>
                       <div>
                         <p className={styles.cardTitle}>Kort status</p>
-                        <h3>Dagens salgsbilde</h3>
-                        <p>
-                          Aktivitet, nye muligheter, møter og salg samlet i en
-                          rask oversikt.
-                        </p>
+                        <h3>{edition.heroTitle}</h3>
+                        <p>{edition.heroText}</p>
                       </div>
                       <NewspaperIllustration variant="desk" dayVariant={dailyVisual} />
                     </section>
@@ -357,9 +359,9 @@ export default function DagsavisModal({
               <section className={`${styles.newspaperCard} ${styles.imageStory}`}>
                 <div>
                   <p className={styles.cardTitle}>Dagens bilde</p>
-                  <h3 className={styles.sideTitle}>Aktivitet ved pulten</h3>
+                  <h3 className={styles.sideTitle}>{edition.photoTitle}</h3>
                 </div>
-                <NewspaperIllustration variant="phone" dayVariant={(dailyVisual + 3) % 7} />
+                <NewspaperIllustration variant="phone" dayVariant={(dailyVisual + 3) % 11} />
               </section>
 
               {isManager && (
@@ -460,10 +462,18 @@ export default function DagsavisModal({
 }
 
 function dailyVisualIndex(dateISO?: string): number {
+  return editionDayIndex(dateISO) % 11;
+}
+
+function editionDayIndex(dateISO?: string): number {
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateISO ?? "")
     ? `${dateISO}T12:00:00Z`
     : new Date().toISOString();
-  return Math.floor(new Date(safeDate).getTime() / 86_400_000) % 7;
+  return Math.floor(new Date(safeDate).getTime() / 86_400_000);
+}
+
+function editionContentForDate(dateISO?: string) {
+  return EDITION_CONTENT[editionDayIndex(dateISO) % EDITION_CONTENT.length];
 }
 
 function NewspaperIllustration({
@@ -473,7 +483,7 @@ function NewspaperIllustration({
   variant: "desk" | "phone";
   dayVariant: number;
 }) {
-  const imageNumber = String((dayVariant % 7) + 1).padStart(2, "0");
+  const imageNumber = String((dayVariant % 11) + 1).padStart(2, "0");
   const subject = variant === "desk"
     ? "Salgsteam i fokusert arbeid"
     : "Selger i en aktiv kundesamtale";
@@ -492,6 +502,86 @@ function NewspaperIllustration({
     </figure>
   );
 }
+
+const EDITION_CONTENT = [
+  {
+    headline: ["Dagens innsats", "er klar for deg."],
+    deck: "Samtaler, muligheter og salg samlet i én redaksjonell oversikt.",
+    heroTitle: "Dagens salgsbilde",
+    heroText: "Aktivitet, nye muligheter, møter og salg samlet i en rask oversikt.",
+    photoTitle: "Fokus i kundearbeidet",
+  },
+  {
+    headline: ["Nye samtaler", "kan åpne døren."],
+    deck: "En god åpning og et tydelig neste steg kan endre hele dagen.",
+    heroTitle: "Samtalene setter tonen",
+    heroText: "Se hvordan kontakt, oppfølging og muligheter utvikler seg i dag.",
+    photoTitle: "Samtale med retning",
+  },
+  {
+    headline: ["Gode møter", "starter med én telefon."],
+    deck: "Kvalitet i første kontakt skaper rom for bedre oppfølging.",
+    heroTitle: "Veien til neste møte",
+    heroText: "Dagens aktivitet viser hvor laget har skapt best fremdrift.",
+    photoTitle: "Planen før møtet",
+  },
+  {
+    headline: ["Fremdrift bygges", "i de små stegene."],
+    deck: "Hver oppfølging gjør en potensiell kunde litt mer aktuell.",
+    heroTitle: "Små steg, tydelig retning",
+    heroText: "Følg opp kontaktene som er nærmest et naturlig neste steg.",
+    photoTitle: "Arbeid som flytter noe",
+  },
+  {
+    headline: ["Neste kunde", "venter på deg."],
+    deck: "Prioritering og tilstedeværelse gjør dagen mer verdifull.",
+    heroTitle: "Mulighetene er i gang",
+    heroText: "Oversikten samler dagens tegn på bevegelse i salgsarbeidet.",
+    photoTitle: "Klar for neste samtale",
+  },
+  {
+    headline: ["Et tydelig løft", "kan starte nå."],
+    deck: "Det handler om å finne neste gode handling, ikke å gjøre alt samtidig.",
+    heroTitle: "Dagens mulige løft",
+    heroText: "Bruk tallene til å velge hvor innsatsen skal gi mest verdi.",
+    photoTitle: "Et lag i bevegelse",
+  },
+  {
+    headline: ["Fokus først.", "Resultat etterpå."],
+    deck: "Godt salgsarbeid blir synlig når oppfølgingen er konsekvent.",
+    heroTitle: "Fokus på det viktigste",
+    heroText: "Se hvilke aktiviteter som legger grunnlaget for de neste resultatene.",
+    photoTitle: "Konsentrasjon i arbeidet",
+  },
+  {
+    headline: ["Tempo med retning", "skaper fremdrift."],
+    deck: "En ryddig plan gjør det enklere å holde energien gjennom dagen.",
+    heroTitle: "Fart med kontroll",
+    heroText: "Dagens bilde gir teamet et raskt utgangspunkt for riktig prioritering.",
+    photoTitle: "Morgenmøte ved bordet",
+  },
+  {
+    headline: ["Dagens muligheter", "er i spill."],
+    deck: "Det neste gjennombruddet kan ligge i en oppfølging du allerede har startet.",
+    heroTitle: "Mulighetene i listen",
+    heroText: "Se på dagens samtaler og velg hvem som fortjener oppmerksomhet nå.",
+    photoTitle: "Samtalen som teller",
+  },
+  {
+    headline: ["Lytt godt.", "Følg opp."],
+    deck: "De beste neste stegene kommer ofte fra det kunden nettopp fortalte deg.",
+    heroTitle: "Oppfølging med innsikt",
+    heroText: "Få oversikt over aktivitetene som kan bli til varige kundeforhold.",
+    photoTitle: "Planen på tavlen",
+  },
+  {
+    headline: ["Det neste steget", "teller mest."],
+    deck: "Gjør én konkret oppfølging, og la dagen bygge seg videre derfra.",
+    heroTitle: "Klar for neste handling",
+    heroText: "Dagens status gjør det enkelt å velge en kunde å kontakte først.",
+    photoTitle: "Et godt tegn på dagen",
+  },
+] as const;
 
 function MetricCard({ card }: { card: DagsavisSection }) {
   return (
