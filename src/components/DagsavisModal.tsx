@@ -160,10 +160,15 @@ export default function DagsavisModal({
       <div className={styles.sheet}>
         <div className={styles.sheetInner}>
           <header className={styles.masthead}>
+            <div className={styles.topEdition}>
+              <span>Media Norge</span>
+              <p>Dagens salgsutgave <strong>·</strong> {editionDate}</p>
+              <span>Utgave<br />{data?.report_date ?? "i dag"}</span>
+            </div>
             <div className={styles.editionBar}>
-              <span className={styles.editionBadge}>Dagens<br />resultater</span>
+              <span className={styles.mastheadMark} aria-hidden="true">MN</span>
               <span className={styles.newspaperName}>Dagsavisen</span>
-              <span className={styles.editionBadge}>Spesial<br />utgave</span>
+              <span className={styles.mastheadMeta}>Media Norge<br />CRM</span>
             </div>
             <button
               type="button"
@@ -174,9 +179,9 @@ export default function DagsavisModal({
               <Icon name="close" size={18} />
             </button>
             <div className={styles.heroHeadline}>
-              <p className={styles.subtitle}>{reportTitle} · {editionDate}</p>
-              <h2 className={styles.headline}>DU HAR DETTE!</h2>
-              <p className={styles.deck}>Fortsett å bygge gode samtaler, ett tydelig neste steg av gangen</p>
+              <p className={styles.subtitle}>{reportTitle}</p>
+              <h2 className={styles.headline}>Dagens innsats<br />er klar for deg.</h2>
+              <p className={styles.deck}>Samtaler, muligheter og salg samlet i én redaksjonell oversikt.</p>
             </div>
 
             <div className={styles.controls}>

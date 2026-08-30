@@ -31,46 +31,90 @@
 
 .masthead {
   position: relative;
-  padding: clamp(.8rem, 2.2vw, 1.6rem);
+  padding: clamp(.7rem, 1.8vw, 1.2rem) clamp(.8rem, 2.2vw, 1.6rem) clamp(.9rem, 2.2vw, 1.6rem);
   border-bottom: 5px double #111;
+}
+
+.topEdition {
+  display: grid;
+  grid-template-columns: minmax(110px, .7fr) minmax(0, 2fr) minmax(110px, .7fr);
+  align-items: center;
+  gap: .75rem;
+  min-height: 2.15rem;
+  padding: .25rem .45rem;
+  border-bottom: 1px solid #111;
+  color: #24201b;
+  font-family: Arial, sans-serif;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .075em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.topEdition > p {
+  margin: 0;
+  text-align: center;
+}
+
+.topEdition > span:last-child {
+  text-align: right;
 }
 
 .editionBar {
   display: grid;
-  grid-template-columns: minmax(100px, .55fr) minmax(0, 2fr) minmax(100px, .55fr);
+  grid-template-columns: minmax(75px, .34fr) minmax(0, 2fr) minmax(88px, .42fr);
   align-items: center;
-  gap: clamp(.5rem, 2vw, 1.5rem);
-  padding: .45rem 0;
-  border-top: 2px solid #111;
-  border-bottom: 2px solid #111;
+  gap: clamp(.5rem, 1.6vw, 1.2rem);
+  margin-top: .38rem;
+  padding: clamp(.55rem, 1.4vw, .88rem) clamp(.55rem, 1.8vw, 1.1rem);
+  color: #f8f4e9;
+  background: #123b70;
+  border-top: 2px solid #0b2c54;
+  border-bottom: 2px solid #0b2c54;
   text-align: center;
 }
 
-.editionBadge {
-  display: block;
-  padding: .45rem;
-  border: 3px double #111;
-  font-size: clamp(.55rem, 1vw, .72rem);
+.mastheadMark {
+  display: grid;
+  width: clamp(2.65rem, 5vw, 4.1rem);
+  aspect-ratio: 1;
+  place-items: center;
+  justify-self: start;
+  border: 2px solid rgba(255,255,255,.86);
+  border-radius: 50%;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1rem, 2.1vw, 1.7rem);
   font-weight: 800;
-  font-style: italic;
-  line-height: 1.25;
-  letter-spacing: .16em;
-  text-transform: uppercase;
+  letter-spacing: -.09em;
 }
 
 .newspaperName {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 5.8vw, 4.4rem);
+  font-size: clamp(2.15rem, 5.7vw, 4.35rem);
   font-weight: 900;
-  line-height: .9;
+  line-height: .82;
   letter-spacing: -.06em;
   white-space: nowrap;
+}
+
+.mastheadMeta {
+  justify-self: end;
+  color: rgba(255,255,255,.82);
+  font-family: Arial, sans-serif;
+  font-size: clamp(.5rem, .8vw, .68rem);
+  font-weight: 800;
+  letter-spacing: .13em;
+  line-height: 1.35;
+  text-align: right;
+  text-transform: uppercase;
 }
 
 .closeButton {
   position: absolute;
   z-index: 3;
-  top: clamp(4.9rem, 10vw, 7.3rem);
+  top: clamp(5.5rem, 11vw, 8.1rem);
   right: clamp(.8rem, 2.2vw, 1.6rem);
   display: grid;
   width: 2.3rem;
@@ -84,11 +128,10 @@
 .closeButton:hover { background: #111; color: #fff; }
 
 .heroHeadline {
-  margin-top: .75rem;
-  padding: clamp(.5rem, 1.2vw, .9rem) 2.8rem clamp(.7rem, 1.6vw, 1.1rem);
-  border-top: 1px solid #111;
+  margin-top: .7rem;
+  padding: clamp(.5rem, 1.2vw, .9rem) 3.1rem clamp(.8rem, 1.7vw, 1.25rem);
   border-bottom: 2px solid #111;
-  text-align: center;
+  text-align: left;
 }
 
 .subtitle,
@@ -100,22 +143,28 @@
   text-transform: uppercase;
 }
 
-.subtitle { margin-bottom: .35rem; }
+.subtitle {
+  margin-bottom: .48rem;
+  color: #123b70;
+}
 
 .headline {
-  font-family: Impact, "Arial Narrow", sans-serif;
-  font-size: clamp(3.6rem, 10.2vw, 8.6rem);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(3rem, 7.2vw, 6.35rem);
   font-weight: 950;
-  line-height: .82;
-  letter-spacing: -.055em;
-  text-transform: uppercase;
+  line-height: .83;
+  letter-spacing: -.075em;
+  text-transform: none;
 }
 
 .deck {
-  margin-top: .55rem;
-  font-size: clamp(1.05rem, 3.2vw, 2.25rem);
-  line-height: .95;
-  text-transform: uppercase;
+  max-width: 46rem;
+  margin-top: .68rem;
+  color: #3a342d;
+  font-size: clamp(.95rem, 1.8vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.13;
+  text-transform: none;
 }
 
 .controls {
@@ -147,7 +196,7 @@
 .segmentActive:last-child { border-right: 0; }
 .segmentButton:hover,
 .segmentActive,
-.inkButton:hover { background: #111; color: #fff; }
+.inkButton:hover { background: #123b70; color: #fff; }
 
 .selectControl {
   min-height: 2.3rem;
@@ -162,7 +211,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(250px, .75fr);
   gap: clamp(.8rem, 1.8vw, 1.35rem);
-  padding: clamp(.8rem, 2vw, 1.5rem);
+  padding: clamp(.8rem, 2vw, 1.5rem) clamp(.8rem, 2vw, 1.5rem) clamp(1.1rem, 2.6vw, 2rem);
 }
 
 .article,
@@ -189,7 +238,7 @@
 
 .leadStory { border-top-width: 5px; }
 .storyHeader { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding-bottom: .5rem; border-bottom: 1px solid #111; }
-.storyTitle { margin-top: .15rem; font: 900 clamp(1.7rem, 3.5vw, 3rem)/.92 Georgia, serif; letter-spacing: -.04em; }
+.storyTitle { margin-top: .15rem; font: 900 clamp(1.75rem, 3.5vw, 3rem)/.92 Arial, sans-serif; letter-spacing: -.065em; }
 .summaryColumns { margin-top: .65rem; column-count: 2; column-gap: 1.2rem; column-rule: 1px solid #111; }
 .summaryText { white-space: pre-wrap; font-size: clamp(.92rem, 1.4vw, 1.08rem); line-height: 1.45; text-align: justify; }
 
@@ -201,12 +250,12 @@
 }
 .metricCard { min-width: 0; padding: .7rem; border: 0; border-right: 1px solid #111; text-align: center; }
 .metricCard:last-child { border-right: 0; }
-.metricValue { font-family: Impact, "Arial Narrow", sans-serif; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: .9; }
+.metricValue { font-family: Arial, sans-serif; font-weight: 950; font-size: clamp(1.8rem, 4vw, 3.2rem); line-height: .9; letter-spacing: -.06em; }
 
 .chartPanel { padding: .7rem; filter: grayscale(1) contrast(1.2); }
 .heroStory { display: grid; grid-template-columns: 1fr minmax(120px, .55fr); gap: .8rem; align-items: center; }
 .heroStory h3,
-.sideTitle { margin-top: .2rem; font-size: clamp(1.25rem, 2.3vw, 1.9rem); font-weight: 900; line-height: 1; }
+.sideTitle { margin-top: .2rem; font-family: Arial, sans-serif; font-size: clamp(1.25rem, 2.3vw, 1.9rem); font-weight: 900; letter-spacing: -.055em; line-height: 1; }
 .heroStory p { margin-top: .5rem; font-size: .9rem; line-height: 1.4; }
 
 .quoteBox blockquote { margin-top: .45rem; font-size: clamp(1.25rem, 2.4vw, 2rem); font-weight: 900; line-height: 1.05; }
@@ -239,13 +288,15 @@
 
 @media (max-width: 600px) {
   .masthead { padding:.55rem; }
-  .editionBar { grid-template-columns:72px minmax(0,1fr) 72px; gap:.3rem; }
-  .editionBadge { padding:.3rem .1rem; font-size:.43rem; letter-spacing:.08em; }
+  .topEdition { grid-template-columns: 1fr minmax(0, 1.2fr) 1fr; gap:.25rem; padding:.2rem; font-size:.46rem; letter-spacing:.035em; }
+  .editionBar { grid-template-columns:46px minmax(0,1fr) 58px; gap:.35rem; padding:.48rem; }
+  .mastheadMark { width:2rem; font-size:.78rem; }
   .newspaperName { font-size:clamp(1.65rem,10vw,2.7rem); }
+  .mastheadMeta { font-size:.43rem; letter-spacing:.07em; }
   .closeButton { position:fixed; top:.65rem; right:.65rem; width:2rem; height:2rem; background:#fff; }
-  .heroHeadline { padding:.55rem .2rem .7rem; }
-  .headline { font-size:clamp(3.25rem,18vw,5.6rem); }
-  .deck { font-size:clamp(.95rem,5.5vw,1.45rem); }
+  .heroHeadline { padding:.65rem .15rem .8rem; }
+  .headline { font-size:clamp(2.75rem,15vw,4.8rem); }
+  .deck { font-size:clamp(.9rem,4.5vw,1.2rem); }
   .controls { justify-content:flex-start; }
   .controls > * { max-width:100%; }
   .segmentButton,.segmentActive,.inkButton { padding:.55rem .7rem; }
