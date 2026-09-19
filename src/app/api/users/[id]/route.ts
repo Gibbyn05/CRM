@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import type { UserRole } from "@/lib/types";
+import { recordOperationsAudit } from "@/lib/email-delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const admin = createAdminClient();
   const [{ data: actor }, { data: target }] = await Promise.all([
     admin.from("profiles").select("id, role, is_active").eq("id", user.id).maybeSingle(),
-    admin.from("profiles").select("id, role, is_active, is_system_admin").eq("id", params.id).maybeSingle(),
+    admin.from("profiles").select("id, email, full_name, role, is_active, is_system_admin").eq("id", params.id).maybeSingle(),
   ]);
   if (actor?.role !== "manager" || actor.is_active === false) {
     return NextResponse.json({ error: "Kun aktive ledere kan administrere teamet." }, { status: 403 });
@@ -78,6 +79,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       app_metadata: { role: body.role },
     });
     if (authError) return NextResponse.json({ error: "Rollen ble oppdatert, men Auth-data kunne ikke synkroniseres." }, { status: 500 });
+    await recordOperationsAudit(admin, {
+      actorId: user.id,
+      category: "access",
+      action: "member_role_changed",
+      targetType: "profile",
+      targetId: target.id,
+      summary: `Rolle endret for ${target.email} til ${body.role}.`,
+      metadata: { from: target.role, to: body.role },
+    });
     return NextResponse.json({ profile: data });
   }
 
@@ -100,6 +110,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await admin.from("profiles").update({ is_active: target.is_active }).eq("id", target.id);
       return NextResponse.json({ error: "Kunne ikke oppdatere innloggingsstatusen." }, { status: 500 });
     }
+    await recordOperationsAudit(admin, {
+      actorId: user.id,
+      category: "access",
+      action: body.is_active ? "member_reactivated" : "member_deactivated",
+      targetType: "profile",
+      targetId: target.id,
+      summary: `${target.email} ble ${body.is_active ? "aktivert" : "deaktivert"}.`,
+    });
     return NextResponse.json({ profile: data });
   }
 
@@ -109,5 +127,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       error: "Brukeren kunne ikke fjernes. Hvis brukeren eier filer, må de først flyttes eller slettes.",
     }, { status: 409 });
   }
+  await recordOperationsAudit(admin, {
+    actorId: user.id,
+    category: "access",
+    action: "member_removed",
+    targetType: "profile",
+    targetId: target.id,
+    summary: `${target.email} ble fjernet fra CRM-et.`,
+  });
   return NextResponse.json({ removedId: target.id });
 }

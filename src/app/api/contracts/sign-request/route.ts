@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { contractEmailHtml } from "@/lib/email";
+import { sendTrackedEmail } from "@/lib/email-delivery";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { sendContractSentCopies } from "@/lib/contract-signing-email";
 
@@ -143,7 +144,7 @@ export async function POST(req: NextRequest) {
   const signUrl = `${appUrl}/signer/${contract.sign_token}`;
 
   // 2) Send e-post med signeringslenke.
-  const result = await sendEmail({
+  const result = await sendTrackedEmail(admin, {
     to: recipient,
     subject: `Signer avtale${brandName ? " – " + brandName : ""}`,
     html: contractEmailHtml({
@@ -159,6 +160,11 @@ export async function POST(req: NextRequest) {
         undefined,
     }),
     text: `Hei ${customer?.name ?? "der"},\n\nHer er avtalen for signering. Åpne og signer her: ${signUrl}`,
+  }, {
+    category: "contract",
+    contractId: contract.id,
+    createdBy: user.id,
+    metadata: { deal_id: deal.id, purpose: "signature_request" },
   });
 
   if (result.error) {

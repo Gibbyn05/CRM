@@ -4,6 +4,7 @@ import type { ContractTemplate, Organization, Product, Profile, RolePermission, 
 import OrganizationForm from "@/components/OrganizationForm";
 import ContractTemplatesAdmin from "@/components/ContractTemplatesAdmin";
 import UsersAdmin from "@/components/UsersAdmin";
+import OperationsSecurityPanel from "@/components/OperationsSecurityPanel";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function OrganizationPage({
 
   if (me?.role !== "manager") redirect("/dashboard");
 
-  const [{ data: org }, { data: templates }, { data: productLinks }, { data: products }, { data: profiles }, { data: permissions }, { data: invitations }] =
+  const [{ data: org }, { data: templates }, { data: productLinks }, { data: products }, { data: profiles }, { data: permissions }, { data: invitations }, { data: deliveries }, { data: auditEvents }, { data: recovery }] =
     await Promise.all([
       supabase.from("organization").select("*").eq("id", 1).maybeSingle<Organization>(),
       supabase.from("contract_templates").select("*").order("updated_at", { ascending: false }),
@@ -45,6 +46,22 @@ export default async function OrganizationPage({
         .select("id, email, full_name, role, status, expires_at, sent_at, created_at, email_error")
         .in("status", ["pending", "expired"])
         .order("created_at", { ascending: false }),
+      supabase
+        .from("email_delivery_records")
+        .select("id, category, recipient, subject, status, error_message, sent_at, last_event_at, created_at")
+        .gte("created_at", new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("operations_audit_events")
+        .select("id, category, action, summary, created_at, actor:profiles!operations_audit_events_actor_id_fkey(full_name, email)")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("recovery_checkpoints")
+        .select("checked_at, note, checked_by:profiles!recovery_checkpoints_checked_by_fkey(full_name, email)")
+        .eq("check_type", "backup_restore")
+        .maybeSingle(),
     ]);
 
   const links = (productLinks ?? []) as { template_id: string; product_id: string }[];
@@ -52,10 +69,24 @@ export default async function OrganizationPage({
     ...template,
     product_ids: links.filter((link) => link.template_id === template.id).map((link) => link.product_id),
   }));
+  const normalizedAuditEvents = (auditEvents ?? []).map((event) => ({
+    ...event,
+    actor: Array.isArray(event.actor) ? event.actor[0] ?? null : event.actor ?? null,
+  }));
+  const normalizedRecovery = recovery
+    ? {
+        ...recovery,
+        checked_by: Array.isArray(recovery.checked_by)
+          ? recovery.checked_by[0] ?? null
+          : recovery.checked_by ?? null,
+      }
+    : null;
   const activeTab = searchParams.tab === "contracts"
     ? "contracts"
     : searchParams.tab === "members"
       ? "members"
+      : searchParams.tab === "operations"
+        ? "operations"
       : "company";
 
   return (
@@ -87,6 +118,9 @@ export default async function OrganizationPage({
             </span>
           )}
         </OrganizationTab>
+        <OrganizationTab href="/organization?tab=operations" active={activeTab === "operations"}>
+          Drift og sikkerhet
+        </OrganizationTab>
       </nav>
 
       {activeTab === "company" ? (
@@ -96,7 +130,7 @@ export default async function OrganizationPage({
           initialTemplates={templateRows}
           products={(products ?? []) as Product[]}
         />
-      ) : (
+      ) : activeTab === "members" ? (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Medlemmer</h2>
@@ -109,6 +143,13 @@ export default async function OrganizationPage({
             initialInvitations={(invitations as UserInvitation[]) ?? []}
           />
         </section>
+      ) : (
+        <OperationsSecurityPanel
+          deliveries={(deliveries ?? []) as Parameters<typeof OperationsSecurityPanel>[0]["deliveries"]}
+          auditEvents={normalizedAuditEvents as Parameters<typeof OperationsSecurityPanel>[0]["auditEvents"]}
+          recovery={normalizedRecovery as Parameters<typeof OperationsSecurityPanel>[0]["recovery"]}
+          webhookConfigured={Boolean(process.env.RESEND_WEBHOOK_SECRET)}
+        />
       )}
     </div>
   );

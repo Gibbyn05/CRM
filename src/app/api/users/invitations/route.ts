@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { sendEmail } from "@/lib/email";
+import { sendTrackedEmail, recordOperationsAudit } from "@/lib/email-delivery";
 import {
   createInvitationToken,
   invitationEmail,
@@ -83,7 +83,21 @@ export async function POST(req: NextRequest) {
     role: input.role,
     acceptUrl: `${appUrl}/accept-invite?token=${encodeURIComponent(token)}`,
   });
-  const sent = await sendEmail({ to: input.email, ...mail });
+  const sent = await sendTrackedEmail(admin, { to: input.email, ...mail }, {
+    category: "invitation",
+    invitationId: invitation.id,
+    createdBy: user.id,
+    metadata: { role: input.role },
+  });
+  await recordOperationsAudit(admin, {
+    actorId: user.id,
+    category: "access",
+    action: "user_invited",
+    targetType: "invitation",
+    targetId: invitation.id,
+    summary: `Invitasjon opprettet for ${input.email}.`,
+    metadata: { role: input.role, email_sent: !sent.error },
+  });
   const sentAt = sent.error ? null : new Date().toISOString();
   const { data: updated } = await admin
     .from("user_invitations")

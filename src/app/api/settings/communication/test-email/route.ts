@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
-  sendEmail,
   isEmailConfigured,
   extractDomain,
   getResendDomainStatus,
   RESEND_SHARED_TEST_DOMAIN,
 } from "@/lib/email";
+import { sendTrackedEmail } from "@/lib/email-delivery";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Organization } from "@/lib/types";
 
 // ============================================================================
@@ -64,13 +65,17 @@ export async function POST(req: NextRequest) {
 
   const domain = fromAddress ? extractDomain(fromAddress) : null;
 
-  const result = await sendEmail({
+  const result = await sendTrackedEmail(createAdminClient(), {
     to,
     subject: "Testmelding fra CRM – kontroll av e-postoppsett",
     html: `<p>Dette er en kontrollmelding sendt fra CRM-ets e-postoppsett.</p><p>Avsenderdomene: <strong>${domain ?? RESEND_SHARED_TEST_DOMAIN}</strong></p>`,
     text: `Dette er en kontrollmelding sendt fra CRM-ets e-postoppsett.\nAvsenderdomene: ${domain ?? RESEND_SHARED_TEST_DOMAIN}`,
     replyTo: org?.email_reply_to?.trim() || undefined,
     from,
+  }, {
+    category: "system",
+    createdBy: user.id,
+    metadata: { purpose: "email_configuration_test" },
   });
 
   const domainStatus = await getResendDomainStatus();

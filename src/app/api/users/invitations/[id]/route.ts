@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { sendEmail } from "@/lib/email";
+import { sendTrackedEmail, recordOperationsAudit } from "@/lib/email-delivery";
 import { createInvitationToken, invitationEmail, invitationExpiresAt } from "@/lib/user-invitations";
 import { getPublicAppUrl } from "@/lib/app-url";
 
@@ -39,6 +39,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .eq("id", params.id).in("status", ["pending", "expired"])
       .select("id, email, full_name, role, status, expires_at, sent_at, created_at, email_error").single();
     if (error) return NextResponse.json({ error: "Kunne ikke trekke invitasjonen tilbake." }, { status: 500 });
+    await recordOperationsAudit(admin, {
+      actorId: user.id,
+      category: "access",
+      action: "invitation_revoked",
+      targetType: "invitation",
+      targetId: params.id,
+      summary: `Invitasjon til ${invitation.email} ble trukket tilbake.`,
+    });
     return NextResponse.json({ invitation: data });
   }
 
@@ -57,7 +65,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     role: invitation.role,
     acceptUrl: `${appUrl}/accept-invite?token=${encodeURIComponent(token)}`,
   });
-  const sent = await sendEmail({ to: invitation.email, ...mail });
+  const sent = await sendTrackedEmail(admin, { to: invitation.email, ...mail }, {
+    category: "invitation",
+    invitationId: invitation.id,
+    createdBy: user.id,
+    metadata: { role: invitation.role, resend: true },
+  });
+  await recordOperationsAudit(admin, {
+    actorId: user.id,
+    category: "access",
+    action: "invitation_resent",
+    targetType: "invitation",
+    targetId: invitation.id,
+    summary: `Invitasjon sendt på nytt til ${invitation.email}.`,
+    metadata: { email_sent: !sent.error },
+  });
   const sentAt = sent.error ? null : new Date().toISOString();
   const { data } = await admin.from("user_invitations").update({
     sent_at: sentAt ?? invitation.sent_at,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import type { SmsReminderRecipients } from "@/lib/types";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { recordOperationsAudit } from "@/lib/email-delivery";
 
 // ============================================================================
 //  Lagrer ikke-sensitiv kommunikasjonskonfigurasjon (Innstillinger →
@@ -109,10 +111,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await supabase.from("settings_audit_log").insert({
-    actor_id: user.id,
-    area: "communication",
-    summary: `Endret felt: ${Object.keys(patch).filter((k) => k !== "updated_by").join(", ") || "(ingen)"}`,
+  const changedFields = Object.keys(patch).filter((key) => key !== "updated_by");
+  await recordOperationsAudit(createAdminClient(), {
+    actorId: user.id,
+    category: "configuration",
+    action: "communication_settings_changed",
+    targetType: "organization",
+    targetId: "1",
+    summary: `Kommunikasjonsoppsettet ble endret: ${changedFields.join(", ") || "ingen felt"}.`,
+    metadata: { fields: changedFields },
   });
 
   return NextResponse.json({ organization: data });

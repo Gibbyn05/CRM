@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/email";
+import { sendTrackedEmail } from "@/lib/email-delivery";
 import {
   daysUntilDate,
   osloDate,
@@ -125,7 +125,7 @@ async function dispatchExpiryNotifications() {
 
       if (!current.email_sent_at) {
         const customerUrl = `${appUrl}/customers/${contract.customer_id}`;
-        const email = await sendEmail({
+        const email = await sendTrackedEmail(admin, {
           to: recipient.email,
           subject: `Utløpende avtale: ${customerName}`,
           html: expiryEmailHtml({
@@ -136,6 +136,11 @@ async function dispatchExpiryNotifications() {
             customerUrl,
           }),
           text: `${body}\n\nÅpne kundekortet: ${customerUrl}`,
+        }, {
+          category: "contract_expiry",
+          contractId: contract.id,
+          createdBy: recipient.id,
+          metadata: { notice_days: NOTICE_DAYS, customer_id: contract.customer_id },
         });
         await admin
           .from("contract_expiry_deliveries")

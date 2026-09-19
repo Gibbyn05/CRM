@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail } from "./email";
+import { sendTrackedEmail } from "./email-delivery";
 import { getPublicAppUrl } from "./app-url";
 
 interface RecipientProfile {
@@ -76,7 +76,7 @@ export async function sendSignedContractCopies(
 
   const results = await Promise.all(
     recipients.map((recipient) =>
-      sendEmail({
+      sendTrackedEmail(admin, {
         to: recipient.email.trim(),
         subject: `Signert kontrakt: ${contract.customer_name}`,
         html: signedContractCopyEmailHtml({
@@ -100,6 +100,11 @@ export async function sendSignedContractCopies(
           contractReference: contract.id,
           documentUrl,
         }),
+      }, {
+        category: "contract_copy",
+        contractId: contract.id,
+        createdBy: contract.agent_id,
+        metadata: { purpose: "signed_contract_copy", recipient_user_id: recipient.id },
       }),
     ),
   );
@@ -135,7 +140,7 @@ export async function sendContractSentCopies(
 
   const results = await Promise.all(
     recipients.map((recipient) =>
-      sendEmail({
+      sendTrackedEmail(admin, {
         to: recipient.email.trim(),
         subject: `Kontrakt sendt: ${contract.customer_name}`,
         html: sentContractCopyEmailHtml({
@@ -151,6 +156,11 @@ export async function sendContractSentCopies(
           contractText: contract.contract_text ?? "Avtaleteksten mangler.",
           contractReference: contract.id,
         }),
+      }, {
+        category: "contract_copy",
+        contractId: contract.id,
+        createdBy: contract.agent_id,
+        metadata: { purpose: "contract_sent_copy", recipient_user_id: recipient.id },
       }),
     ),
   );

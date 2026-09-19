@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractChannel } from "@/lib/types";
-import { sendEmail, contractEmailHtml } from "@/lib/email";
+import { contractEmailHtml } from "@/lib/email";
+import { sendTrackedEmail } from "@/lib/email-delivery";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms as sendSmsViaProvider } from "@/lib/providers/sms";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getPublicAppUrl } from "@/lib/app-url";
@@ -117,7 +119,7 @@ export async function POST(req: NextRequest) {
 
   const result =
     body.channel === "email"
-      ? await sendEmail({
+      ? await sendTrackedEmail(createAdminClient(), {
           to: body.recipient,
           subject: `Tilbud fra ${brandName ?? "Salgssentral"}${customer?.name ? " – " + customer.name : ""}`,
           html: contractEmailHtml({
@@ -137,6 +139,11 @@ export async function POST(req: NextRequest) {
           from: orgRow?.email_from_address
             ? `${orgRow.email_from_name?.trim() || brandName || "Salgssentral"} <${orgRow.email_from_address}>`
             : undefined,
+        }, {
+          category: "contract",
+          contractId: contract.id,
+          createdBy: user.id,
+          metadata: { customer_id: body.customer_id, purpose: "contract_send" },
         })
       : await sendSms(body.recipient, appUrl, contract.id, orgRow?.sms_from_name || undefined);
 
