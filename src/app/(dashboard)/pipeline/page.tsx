@@ -26,8 +26,13 @@ export default async function PipelinePage() {
       supabase.from("profiles").select("id, full_name"),
     ]);
 
-  const customerList = dedupeCustomers((customers as Pick<Customer, "id" | "name" | "org_number">[]) ?? []);
-  const nameMap = new Map(customerList.map((c) => [c.id, c.name]));
+  const customerRows = (customers as Pick<Customer, "id" | "name" | "org_number">[]) ?? [];
+  const customerList = dedupeCustomers(customerRows);
+  // Kundelisten dedupliseres for velgeren, men en avtale kan ligge på en
+  // eldre duplikatrad. Bruk derfor alle faktiske kunder til pipeline-kartet.
+  // Avtaler uten kundekort filtreres bort helt, i stedet for å vises som
+  // «Ukjent kunde».
+  const nameMap = new Map(customerRows.map((customer) => [customer.id, customer.name]));
   const ownerMap = new Map(
     ((profiles as Pick<Profile, "id" | "full_name">[]) ?? []).map((p) => [
       p.id,
@@ -35,11 +40,15 @@ export default async function PipelinePage() {
     ]),
   );
 
-  const enriched: DealWithCustomer[] = dedupeDeals(((deals as Deal[]) ?? []).map((d) => ({
-    ...d,
-    customer_name: nameMap.get(d.customer_id) ?? "Ukjent kunde",
-    owner_name: d.agent_id ? ownerMap.get(d.agent_id) ?? null : null,
-  })));
+  const enriched: DealWithCustomer[] = dedupeDeals(
+    ((deals as Deal[]) ?? [])
+      .filter((deal) => nameMap.has(deal.customer_id))
+      .map((deal) => ({
+        ...deal,
+        customer_name: nameMap.get(deal.customer_id) as string,
+        owner_name: deal.agent_id ? ownerMap.get(deal.agent_id) ?? null : null,
+      })),
+  );
 
   return (
     <PipelineBoard
