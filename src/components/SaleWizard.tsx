@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { BillingType, ContractTemplate, DealItem, Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
+import {
+  calculateAgreementEndDate,
+  formatAgreementPeriod,
+  type AgreementPeriodUnit,
+} from "@/lib/agreement-period";
 import Icon from "./Icon";
 import ContractDocument from "./ContractDocument";
 
@@ -91,7 +96,7 @@ export default function SaleWizard({
   const [contract, setContract] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [contractDetails, setContractDetails] = useState({
-    agreement_period: "",
+    agreement_period: "12 måneder",
     start_date: "",
     end_date: "",
     payment_terms: "14 dager fra fakturadato",
@@ -100,6 +105,8 @@ export default function SaleWizard({
     one_time_amount: "",
     monthly_amount: "",
   });
+  const [agreementPeriodCount, setAgreementPeriodCount] = useState(12);
+  const [agreementPeriodUnit, setAgreementPeriodUnit] = useState<AgreementPeriodUnit>("month");
   const [missingFields, setMissingFields] = useState<{ key: string; label: string }[]>([]);
   const [generationIssue, setGenerationIssue] = useState("Mangler informasjon");
   const [usedFields, setUsedFields] = useState<{ key: string; label: string; value: unknown }[]>([]);
@@ -201,6 +208,28 @@ export default function SaleWizard({
     setCart((prev) =>
       prev.map((i) => (i.key === key ? { ...i, quantity: Math.max(1, qty) } : i)),
     );
+  }
+
+  function updateAgreementPeriod(count: number, unit: AgreementPeriodUnit) {
+    setAgreementPeriodCount(count);
+    setAgreementPeriodUnit(unit);
+    setContractDetails((details) => ({
+      ...details,
+      agreement_period: formatAgreementPeriod(count, unit),
+      end_date: details.start_date
+        ? calculateAgreementEndDate(details.start_date, count, unit)
+        : "",
+    }));
+  }
+
+  function updateAgreementStartDate(startDate: string) {
+    setContractDetails((details) => ({
+      ...details,
+      start_date: startDate,
+      end_date: startDate
+        ? calculateAgreementEndDate(startDate, agreementPeriodCount, agreementPeriodUnit)
+        : "",
+    }));
   }
 
   const canNext =
@@ -528,9 +557,33 @@ export default function SaleWizard({
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <h3 className="mb-3 text-sm font-bold text-slate-800">Avtaledetaljer</h3>
             <div className="grid gap-3 sm:grid-cols-2">
-              <DetailField label="Avtaleperiode" value={contractDetails.agreement_period} placeholder="F.eks. 12 måneder" onChange={(value) => setContractDetails((d) => ({ ...d, agreement_period: value }))} />
-              <DetailField label="Oppstartsdato" value={contractDetails.start_date} type="date" onChange={(value) => setContractDetails((d) => ({ ...d, start_date: value }))} />
-              <DetailField label="Avtalens sluttdato" value={contractDetails.end_date} type="date" onChange={(value) => setContractDetails((d) => ({ ...d, end_date: value }))} />
+              <fieldset className="text-xs font-semibold text-slate-600">
+                <legend>Avtaleperiode</legend>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <select
+                    aria-label="Antall i avtaleperiode"
+                    value={agreementPeriodCount}
+                    onChange={(event) => updateAgreementPeriod(Number(event.target.value), agreementPeriodUnit)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  >
+                    {Array.from({ length: 99 }, (_, index) => index + 1).map((count) => (
+                      <option key={count} value={count}>{count}</option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Enhet for avtaleperiode"
+                    value={agreementPeriodUnit}
+                    onChange={(event) => updateAgreementPeriod(agreementPeriodCount, event.target.value as AgreementPeriodUnit)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  >
+                    <option value="day">Dager</option>
+                    <option value="month">Måneder</option>
+                    <option value="year">År</option>
+                  </select>
+                </div>
+              </fieldset>
+              <DetailField label="Oppstartsdato" value={contractDetails.start_date} type="date" onChange={updateAgreementStartDate} />
+              <DetailField label="Avtalens sluttdato" value={contractDetails.end_date} type="date" onChange={() => undefined} readOnly helperText="Beregnes automatisk fra oppstartsdato og avtaleperiode." />
               <DetailField label="Betalingsbetingelser" value={contractDetails.payment_terms} placeholder="14 dager fra fakturadato" onChange={(value) => setContractDetails((d) => ({ ...d, payment_terms: value }))} />
               <DetailField label="Fakturaadresse" value={contractDetails.invoice_address} placeholder="Hentes fra kunden hvis feltet er tomt" onChange={(value) => setContractDetails((d) => ({ ...d, invoice_address: value }))} />
               <DetailField label="Rabatt" value={contractDetails.discount} placeholder="Valgfritt" onChange={(value) => setContractDetails((d) => ({ ...d, discount: value }))} />
@@ -882,12 +935,16 @@ function DetailField({
   onChange,
   placeholder,
   type = "text",
+  readOnly = false,
+  helperText,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: "text" | "date";
+  readOnly?: boolean;
+  helperText?: string;
 }) {
   return (
     <label className="text-xs font-semibold text-slate-600">
@@ -897,8 +954,10 @@ function DetailField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        readOnly={readOnly}
+        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 read-only:bg-slate-50 read-only:text-slate-500"
       />
+      {helperText && <span className="mt-1 block font-normal text-slate-400">{helperText}</span>}
     </label>
   );
 }
