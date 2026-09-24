@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReachrCompany } from "@/lib/reachr";
 import type { Emneknagg1881Company } from "@/lib/reachr/emneknagger";
+import { PhoneLink } from "../CallButton";
 
 type Row = Emneknagg1881Company & {
   status?: "idle" | "adding" | "added" | "error";
@@ -167,12 +168,12 @@ export default function Emneknagg1881View() {
                   </p>
                 </div>
                 {row.phone ? (
-                  <a
-                    href={`tel:${row.phone}`}
+                  <PhoneLink
+                    phone={row.phone}
                     className="rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-3 py-1.5 text-sm font-black text-[#24513b]"
                   >
                     {formatPhone(row.phone)}
-                  </a>
+                  </PhoneLink>
                 ) : (
                   <span className="rounded-full border border-[#d8c9b0] bg-[#fff8ea] px-3 py-1.5 text-xs font-black text-[#8b7357]">
                     Ingen tlf

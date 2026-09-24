@@ -10,6 +10,7 @@ import { formatOrgNumber } from "@/lib/format";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
 import NotificationBell from "./NotificationBell";
+import { PhoneLink } from "./CallButton";
 
 type Hit = Pick<Customer, "id" | "name" | "org_number" | "city" | "phone">;
 
@@ -181,14 +182,18 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
               </p>
             )}
             {hits.map((h, i) => (
-              <button
+              <div
                 key={h.id}
-                onClick={() => goToCustomer(h.id)}
-                onMouseEnter={() => setActive(i + (updatesMatch ? 1 : 0))}
-                className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
+                className={`flex w-full items-center gap-2 transition ${
                   i + (updatesMatch ? 1 : 0) === active ? "bg-[#eafff5]" : "hover:bg-[#fbf7ed]"
                 }`}
               >
+                <button
+                  type="button"
+                  onClick={() => goToCustomer(h.id)}
+                  onMouseEnter={() => setActive(i + (updatesMatch ? 1 : 0))}
+                  className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-left"
+                >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#09fe94] text-xs font-bold text-[#171717]">
                   {h.name.trim().charAt(0).toUpperCase() || "?"}
                 </span>
@@ -198,7 +203,6 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
                   </span>
                   <span className="block truncate text-xs text-slate-400">
                     {[
-                      h.phone ? `📞 ${h.phone}` : null,
                       h.org_number ? `Org.nr ${formatOrgNumber(h.org_number)}` : null,
                       h.city || null,
                     ]
@@ -206,7 +210,16 @@ export default function Topbar({ profile }: { profile: Profile | null }) {
                       .join(" · ") || "—"}
                   </span>
                 </span>
-              </button>
+                </button>
+                {h.phone && (
+                  <PhoneLink
+                    phone={h.phone}
+                    className="mr-4 shrink-0 text-xs font-semibold text-[#087a4b] hover:underline"
+                  >
+                    📞 {h.phone}
+                  </PhoneLink>
+                )}
+              </div>
             ))}
             <Link
               href={`/customers?q=${encodeURIComponent(q.trim())}`}

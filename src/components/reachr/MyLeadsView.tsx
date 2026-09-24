@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ReachrLead, ReachrLeadStatus } from "@/lib/reachr";
 import { REACHR_LEAD_STATUSES, formatMoney } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
+import CallButton, { PhoneLink } from "../CallButton";
 
 type LeadsResponse = { leads?: ReachrLead[]; error?: string };
 type LeadSaveResult = { customerKind: "potential" | "customer" | null };
@@ -129,10 +130,14 @@ export default function MyLeadsView() {
             </div>
           )}
           {filtered.map((lead) => (
-            <button
+            <article
               key={lead.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setSelected(lead)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") setSelected(lead);
+              }}
               className={`block w-full rounded-[1.75rem] border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(43,33,24,0.10)] ${
                 selected?.id === lead.id
                   ? "border-[#09fe94] bg-[#f7ffe9]"
@@ -161,11 +166,15 @@ export default function MyLeadsView() {
                         ? "Styreleder"
                         : "Hovednummer"
                   }
-                  value={lead.phone ?? "Ikke funnet"}
+                  value={lead.phone ? (
+                    <PhoneLink phone={lead.phone} onClick={(event) => event.stopPropagation()} className="hover:text-[#0d7a4b] hover:underline">
+                      {lead.phone}
+                    </PhoneLink>
+                  ) : "Ikke funnet"}
                 />
                 <Mini label="Mail" value={lead.email ?? "Ikke funnet"} />
               </div>
-            </button>
+            </article>
           ))}
         </div>
 
@@ -261,6 +270,9 @@ function LeadPanel({
         <label>
           <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">Telefon</span>
           <input value={phone} onChange={(event) => setPhone(event.target.value)} className="reachr-input" placeholder="Legg inn telefon hvis funnet manuelt" />
+          <span className="mt-2 block">
+            <CallButton phone={phone} />
+          </span>
         </label>
         <label>
           <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7357]">E-post</span>
@@ -300,7 +312,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Mini({ label, value }: { label: string; value: string }) {
+function Mini({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-[#e4d3b8] bg-[#f6ecd9] p-3">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>

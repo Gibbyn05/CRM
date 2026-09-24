@@ -1,3 +1,5 @@
+import { PhoneLink } from "./CallButton";
+
 interface SignedContractStampProps {
   signerName: string | null;
   signerEmail: string | null;
@@ -45,7 +47,7 @@ export default function SignedContractStamp({
 
       <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-emerald-200 pt-4 text-sm sm:grid-cols-2">
         <StampField label="E-post" value={signerEmail || "Ikke registrert"} />
-        <StampField label="Telefon" value={signerPhone || "Ikke registrert"} />
+        <StampField label="Telefon" value={signerPhone || "Ikke registrert"} phone={signerPhone} />
         <StampField label="Signert" value={signedTime} />
         {contractId && (
           <StampField label="Referanse" value={contractId.toUpperCase()} mono />
@@ -63,10 +65,12 @@ function StampField({
   label,
   value,
   mono = false,
+  phone,
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  phone?: string | null;
 }) {
   return (
     <div>
@@ -74,7 +78,7 @@ function StampField({
         {label}
       </dt>
       <dd className={`mt-0.5 break-words font-semibold text-emerald-950 ${mono ? "font-mono text-xs" : ""}`}>
-        {value}
+        {phone ? <PhoneLink phone={phone} className="hover:text-emerald-700 hover:underline">{value}</PhoneLink> : value}
       </dd>
     </div>
   );

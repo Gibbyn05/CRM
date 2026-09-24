@@ -11,6 +11,7 @@ import {
   type AgreementPeriodUnit,
 } from "@/lib/agreement-period";
 import Icon from "./Icon";
+import CallButton, { PhoneLink } from "./CallButton";
 import ContractDocument from "./ContractDocument";
 
 export interface WizardCustomer {
@@ -505,7 +506,7 @@ export default function SaleWizard({
                 </div>
                 <Row label="Kontakt" value={customer.contact_name} />
                 <Row label="E-post" value={customer.email} />
-                <Row label="Telefon" value={customer.phone} />
+                <Row label="Telefon" value={customer.phone} phone />
                 <Row label="Org.nr" value={customer.org_number} />
               </dl>
             ) : (
@@ -920,11 +921,18 @@ function AddToCartModal({
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null }) {
+function Row({ label, value, phone = false }: { label: string; value: string | null; phone?: boolean }) {
   return (
     <div className="flex justify-between gap-2">
       <dt className="text-slate-400">{label}</dt>
-      <dd className="text-right text-slate-700">{value || "—"}</dd>
+      <dd className="flex flex-wrap items-center justify-end gap-2 text-right text-slate-700">
+        {phone ? (
+          <>
+            <PhoneLink phone={value} className="hover:text-brand-700 hover:underline">{value || "—"}</PhoneLink>
+            <CallButton phone={value} />
+          </>
+        ) : value || "—"}
+      </dd>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatOrgNumber, timeAgo } from "@/lib/format";
 import NewCustomerButton from "./NewCustomerButton";
 import Icon from "./Icon";
+import { PhoneLink } from "./CallButton";
 import { dedupeCustomers } from "@/lib/dedupe";
 
 type CustomerSort = "created" | "name" | "last_activity" | "status" | "seller" | "city" | "org_number";
@@ -162,18 +163,20 @@ export default function CustomerSearch({
       <div className="card overflow-hidden">
         <div className="divide-y divide-[#d8c9b0]/70 sm:hidden">
           {customers.map((c) => (
-            <Link key={c.id} href={`/customers/${c.id}`} className="block p-4 active:bg-[#fbf7ed]">
+            <div key={c.id} className="p-4 active:bg-[#fbf7ed]">
+              <Link href={`/customers/${c.id}`} className="block">
               <p className="font-display text-2xl font-bold leading-tight text-[#2b2118]">{c.name}</p>
+              </Link>
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                 <MobileFact label="Org.nr" value={formatOrgNumber(c.org_number)} />
                 <MobileFact label="Sted" value={c.city ?? "–"} />
                 <MobileFact label="Kontakt" value={c.contact_name ?? "–"} />
-                <MobileFact label="Telefon" value={c.phone ?? "–"} />
+                <MobileFact label="Telefon" value={c.phone ?? "–"} phone={c.phone} />
                 <MobileFact label="Status" value={c.status_name ?? "Ingen status"} />
                 <MobileFact label="Siste aktivitet" value={timeAgo(c.last_activity_at)} />
                 {isManager && <MobileFact label="Selger" value={c.seller_name} />}
               </div>
-            </Link>
+            </div>
           ))}
           {!loading && customers.length === 0 && (
             <p className="px-4 py-6 text-center text-slate-500">Ingen kunder funnet.</p>
@@ -186,6 +189,7 @@ export default function CustomerSearch({
               <th className="px-4 py-3">Navn</th>
               <th className="hidden px-4 py-3 sm:table-cell">Org.nr</th>
               <th className="hidden px-4 py-3 md:table-cell">Kontakt</th>
+              <th className="hidden px-4 py-3 xl:table-cell">Telefon</th>
               <th className="hidden px-4 py-3 md:table-cell">Sted</th>
               <th className="hidden px-4 py-3 lg:table-cell">Status</th>
               {isManager && <th className="hidden px-4 py-3 lg:table-cell">Selger</th>}
@@ -209,6 +213,11 @@ export default function CustomerSearch({
                 <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
                   {c.contact_name ?? "–"}
                 </td>
+                <td className="hidden px-4 py-3 xl:table-cell">
+                  <PhoneLink phone={c.phone} className="font-medium text-slate-600 hover:text-brand-700 hover:underline">
+                    {c.phone ?? "–"}
+                  </PhoneLink>
+                </td>
                 <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
                   {c.city ?? "–"}
                 </td>
@@ -226,7 +235,7 @@ export default function CustomerSearch({
             ))}
             {!loading && customers.length === 0 && (
               <tr>
-                <td colSpan={isManager ? 7 : 6} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={isManager ? 8 : 7} className="px-4 py-6 text-center text-slate-500">
                   Ingen kunder funnet.
                 </td>
               </tr>
@@ -252,11 +261,13 @@ export default function CustomerSearch({
   );
 }
 
-function MobileFact({ label, value }: { label: string; value: string }) {
+function MobileFact({ label, value, phone }: { label: string; value: string; phone?: string | null }) {
   return (
     <div className="rounded-xl border border-[#d8c9b0] bg-[#fbf7ed] p-2.5">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>
-      <p className="mt-1 truncate font-semibold text-[#2b2118]">{value}</p>
+      <p className="mt-1 truncate font-semibold text-[#2b2118]">
+        {phone ? <PhoneLink phone={phone} className="hover:text-brand-700 hover:underline">{value}</PhoneLink> : value}
+      </p>
     </div>
   );
 }

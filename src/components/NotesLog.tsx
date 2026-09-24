@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import { formatCurrency, formatTime } from "@/lib/format";
 import Icon, { type IconName } from "./Icon";
+import { PhoneLink } from "./CallButton";
 
 const NOTE_TYPE_LABELS: Record<NoteType, string> = {
   call: "Samtale",
@@ -45,6 +46,7 @@ interface TimelineItem {
   authorId?: string | null;
   noteType?: NoteType;
   details?: string;
+  phone?: string | null;
   manual?: boolean;
 }
 
@@ -153,7 +155,7 @@ export default function NotesLog({
       const at = call.ended_at ?? call.started_at ?? call.created_at;
       const status = call.status === "answered" || call.status === "ended" ? "Besvart" : call.status === "missed" ? "Ubesvart" : "Utgående";
       const duration = call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)} min ${call.duration_seconds % 60} sek` : null;
-      items.push({ id: `call-${call.id}`, type: "call", at, title: "Samtale", text: `${status} samtale`, details: [call.phone_number, duration].filter(Boolean).join(" · "), authorId: call.agent_id });
+      items.push({ id: `call-${call.id}`, type: "call", at, title: "Samtale", text: `${status} samtale`, details: duration ?? undefined, phone: call.phone_number, authorId: call.agent_id });
     }
 
     for (const appointment of appointments) {
@@ -295,7 +297,13 @@ function ActivityCard({ item, author }: { item: TimelineItem; author: string }) 
         </div>
         <h3 className="mt-1 text-sm font-bold text-[#2b2118]">{item.title}</h3>
         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[#564c42]">{item.text}</p>
-        {item.details && <p className="mt-2 border-t border-black/5 pt-2 text-xs text-[#81766b]">{item.details}</p>}
+        {(item.phone || item.details) && (
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-black/5 pt-2 text-xs text-[#81766b]">
+            {item.phone && <PhoneLink phone={item.phone} className="font-semibold hover:text-[#087a4b] hover:underline">{item.phone}</PhoneLink>}
+            {item.phone && item.details && <span>·</span>}
+            {item.details && <span>{item.details}</span>}
+          </p>
+        )}
         <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9a9187]">{author}</p>
       </div>
       <span className={`relative z-10 mt-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-[#fbfaf7] ${style.iconClass}`}><Icon name={style.icon} size={17} /></span>

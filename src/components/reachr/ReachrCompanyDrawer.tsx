@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReachrCompany, ReachrLead } from "@/lib/reachr";
 import { formatMoney } from "@/lib/reachr";
+import CallButton, { PhoneLink } from "../CallButton";
 
 type Props = {
   company: ReachrCompany | ReachrLead;
@@ -230,7 +231,7 @@ export default function ReachrCompanyDrawer({
                 <ContactRow
                   label={contactLabel(active)}
                   value={active.phone}
-                  href={active.phone ? `tel:${active.phone}` : null}
+                  phone
                 />
                 <ContactRow label="E-post" value={active.email} href={active.email ? `mailto:${active.email}` : null} />
                 <ContactRow label="Nettside" value={active.website} href={active.website} />
@@ -415,11 +416,28 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ContactRow({ label, value, href }: { label: string; value: string | null | undefined; href: string | null | undefined }) {
+function ContactRow({
+  label,
+  value,
+  href,
+  phone = false,
+}: {
+  label: string;
+  value: string | null | undefined;
+  href?: string | null | undefined;
+  phone?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#e4d3b8] bg-[#fffaf0] p-3">
       <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#8b7357]">{label}</span>
-      {value && href ? (
+      {phone ? (
+        <span className="flex flex-wrap items-center justify-end gap-2">
+          <PhoneLink phone={value} className="truncate text-sm font-semibold text-[#2b2118] underline decoration-[#09fe94] decoration-2 underline-offset-4">
+            {value || "Ikke funnet"}
+          </PhoneLink>
+          <CallButton phone={value} />
+        </span>
+      ) : value && href ? (
         <a className="truncate text-sm font-semibold text-[#2b2118] underline decoration-[#09fe94] decoration-2 underline-offset-4" href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
           {value}
         </a>

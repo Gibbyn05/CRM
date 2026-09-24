@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Customer } from "@/lib/types";
+import CallButton, { PhoneLink } from "./CallButton";
 
 // Redigerbare kontaktfakta på kundekortet («Om kunden»). Lar deg fylle inn
 // e-post, telefon, kontaktperson og adresse manuelt – f.eks. når kunden mangler
@@ -181,7 +182,7 @@ export default function CustomerContactInfo({
       ) : (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
           <Fact label="Kontaktperson" value={values.contact_name} />
-          <Fact label="Telefon" value={values.phone} />
+          <Fact label="Telefon" value={values.phone} phone />
           <Fact label="E-post" value={values.email} breakAll wide />
           <Fact label="Adresse" value={fullAddress || null} wide />
           <Fact label="Org.nr" value={orgNumberDisplay} />
@@ -225,11 +226,13 @@ function Fact({
   value,
   breakAll = false,
   wide = false,
+  phone = false,
 }: {
   label: string;
   value: string | null;
   breakAll?: boolean;
   wide?: boolean;
+  phone?: boolean;
 }) {
   return (
     <div className={`min-w-0 ${wide ? "col-span-2" : ""}`}>
@@ -239,7 +242,16 @@ function Fact({
           breakAll ? "break-all" : "break-words"
         }`}
       >
-        {value ?? <span className="text-slate-300">–</span>}
+        {phone ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <PhoneLink phone={value} className="hover:text-brand-700 hover:underline">
+              {value ?? "–"}
+            </PhoneLink>
+            <CallButton phone={value} />
+          </span>
+        ) : (
+          value ?? <span className="text-slate-300">–</span>
+        )}
       </dd>
     </div>
   );

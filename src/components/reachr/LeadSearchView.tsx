@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ReachrCompany, CompanySignal } from "@/lib/reachr";
 import {
   INDUSTRY_FILTERS,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/reachr";
 import ReachrCompanyDrawer from "./ReachrCompanyDrawer";
 import { createClient } from "@/lib/supabase/client";
+import CallButton, { PhoneLink } from "../CallButton";
 
 type SearchResponse = {
   results: ReachrCompany[];
@@ -434,9 +435,12 @@ export default function LeadSearchView() {
                   </div>
                 </div>
                 {company.phone ? (
-                  <span className="shrink-0 rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#24513b]">
-                    Ringbar
-                  </span>
+                  <CallButton
+                    phone={company.phone}
+                    label="Ring"
+                    onClick={(event) => event.stopPropagation()}
+                    className="shrink-0 border-[#09fe94]/40 bg-[#09fe94]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#24513b]"
+                  />
                 ) : (
                   <button
                     type="button"
@@ -455,7 +459,14 @@ export default function LeadSearchView() {
                 <Mini label="Sted" value={company.address.city ?? "Norge"} />
                 <Mini label="Ansatte" value={company.employees?.toString() ?? "Ukjent"} />
                 <Mini label="Bransje" value={company.industry_code ?? "Ukjent"} />
-                <Mini label="Kontakt" value={[company.phone && formatPhone(company.phone), company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet"} />
+                <Mini
+                  label="Kontakt"
+                  value={company.phone ? (
+                    <PhoneLink phone={company.phone} onClick={(event) => event.stopPropagation()} className="hover:text-[#0d7a4b] hover:underline">
+                      {formatPhone(company.phone)}
+                    </PhoneLink>
+                  ) : ([company.email && "Mail", company.website && "Web"].filter(Boolean).join(" · ") || "Ikke funnet")}
+                />
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <span className="text-xs text-[#8b7357]">
@@ -560,13 +571,13 @@ export default function LeadSearchView() {
                   <td className="px-5 py-4 text-sm text-[#6f5a43]">
                     <div className="space-y-1">
                       {company.phone ? (
-                        <a
-                          href={`tel:${company.phone}`}
+                        <PhoneLink
+                          phone={company.phone}
                           onClick={(event) => event.stopPropagation()}
                           className="inline-flex rounded-full border border-[#09fe94]/40 bg-[#09fe94]/15 px-3 py-1 text-xs font-black text-[#24513b]"
                         >
                           Ringbar: {formatPhone(company.phone)}
-                        </a>
+                        </PhoneLink>
                       ) : (
                         <button
                           type="button"
@@ -746,7 +757,7 @@ function CrmBadge({ kind }: { kind: "customer" | "lead" }) {
   );
 }
 
-function Mini({ label, value }: { label: string; value: string }) {
+function Mini({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-[#eadcc5] bg-[#fff8ea] p-3">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7357]">{label}</p>

@@ -78,6 +78,7 @@ export function normalizePhoneNumber(raw: string | null | undefined): string | n
   if (/^\+\d{8,15}$/.test(trimmed)) return trimmed;
   if (/^00\d{8,15}$/.test(trimmed)) return `+${trimmed.slice(2)}`;
   if (/^\d{8}$/.test(trimmed)) return `+47${trimmed}`; // norsk nummer uten landkode
+  if (/^47\d{8}$/.test(trimmed)) return `+${trimmed}`; // norsk nummer med landkode uten +
   return null;
 }
 
