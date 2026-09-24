@@ -82,6 +82,32 @@ export function normalizePhoneNumber(raw: string | null | undefined): string | n
   return null;
 }
 
+// Henter de åtte siste sifrene som identifiserer et norsk abonnementsnummer.
+// Brukes bare til oppslag, slik at lagrede formater med mellomrom og/eller +47
+// kan matches mot nummeret telefoni-løsningen sender inn.
+export function phoneLookupTail(raw: string | null | undefined): string | null {
+  const normalized = normalizePhoneNumber(raw);
+  if (!normalized) return null;
+
+  const digits = normalized.replace(/\D/g, "");
+  return digits.length >= 8 ? digits.slice(-8) : null;
+}
+
+export function phoneNumbersMatch(
+  first: string | null | undefined,
+  second: string | null | undefined,
+): boolean {
+  const normalizedFirst = normalizePhoneNumber(first);
+  const normalizedSecond = normalizePhoneNumber(second);
+
+  if (!normalizedFirst || !normalizedSecond) return false;
+  if (normalizedFirst === normalizedSecond) return true;
+
+  const firstTail = phoneLookupTail(normalizedFirst);
+  const secondTail = phoneLookupTail(normalizedSecond);
+  return Boolean(firstTail && secondTail && firstTail === secondTail);
+}
+
 // Validerer norsk org.nr med MOD11-kontrollsiffer.
 export function isValidOrgNumber(org: string): boolean {
   if (!/^\d{9}$/.test(org)) return false;

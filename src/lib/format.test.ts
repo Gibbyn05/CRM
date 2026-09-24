@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePhoneNumber } from "@/lib/format";
+import { normalizePhoneNumber, phoneLookupTail, phoneNumbersMatch } from "@/lib/format";
 
 describe("normalizePhoneNumber", () => {
   it("normaliserer norske nummer til tel-vennlig E.164-format", () => {
@@ -13,5 +13,12 @@ describe("normalizePhoneNumber", () => {
     expect(normalizePhoneNumber("+46 70 123 45 67")).toBe("+46701234567");
     expect(normalizePhoneNumber("12345")).toBeNull();
     expect(normalizePhoneNumber(null)).toBeNull();
+  });
+
+  it("matcher telefonnummer på tvers av vanlige norske formater", () => {
+    expect(phoneLookupTail("+47 912 34 567")).toBe("91234567");
+    expect(phoneNumbersMatch("912 34 567", "47 912 34 567")).toBe(true);
+    expect(phoneNumbersMatch("+47 912 34 567", "91234568")).toBe(false);
+    expect(phoneNumbersMatch("ugyldig", "+47 912 34 567")).toBe(false);
   });
 });
