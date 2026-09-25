@@ -8,6 +8,7 @@ import type { Profile } from "@/lib/types";
 import Avatar from "./Avatar";
 import DagsavisModal from "./DagsavisModal";
 import Icon, { type IconName } from "./Icon";
+import MediaNorgeLogo from "./MediaNorgeLogo";
 import NotificationBell from "./NotificationBell";
 import SidebarMenuSettings from "./SidebarMenuSettings";
 import {
@@ -209,7 +210,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#d8c9b0] bg-[#fffaf0]/92 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur lg:hidden">
         <span className="flex items-center gap-2 font-display text-xl font-bold text-[#2b2118]">
           <BrandMark />
-          Salgssentral
+          Media Norge CRM
         </span>
         <div className="flex items-center gap-1">
           <Link
@@ -247,7 +248,7 @@ export default function Sidebar({ profile }: { profile: Profile | null }) {
           <span className={`flex items-center gap-2.5 ${hide}`}>
             <BrandMark />
             <div className="leading-tight">
-              <p className="font-display text-xl font-bold leading-none text-[#fffaf0]">Salgssentral</p>
+              <p className="font-display text-xl font-bold leading-none text-[#fffaf0]">Media Norge CRM</p>
               <p className="mt-1 text-xs text-[#d9bd8f]/70">
                 {isManager ? "Salgssjef" : "Selger"}
               </p>
@@ -444,8 +445,8 @@ function RailTooltip({ label }: { label: string }) {
 
 function BrandMark() {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#09fe94] text-[#171717] shadow-[0_10px_28px_rgba(9,254,148,0.18)]">
-      <Icon name="live" size={20} strokeWidth={2.25} />
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#fffaf0] p-0.5 shadow-[0_10px_28px_rgba(9,254,148,0.18)]">
+      <MediaNorgeLogo className="h-full w-full object-contain" priority />
     </span>
   );
 }

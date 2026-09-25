@@ -228,7 +228,7 @@ export default function OrganizationForm({
             value={form.contract_footer}
             onChange={(e) => set("contract_footer", e.target.value)}
             rows={2}
-            placeholder="Firma AS · Org.nr 000 000 000 · Denne e-posten er sendt fra Salgssentral."
+            placeholder="Media Norge · Org.nr 000 000 000 · Denne e-posten er sendt fra Media Norge."
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
         </Field>

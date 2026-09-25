@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import MediaNorgeLogo from "@/components/MediaNorgeLogo";
 
 type Step = "email" | "code";
 const OTP_LENGTH = 8;
@@ -63,10 +64,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-brand-900 to-slate-900 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-pop">
         <div className="mb-6 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
+          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-[#fffaf0] p-1 shadow-sm">
+            <MediaNorgeLogo className="h-full w-full object-contain" priority />
           </span>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Media Norge CRM</h1>

@@ -87,7 +87,7 @@ describe("verifyResendWebhookSignature", () => {
 
 describe("extractDomain", () => {
   it("henter domenet fra en 'Navn <adresse@domene>'-streng", () => {
-    expect(extractDomain("Salgssentral <noreply@reachr.no>")).toBe("reachr.no");
+    expect(extractDomain("Media Norge <noreply@reachr.no>")).toBe("reachr.no");
   });
 
   it("henter domenet fra en ren adresse", () => {
@@ -95,6 +95,6 @@ describe("extractDomain", () => {
   });
 
   it("returnerer null når det ikke finnes en adresse", () => {
-    expect(extractDomain("Salgssentral")).toBeNull();
+    expect(extractDomain("Media Norge")).toBeNull();
   });
 });

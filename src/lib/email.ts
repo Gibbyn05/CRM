@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 //
 // Env:
 //   RESEND_API_KEY  – API-nøkkel fra Resend (server-only, aldri NEXT_PUBLIC).
-//   EMAIL_FROM      – avsender, f.eks. "Salgssentral <noreply@reachr.no>".
+//   EMAIL_FROM      – avsender, f.eks. "Media Norge <salg@media-norge.com>".
 
 export interface SendEmailInput {
   to: string;
@@ -25,7 +25,7 @@ export interface SendEmailResult {
   error?: string;
 }
 
-const DEFAULT_FROM = "Salgssentral <onboarding@resend.dev>";
+const DEFAULT_FROM = "Media Norge <onboarding@resend.dev>";
 
 // Domenet i DEFAULT_FROM (Resends delte test-domene) har ingen egen
 // avsender-reputation og bør ALDRI brukes i produksjon — se domene-status-
@@ -317,7 +317,7 @@ export function contractEmailHtml(opts: {
 }): string {
   const { customerName, signUrl, senderName, bodyText, orgName, logoUrl, footer } =
     opts;
-  const brand = orgName?.trim() || "Salgssentral";
+  const brand = orgName?.trim() || "Media Norge";
   const body = bodyText?.trim()
     ? escapeHtml(bodyText.trim()).replace(/\n/g, "<br />")
     : "Vi har sendt deg et tilbud/kontrakt for gjennomgang og signering. Klikk på knappen under for å åpne dokumentet.";

@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     body.channel === "email"
       ? await sendTrackedEmail(createAdminClient(), {
           to: body.recipient,
-          subject: `Tilbud fra ${brandName ?? "Salgssentral"}${customer?.name ? " – " + customer.name : ""}`,
+          subject: `Tilbud fra ${brandName ?? "Media Norge"}${customer?.name ? " – " + customer.name : ""}`,
           html: contractEmailHtml({
             customerName: customer?.name ?? "der",
             signUrl,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
           }\n\nÅpne og signer her: ${signUrl}`,
           replyTo: orgRow?.email_reply_to || undefined,
           from: orgRow?.email_from_address
-            ? `${orgRow.email_from_name?.trim() || brandName || "Salgssentral"} <${orgRow.email_from_address}>`
+            ? `${orgRow.email_from_name?.trim() || brandName || "Media Norge"} <${orgRow.email_from_address}>`
             : undefined,
         }, {
           category: "contract",

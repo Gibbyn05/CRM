@@ -12,13 +12,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Salgssentral – CRM",
-  description: "Internt sales-dashboard for callcenter",
+  title: "Media Norge CRM",
+  description: "Internt CRM for Media Norge",
   // Gjør at appen kan legges til på hjemskjerm (iOS) og oppfører seg som app.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Salgssentral",
+    title: "Media Norge CRM",
   },
   // Next sin Metadata-API har ikke et eget felt for denne ennå (kun Apple-
   // varianten over) — den ikke-prefiksede taggen er nå standarden på tvers

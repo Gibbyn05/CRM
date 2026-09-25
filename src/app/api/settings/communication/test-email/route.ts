@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   const fromAddress = org?.email_from_address?.trim();
   const from = fromAddress
-    ? `${org?.email_from_name?.trim() || "Salgssentral"} <${fromAddress}>`
+    ? `${org?.email_from_name?.trim() || "Media Norge"} <${fromAddress}>`
     : undefined; // faller tilbake til EMAIL_FROM/DEFAULT_FROM i sendEmail()
 
   const domain = fromAddress ? extractDomain(fromAddress) : null;

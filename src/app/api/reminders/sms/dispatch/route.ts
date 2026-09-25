@@ -59,7 +59,7 @@ async function dispatchDueReminders(admin: ReturnType<typeof createAdminClient>)
     .eq("id", 1)
     .maybeSingle<Organization>();
   const timeZone = org?.timezone || "Europe/Oslo";
-  const orgName = org?.name?.trim() || "Salgssentral";
+  const orgName = org?.name?.trim() || "Media Norge";
 
   for (const row of (due as DueReminderRow[] | null) ?? []) {
     results.processed++;

@@ -271,7 +271,7 @@ export default function TvBoard() {
     >
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold">Salgssentral – Live</h1>
+          <h1 className="text-4xl font-bold">Media Norge CRM · Live</h1>
           <p className="text-xl text-slate-400">
             {inCall} i samtale nå · {agents.length} aktive brukere
           </p>
