@@ -28,6 +28,7 @@ export type IconName =
   | "chevron-right"
   | "menu"
   | "upload"
+  | "download"
   | "clock"
   | "trash"
   | "mic"
@@ -169,6 +170,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <path d="M17 8l-5-5-5 5M12 3v12" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5 5 5-5M12 15V3" />
     </>
   ),
   clock: (

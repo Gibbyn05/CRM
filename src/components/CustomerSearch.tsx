@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatOrgNumber, timeAgo } from "@/lib/format";
 import NewCustomerButton from "./NewCustomerButton";
+import CustomerImportExport from "./CustomerImportExport";
 import Icon from "./Icon";
 import { PhoneLink } from "./CallButton";
 import { dedupeCustomers } from "@/lib/dedupe";
@@ -51,6 +52,7 @@ export default function CustomerSearch({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const PAGE_SIZE = 50;
 
   // Bygger spørringen for et gitt vindu (paginering via range). Henter kun de
@@ -66,7 +68,7 @@ export default function CustomerSearch({
         p_limit: PAGE_SIZE,
       });
     },
-    [query, sort, ascending, tab, supabase],
+    [query, sort, ascending, tab, supabase, reloadToken],
   );
 
   // Første side (debounced) når søk/sortering/fane endres.
@@ -157,6 +159,7 @@ export default function CustomerSearch({
           <span aria-hidden="true" className="text-base">{ascending ? "↑" : "↓"}</span>
           {ascending ? "Stigende" : "Synkende"}
         </button>
+        {isManager && <CustomerImportExport onImported={() => setReloadToken((value) => value + 1)} />}
         {canCreate && <NewCustomerButton />}
       </div>
 
