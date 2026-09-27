@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 type ExportCustomer = {
+  id: string;
   name: string;
   org_number: string | null;
   contact_name: string | null;
@@ -16,6 +17,8 @@ type ExportCustomer = {
   customer_since: string | null;
   created_at: string;
 };
+
+type VisibleCustomer = { id: string };
 
 function csvValue(value: string | null): string {
   let safe = value ?? "";
@@ -31,22 +34,47 @@ function fileDate(): string {
     .replace(/-/g, "");
 }
 
-async function getAllCustomers(
+// Eksporten starter med nøyaktig samme RPC som Kundesiden bruker. Det gjør at
+// gamle råposter som ikke vises under «Kunder» eller «Potensielle kunder»,
+// heller ikke kan havne i CSV-filen.
+async function getVisibleCustomerIds(
   supabase: ReturnType<typeof createClient>,
+): Promise<string[]> {
+  const ids = new Set<string>();
+  const pageSize = 100;
+  for (const kind of ["kunder", "potensielle"] as const) {
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase.rpc("get_customers_sorted", {
+        p_query: "",
+        p_kind: kind,
+        p_sort: "name",
+        p_ascending: true,
+        p_offset: offset,
+        p_limit: pageSize,
+      });
+      if (error) throw error;
+      const page = (data ?? []) as VisibleCustomer[];
+      page.forEach((customer) => ids.add(customer.id));
+      if (page.length < pageSize) break;
+    }
+  }
+  return [...ids];
+}
+
+async function getExportCustomers(
+  supabase: ReturnType<typeof createClient>,
+  ids: string[],
 ): Promise<ExportCustomer[]> {
   const customers: ExportCustomer[] = [];
-  const pageSize = 1_000;
-  for (let from = 0; ; from += pageSize) {
+  for (let offset = 0; offset < ids.length; offset += 500) {
     const { data, error } = await supabase
       .from("customers")
-      .select("name, org_number, contact_name, email, phone, address, postal_code, city, customer_since, created_at")
-      .order("name", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .select("id, name, org_number, contact_name, email, phone, address, postal_code, city, customer_since, created_at")
+      .in("id", ids.slice(offset, offset + 500));
     if (error) throw error;
-    const page = (data ?? []) as ExportCustomer[];
-    customers.push(...page);
-    if (page.length < pageSize) return customers;
+    customers.push(...((data ?? []) as ExportCustomer[]));
   }
+  return customers.sort((first, second) => first.name.localeCompare(second.name, "nb-NO"));
 }
 
 export async function GET(req: NextRequest) {
@@ -75,7 +103,8 @@ export async function GET(req: NextRequest) {
 
   let customers: ExportCustomer[];
   try {
-    customers = await getAllCustomers(supabase);
+    const visibleIds = await getVisibleCustomerIds(supabase);
+    customers = await getExportCustomers(supabase, visibleIds);
   } catch {
     return NextResponse.json({ error: "Kunne ikke hente kundelisten." }, { status: 500 });
   }
