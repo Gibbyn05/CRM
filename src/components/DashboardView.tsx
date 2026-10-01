@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Reminder } from "@/lib/types";
@@ -11,9 +11,10 @@ import {
   type AgentStats,
   type CallBucket,
 } from "@/lib/dashboard";
-import { formatCurrency, timeAgo } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import Icon, { type IconName } from "./Icon";
-import Avatar from "./Avatar";
+import ActivityFeed from "./ActivityFeed";
+import type { ActivityFeedItem, ActivityType } from "@/lib/activity-feed";
 import DashboardWidgetSettings from "./DashboardWidgetSettings";
 import {
   DASHBOARD_WIDGET_COLORS,
@@ -23,20 +24,7 @@ import {
 } from "@/lib/dashboard-widgets";
 import { dedupeDeals } from "@/lib/dedupe";
 
-type ActivityType = "call" | "email" | "meeting" | "note" | "task" | "status" | "offer" | "signature" | "payment";
-
-interface RecentActivity {
-  activity_id: string;
-  activity_type: ActivityType;
-  customer_id: string;
-  customer_name: string;
-  agent_id: string | null;
-  agent_name: string;
-  title: string;
-  summary: string;
-  occurred_at: string;
-  details: Record<string, string>;
-}
+type RecentActivity = ActivityFeedItem;
 
 type AgreementStatus = "tilbud_sendt" | "signert" | "betalt";
 
@@ -129,11 +117,15 @@ export default function DashboardView({
   firstName: string;
   initialWidgets: DashboardWidgetPreference[];
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [period, setPeriod] = useState<Period>("dag");
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [buckets, setBuckets] = useState<CallBucket[]>([]);
   const [recent, setRecent] = useState<RecentActivity[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState("");
+  const recentRequestId = useRef(0);
+  const [activityExpanded, setActivityExpanded] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<RecentActivity | null>(null);
   const [agreements, setAgreements] = useState<ActiveAgreement[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -154,11 +146,36 @@ export default function DashboardView({
     periodRef.current = period;
   }, [period]);
 
+  const loadRecent = useCallback(async () => {
+    const requestId = ++recentRequestId.current;
+    const { data, error } = await supabase.rpc("get_recent_customer_activities", { p_limit: 40 });
+    if (requestId !== recentRequestId.current) return;
+    if (error) {
+      setRecentError("Kunne ikke oppdatere aktiviteten. Prøv igjen om litt.");
+      setRecentLoading(false);
+      return;
+    }
+    const activities = (data as RecentActivity[] | null) ?? [];
+    const ids = [...new Set(activities.map((activity) => activity.agent_id).filter((id): id is string => Boolean(id)))];
+    const avatars = new Map<string, string | null>();
+    if (ids.length) {
+      const { data: profiles } = await supabase.from("profiles").select("id, avatar_url").in("id", ids);
+      if (requestId !== recentRequestId.current) return;
+      for (const profile of profiles ?? []) avatars.set(profile.id, profile.avatar_url);
+    }
+    setRecentError("");
+    setRecent(activities.map((activity) => ({
+      ...activity,
+      agent_avatar_url: activity.agent_id ? avatars.get(activity.agent_id) ?? null : null,
+    })));
+    setRecentLoading(false);
+  }, [supabase]);
+
   const reload = useCallback(async () => {
     const p = periodRef.current;
     const [start, end] = periodRange(p);
     const trunc = PERIOD_TRUNC[p];
-    const [statsRes, bucketRes, recentRes] = await Promise.all([
+    const [statsRes, bucketRes] = await Promise.all([
       supabase.rpc("get_agent_stats", {
         p_agent_id: null,
         p_start: start.toISOString(),
@@ -170,7 +187,6 @@ export default function DashboardView({
         p_end: end.toISOString(),
         p_trunc: trunc,
       }),
-      supabase.rpc("get_recent_customer_activities", { p_limit: 12 }),
     ]);
 
     let nextStats = (statsRes.data as AgentStats[] | null)?.[0] ?? null;
@@ -229,7 +245,6 @@ export default function DashboardView({
     };
     setStats(s);
     setBuckets(nextBuckets ?? []);
-    setRecent((recentRes.data as RecentActivity[] | null) ?? []);
     setLoading(false);
   }, [supabase]);
 
@@ -237,6 +252,19 @@ export default function DashboardView({
     setLoading(true);
     reload();
   }, [period, reload]);
+
+  useEffect(() => {
+    loadRecent();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") loadRecent();
+    }, 15000);
+    const onFocus = () => loadRecent();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadRecent]);
 
   // Aktive avtaler + egne oppgaver hentes én gang (uavhengig av periode).
   useEffect(() => {
@@ -283,18 +311,20 @@ export default function DashboardView({
     });
   }, [supabase, userId]);
 
-  // Realtime for samtaler.
+  // Umiddelbar oppdatering for publiserte aktivitetstabeller. Periodisk
+  // oppfriskning over dekker også hendelser som ikke er i Realtime-publikasjonen.
   useEffect(() => {
-    const debounced = (() => {
-      let t: ReturnType<typeof setTimeout> | null = null;
-      return () => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => reload(), 400);
-      };
-    })();
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => {
+        reload();
+        loadRecent();
+      }, 400);
+    };
 
     const channel = supabase
-      .channel("dashboard_calls")
+      .channel("dashboard_activity")
       .on(
         "postgres_changes",
         isManager
@@ -305,14 +335,18 @@ export default function DashboardView({
               table: "call_logs",
               filter: `agent_id=eq.${userId}`,
             },
-        () => debounced(),
+        refresh,
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "deals" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reminders" }, refresh)
       .subscribe();
 
     return () => {
+      if (pending) clearTimeout(pending);
       supabase.removeChannel(channel);
     };
-  }, [supabase, isManager, userId, reload]);
+  }, [supabase, isManager, userId, reload, loadRecent]);
 
   async function addTask(title: string) {
     const t = title.trim();
@@ -367,6 +401,15 @@ export default function DashboardView({
       if (widgetSaveTimer.current) clearTimeout(widgetSaveTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!activityExpanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActivityExpanded(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activityExpanded]);
 
   const widgetById = Object.fromEntries(widgets.map((widget) => [widget.id, widget])) as Record<
     DashboardWidgetId,
@@ -588,70 +631,36 @@ export default function DashboardView({
       </DashboardWidgetFrame>
 
       {/* Siste aktivitet */}
-      <DashboardWidgetFrame preference={widgetById.recent} order={widgetOrder.recent}>
-          <div className="card overflow-hidden">
-            <div className="flex items-start justify-between px-6 pb-3 pt-5">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-xl font-bold leading-none text-[#2b2118]">Sanntidsaktivitet</h2>
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[#6b6660]">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#09fe94]" />
-                    Live
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#6b6660]">{recent.length} aktiviteter</p>
-              </div>
-              <span className="flex h-9 w-9 items-center justify-center text-[#6b6660]" aria-hidden="true">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
-                  <path d="m3 8 6-6M21 8l-6-6M3 16l6 6M21 16l-6 6" />
-                </svg>
-              </span>
-            </div>
-            <ul className="thin-scroll mx-2 mb-2 h-[440px] overflow-y-auto border-t border-[#d8c9b0]/70 px-5 pb-8 pt-3 sm:px-8">
-              {recent.map((activity, index) => {
-                const showCustomer = index === 0 || recent[index - 1]?.customer_id !== activity.customer_id;
-                const note = activity.activity_type === "note";
-                return (
-                  <li key={activity.activity_id} className="list-none">
-                    {showCustomer && (
-                      <Link href={`/customers/${activity.customer_id}`} className="mb-3 mt-3 inline-flex text-sm text-[#6b6660] hover:text-[#008f52] hover:underline">
-                        Kunde <span className="ml-1 font-semibold text-[#008f52]">{activity.customer_name}</span>
-                      </Link>
-                    )}
-                    {note ? (
-                      <button type="button" onClick={() => setSelectedActivity(activity)} className="group mb-5 flex max-w-[760px] items-end gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#09c977]">
-                        <Avatar name={activity.agent_name || "Ukjent"} size={42} />
-                        <span>
-                          <span className="block rounded-2xl rounded-bl-sm border border-[#d8c9b0] bg-[#fbf7ed] px-5 py-3.5 text-[15px] leading-6 text-[#2b2118] shadow-sm transition-shadow group-hover:shadow-md">
-                            <span className="block font-semibold">{activity.title}</span>
-                            {activity.summary}
-                          </span>
-                          <span className="mt-1.5 block text-xs text-[#8d806e]">{activity.agent_name} · {timeAgo(activity.occurred_at)}</span>
-                        </span>
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => setSelectedActivity(activity)} className="group mb-5 ml-12 flex w-[calc(100%-3rem)] items-start gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#09c977]">
-                        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${activityStyle(activity.activity_type).icon}`}><Icon name={activityStyle(activity.activity_type).iconName} size={14} /></span>
-                        <span className="min-w-0 text-sm leading-6 text-[#4f463d]">
-                          {isManager && <strong className="font-semibold text-[#2b2118]">{activity.agent_name} </strong>}
-                          {activity.summary}
-                          <strong className="ml-1 font-semibold text-[#008f52]">{activity.customer_name}</strong>
-                          <span className="ml-1.5 whitespace-nowrap text-[#8d806e]">{timeAgo(activity.occurred_at)}</span>
-                        </span>
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-              {!loading && recent.length === 0 && (
-                <li className="px-5 py-28 text-center text-sm text-[#6b6660]">
-                  Ingen kundeaktivitet ennå.
-                </li>
-              )}
-            </ul>
-          </div>
+      <DashboardWidgetFrame preference={widgetById.recent} order={widgetOrder.recent} plain>
+        <ActivityFeed
+          activities={recent}
+          loading={recentLoading}
+          error={recentError}
+          onSelect={setSelectedActivity}
+          onExpand={() => setActivityExpanded(true)}
+        />
       </DashboardWidgetFrame>
+
+      {activityExpanded && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Utvidet sanntidsaktivitet"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#171d19]/55 p-3 backdrop-blur-sm sm:p-8"
+          onClick={() => setActivityExpanded(false)}
+        >
+          <div className="w-full max-w-4xl" onClick={(event) => event.stopPropagation()}>
+            <ActivityFeed
+              activities={recent}
+              loading={recentLoading}
+              error={recentError}
+              expanded
+              onSelect={setSelectedActivity}
+              onExpand={() => setActivityExpanded(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {selectedActivity && (
         <ActivityDetailModal
@@ -832,9 +841,9 @@ function ActivityDetailModal({
                 {occurredAt.toLocaleDateString("nb-NO")} kl. {occurredAt.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}
               </dd>
             </div>
-            {(isManager || activity.agent_name !== "Ukjent") && (
+            {(isManager || activity.agent_name !== "Ukjent") && activity.agent_id && (
               <div>
-                <dt className="label-eyebrow">Selger</dt>
+                <dt className="label-eyebrow">{["email", "meeting", "task", "offer"].includes(activity.activity_type) ? "Tilknyttet profil" : "Registrert av"}</dt>
                 <dd className="mt-1 text-sm font-semibold text-[#2b2118]">{activity.agent_name}</dd>
               </div>
             )}
@@ -901,18 +910,22 @@ function AgreementProgress({ status, overdue }: { status: AgreementStatus; overd
 function DashboardWidgetFrame({
   preference,
   order,
+  plain = false,
   children,
 }: {
   preference: DashboardWidgetPreference;
   order: number;
+  plain?: boolean;
   children: React.ReactNode;
 }) {
   if (!preference.visible) return null;
   const color = DASHBOARD_WIDGET_COLORS[preference.color];
   return (
     <section
-      className="rounded-[2rem] border p-2 shadow-[0_16px_48px_rgba(61,44,24,0.06)] transition-colors duration-300 [&>.card]:!border-0 [&>.card]:!bg-transparent [&>.card]:!shadow-none"
-      style={{ order, backgroundColor: color.background, borderColor: color.border }}
+      className={plain
+        ? "min-w-0"
+        : "rounded-[2rem] border p-2 shadow-[0_16px_48px_rgba(61,44,24,0.06)] transition-colors duration-300 [&>.card]:!border-0 [&>.card]:!bg-transparent [&>.card]:!shadow-none"}
+      style={plain ? { order } : { order, backgroundColor: color.background, borderColor: color.border }}
       data-widget={preference.id}
     >
       {children}
