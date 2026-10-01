@@ -3,6 +3,7 @@
 import type { MouseEventHandler, ReactNode } from "react";
 import { normalizePhoneNumber } from "@/lib/format";
 import Icon from "./Icon";
+import { useBriaControls } from "./BriaControls";
 
 type PhoneLinkProps = {
   phone: string | null | undefined;
@@ -12,13 +13,17 @@ type PhoneLinkProps = {
 };
 
 export function PhoneLink({ phone, children, className = "", onClick }: PhoneLinkProps) {
+  const bria = useBriaControls();
   const normalized = normalizePhoneNumber(phone);
   const content = children ?? phone;
 
   if (!normalized) return <span className={className}>{content}</span>;
 
   return (
-    <a href={`tel:${normalized}`} className={className} onClick={onClick} title={`Ring ${phone}`}>
+    <a href={`tel:${normalized}`} className={className} onClick={(event) => {
+      onClick?.(event);
+      if (!event.defaultPrevented && bria?.dial(normalized)) event.preventDefault();
+    }} title={`Ring ${phone}`}>
       {content}
     </a>
   );
@@ -35,6 +40,7 @@ export default function CallButton({
   className?: string;
   onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
+  const bria = useBriaControls();
   const normalized = normalizePhoneNumber(phone);
   const baseClass = `inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${className}`;
 
@@ -56,7 +62,10 @@ export default function CallButton({
   return (
     <a
       href={`tel:${normalized}`}
-      onClick={onClick}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented && bria?.dial(normalized)) event.preventDefault();
+      }}
       title={`Ring ${phone}`}
       className={`${baseClass} border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-300 hover:bg-brand-100`}
     >

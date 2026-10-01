@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AgentState, AgentStatus } from "@/lib/types";
 import Icon, { type IconName } from "./Icon";
+import { BriaControls } from "./BriaControls";
 
 // Fast bunnlinje med tre statusknapper. Én er alltid aktiv (nåværende status).
 // Reflekterer og setter innlogget brukers egen status (agent_states), og holdes
@@ -134,6 +135,7 @@ export default function StatusBar() {
             })}
           </div>
         </div>
+        <BriaControls />
       </div>
     </div>
   );
